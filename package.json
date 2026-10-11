@@ -1,0 +1,17 @@
+{
+  "name": "hayi-shop-frontend",
+  "private": true,
+  "packageManager": "pnpm@12.4.2",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "generate:api": "pnpm --filter @hayi/api-client generate"
+  },
+  "devDependencies": {
+    "turbo": "2.11.7",
+    "typescript": "5.9.3"
+  }
+}
