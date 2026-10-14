@@ -44,6 +44,8 @@ pnpm dev            # customer-web :3000, backoffice-web :5173
 
 ## Workflow
 
+- **Start every ticket with `/ticket <n>`** (or `/ticket` to pick the next Ready one); review PRs with `/ticket review <pr>`, ideally in a fresh session. The skill encodes the whole flow: context → gate checks → plan (wait for approval) → TDD → verify → PR → In Review. Board operations go through `scripts/board.py`.
+
 - Tracker: GitHub Issues + Project "HaYi Shop" — see [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
 - **WIP ≤ 3 In Progress items across the project.** Check before starting a ticket.
 - Definition of Done: canonical `IMPLEMENTATION-PLAN.md` §1.1.
