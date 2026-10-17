@@ -4,7 +4,9 @@ import { Card, StatusBadge } from "@hayi/ui";
 export function App() {
   return (
     <main className="mx-auto grid max-w-5xl gap-6 p-8">
-      <h1 className="text-title">HaYi Backoffice</h1>
+      <h1 className="text-title" translate="no">
+        HaYi Backoffice
+      </h1>
       <Card className="max-w-md">
         <StatusBadge tone="brand" className="justify-self-start">
           Khung dự án P0.1

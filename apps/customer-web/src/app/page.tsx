@@ -7,7 +7,9 @@ export default function HomePage() {
       <StatusBadge tone="brand" className="justify-self-start">
         Khung dự án P0.1
       </StatusBadge>
-      <h1 className="font-display text-display-lg">HaYi Shop</h1>
+      <h1 className="font-display text-display-lg" translate="no">
+        HaYi Shop
+      </h1>
       <p className="text-body-lg text-ink-muted">Chọn chi nhánh để xem menu và đặt trước.</p>
       <p className="text-caption text-ink-subtle">
         Ví dụ giá: <span className="tabular-nums">{formatVnd(45000)}</span>

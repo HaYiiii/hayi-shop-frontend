@@ -107,6 +107,16 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  button,
+  a,
+  select,
+  input,
+  label,
+  [role="tab"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   h1,
   h2,
   h3 {

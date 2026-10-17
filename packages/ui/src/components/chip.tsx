@@ -36,8 +36,8 @@ export function Chip({ pressed, unavailable = false, className, onClick, ...prop
       onClick={handleClick}
       className={cn(
         "inline-flex h-9 cursor-pointer items-center gap-2 rounded-pill border border-line-strong bg-paper px-4 text-body font-medium leading-none text-ink tabular-nums",
-        "transition-colors duration-150 hover:bg-sunken",
-        "aria-pressed:border-matcha-700 aria-pressed:bg-matcha-700 aria-pressed:text-on-primary",
+        "transition-colors duration-150 not-aria-pressed:not-aria-disabled:hover:bg-sunken",
+        "aria-pressed:border-matcha-700 aria-pressed:bg-matcha-700 aria-pressed:text-on-primary aria-pressed:hover:border-matcha-800 aria-pressed:hover:bg-matcha-800",
         "aria-disabled:cursor-not-allowed aria-disabled:border-transparent aria-disabled:bg-sunken aria-disabled:text-ink-subtle aria-disabled:line-through",
         focusRing,
         className,

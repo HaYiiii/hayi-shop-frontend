@@ -51,7 +51,7 @@ export function ToastProvider({ children, label = "Thông báo" }: { children: R
             onOpenChange={(open) => {
               if (!open) remove(toast.id);
             }}
-            className="grid w-full grid-cols-[auto_1fr_auto] items-start gap-3 rounded-lg bg-ink px-4 py-3 text-body text-paper shadow-overlay"
+            className={`grid w-full grid-cols-[auto_1fr_auto] items-start gap-3 rounded-lg bg-ink px-4 py-3 text-body text-paper shadow-overlay ${focusRing}`}
           >
             <svg
               aria-hidden="true"
@@ -65,7 +65,7 @@ export function ToastProvider({ children, label = "Thông báo" }: { children: R
               <circle cx="10" cy="10" r="9" strokeWidth="1.5" />
               <path d="M6 10.5l2.5 2.5L14 7.5" strokeWidth="1.8" />
             </svg>
-            <div className="min-w-0">
+            <div className="min-w-0 break-words">
               <ToastPrimitive.Title className="font-semibold">{toast.title}</ToastPrimitive.Title>
               {toast.description ? (
                 <ToastPrimitive.Description className="text-sunken">{toast.description}</ToastPrimitive.Description>
@@ -75,14 +75,14 @@ export function ToastProvider({ children, label = "Thông báo" }: { children: R
               <ToastPrimitive.Action
                 altText={toast.action.altText}
                 onClick={toast.action.onClick}
-                className={`cursor-pointer font-semibold text-matcha-100 underline underline-offset-3 ${focusRing} focus-visible:outline-paper`}
+                className={`cursor-pointer font-semibold text-matcha-100 underline underline-offset-3 hover:text-paper ${focusRing} focus-visible:outline-paper`}
               >
                 {toast.action.label}
               </ToastPrimitive.Action>
             ) : null}
           </ToastPrimitive.Root>
         ))}
-        <ToastPrimitive.Viewport label={`${label} ({hotkey})`} className="fixed inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-[60] flex flex-col gap-2 outline-none md:left-auto md:right-6 md:bottom-6 md:w-[360px]" />
+        <ToastPrimitive.Viewport label={`${label} ({hotkey})`} className="fixed inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-[60] flex flex-col gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:left-auto md:right-6 md:bottom-6 md:w-[360px]" />
       </ToastPrimitive.Provider>
     </ToastContext>
   );

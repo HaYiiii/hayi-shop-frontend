@@ -3,6 +3,7 @@
 import { Dialog as DialogPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 import { cn } from "../cn.js";
+import { focusRing } from "./variants.js";
 
 export const overlayClass =
   "fixed inset-0 z-50 bg-scrim";
@@ -15,7 +16,8 @@ export function DialogContent({ className, children, ...props }: ComponentProps<
       <DialogPrimitive.Content
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-[min(calc(100%-32px),440px)] -translate-x-1/2 -translate-y-1/2 gap-4",
-          "rounded-lg bg-paper p-5 text-ink shadow-overlay focus:outline-none",
+          "rounded-lg bg-paper p-5 text-ink shadow-overlay",
+          focusRing,
           className,
         )}
         {...props}
