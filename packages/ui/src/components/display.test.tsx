@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { Button } from "./button.js";
 import { EmptyState } from "./empty-state.js";
@@ -52,6 +53,23 @@ describe("Table", () => {
 
     const row = within(table).getByRole("row", { name: /HY251012K7Q2M/ });
     expect(row).toHaveAttribute("aria-selected", "true");
+  });
+});
+
+describe("Table scroll container", () => {
+  it("is a focusable, labelled region so keyboard users can scroll wide tables", async () => {
+    render(
+      <Table.Root aria-label="Đơn chờ xác nhận">
+        <Table.Body>
+          <Table.Row>
+            <Table.Cell>HY251012K7Q2M</Table.Cell>
+          </Table.Row>
+        </Table.Body>
+      </Table.Root>,
+    );
+    const region = screen.getByRole("region", { name: "Đơn chờ xác nhận" });
+    await userEvent.tab();
+    expect(region).toHaveFocus();
   });
 });
 

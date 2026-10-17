@@ -1,10 +1,19 @@
 import type { ComponentProps } from "react";
 import { cn } from "../cn.js";
+import { focusRing } from "./variants.js";
 
-/** Backoffice data table, compact density. Wide tables scroll inside the wrapper, never the page. */
-function TableRoot({ className, ...props }: ComponentProps<"table">) {
+/**
+ * Backoffice data table, compact density. Wide tables scroll inside the wrapper, never the page;
+ * the wrapper is a focusable region named by `aria-label` so keyboard users can scroll it.
+ */
+function TableRoot({ className, ...props }: ComponentProps<"table"> & { "aria-label": string }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-line bg-paper">
+    <div
+      role="region"
+      aria-label={props["aria-label"]}
+      tabIndex={0}
+      className={cn("overflow-x-auto rounded-lg border border-line bg-paper", focusRing)}
+    >
       <table className={cn("w-full border-collapse text-body tabular-nums", className)} {...props} />
     </div>
   );

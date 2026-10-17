@@ -1,7 +1,7 @@
 "use client";
 
 import { type VariantProps, cva } from "class-variance-authority";
-import { type ComponentProps, createContext, use, useEffect, useId, useState } from "react";
+import { type ComponentProps, createContext, use, useEffect, useId, useMemo, useState } from "react";
 import { cn } from "../cn.js";
 import { focusRing } from "./variants.js";
 
@@ -27,15 +27,18 @@ export function FieldRoot({ className, ...props }: ComponentProps<"div">) {
   const id = useId();
   const [hasHint, setHasHint] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const value: FieldContextValue = {
-    controlId: `${id}-control`,
-    hintId: `${id}-hint`,
-    errorId: `${id}-error`,
-    hasHint,
-    hasError,
-    setHasHint,
-    setHasError,
-  };
+  const value = useMemo<FieldContextValue>(
+    () => ({
+      controlId: `${id}-control`,
+      hintId: `${id}-hint`,
+      errorId: `${id}-error`,
+      hasHint,
+      hasError,
+      setHasHint,
+      setHasError,
+    }),
+    [id, hasHint, hasError],
+  );
   return (
     <FieldContext value={value}>
       <div className={cn("grid min-w-0 gap-2", className)} {...props} />

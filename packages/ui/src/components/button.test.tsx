@@ -59,4 +59,28 @@ describe("Button", () => {
     expect(link).toHaveAttribute("href", "/menu");
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  it("forwards onClick to the child element when asChild is set", async () => {
+    const onClick = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+    render(
+      <Button asChild onClick={onClick}>
+        <a href="/menu">Xem menu</a>
+      </Button>,
+    );
+    await userEvent.click(screen.getByRole("link", { name: "Xem menu" }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks an asChild element busy and ignores clicks while busy", async () => {
+    const onClick = vi.fn();
+    render(
+      <Button asChild busy onClick={onClick}>
+        <a href="/menu">Đang mở…</a>
+      </Button>,
+    );
+    const link = screen.getByRole("link", { name: "Đang mở…" });
+    expect(link).toHaveAttribute("aria-busy", "true");
+    await userEvent.click(link);
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });

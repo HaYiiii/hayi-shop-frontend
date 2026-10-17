@@ -40,20 +40,20 @@ export function Button({
 }: ButtonProps) {
   const classes = cn(buttonVariants({ variant, density, block }), className);
 
-  if (asChild) {
-    return (
-      <Slot.Root className={classes} {...props}>
-        {children}
-      </Slot.Root>
-    );
-  }
-
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     if (busy) {
       event.preventDefault();
       return;
     }
     onClick?.(event);
+  }
+
+  if (asChild) {
+    return (
+      <Slot.Root className={classes} aria-busy={busy || undefined} onClick={handleClick} {...props}>
+        {children}
+      </Slot.Root>
+    );
   }
 
   return (

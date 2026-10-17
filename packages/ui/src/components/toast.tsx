@@ -2,6 +2,7 @@
 
 import { Toast as ToastPrimitive } from "radix-ui";
 import { type ReactNode, createContext, use, useCallback, useState } from "react";
+import { cn } from "../cn.js";
 import { focusRing } from "./variants.js";
 
 export type ToastOptions = {
@@ -51,7 +52,10 @@ export function ToastProvider({ children, label = "Thông báo" }: { children: R
             onOpenChange={(open) => {
               if (!open) remove(toast.id);
             }}
-            className={`grid w-full grid-cols-[auto_1fr_auto] items-start gap-3 rounded-lg bg-ink px-4 py-3 text-body text-paper shadow-overlay ${focusRing}`}
+            className={cn(
+              "grid w-full grid-cols-[auto_1fr_auto] items-start gap-3 rounded-lg bg-ink px-4 py-3 text-body text-paper shadow-overlay",
+              focusRing,
+            )}
           >
             <svg
               aria-hidden="true"
@@ -75,14 +79,22 @@ export function ToastProvider({ children, label = "Thông báo" }: { children: R
               <ToastPrimitive.Action
                 altText={toast.action.altText}
                 onClick={toast.action.onClick}
-                className={`cursor-pointer font-semibold text-matcha-100 underline underline-offset-3 hover:text-paper ${focusRing} focus-visible:outline-paper`}
+                className={cn(
+                  "cursor-pointer font-semibold text-matcha-100 underline underline-offset-3 hover:text-paper",
+                  // Paper ring on the ink toast; matcha-700 would not reach 3:1 there.
+                  focusRing,
+                  "focus-visible:outline-paper",
+                )}
               >
                 {toast.action.label}
               </ToastPrimitive.Action>
             ) : null}
           </ToastPrimitive.Root>
         ))}
-        <ToastPrimitive.Viewport label={`${label} ({hotkey})`} className="fixed inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-[60] flex flex-col gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:left-auto md:right-6 md:bottom-6 md:w-[360px]" />
+        <ToastPrimitive.Viewport label={`${label} ({hotkey})`} className={cn(
+            "fixed inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-[60] flex flex-col gap-2 md:left-auto md:right-6 md:bottom-6 md:w-[360px]",
+            focusRing,
+          )} />
       </ToastPrimitive.Provider>
     </ToastContext>
   );
