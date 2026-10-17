@@ -61,6 +61,44 @@ describe("Field", () => {
     expect(input).not.toHaveAttribute("aria-describedby");
   });
 
+  it("keeps a caller's aria-describedby alongside the hint and error", () => {
+    render(
+      <>
+        <p id="phone-policy">Chỉ dùng để báo đơn.</p>
+        <Field.Root>
+          <Field.Label>Số điện thoại</Field.Label>
+          <Field.Input aria-describedby="phone-policy" />
+          <Field.Hint>Ví dụ 0901234567</Field.Hint>
+          <Field.Error>Số điện thoại cần 10 chữ số.</Field.Error>
+        </Field.Root>
+      </>,
+    );
+    expect(screen.getByLabelText("Số điện thoại")).toHaveAccessibleDescription(
+      "Chỉ dùng để báo đơn. Ví dụ 0901234567 Số điện thoại cần 10 chữ số.",
+    );
+  });
+
+  it("keeps a caller's aria-invalid when no error message is rendered", () => {
+    render(
+      <Field.Root>
+        <Field.Label>Mã giảm giá</Field.Label>
+        <Field.Input aria-invalid />
+      </Field.Root>,
+    );
+    expect(screen.getByLabelText("Mã giảm giá")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("owns the control's id (type-level interface)", () => {
+    render(
+      <Field.Root>
+        <Field.Label>Tên người nhận</Field.Label>
+        {/* @ts-expect-error id links the label and is owned by Field */}
+        <Field.Input id="custom" />
+      </Field.Root>,
+    );
+    expect(screen.getByLabelText("Tên người nhận")).toBeInTheDocument();
+  });
+
   it("labels a native select the same way", () => {
     render(
       <Field.Root>

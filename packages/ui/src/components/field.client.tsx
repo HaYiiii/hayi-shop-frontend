@@ -51,14 +51,21 @@ export function FieldLabel({ className, ...props }: ComponentProps<"label">) {
   return <label htmlFor={controlId} className={cn("text-label text-ink", className)} {...props} />;
 }
 
-/** Props wiring a control to its label, hint and error. */
-function useControlProps(part: string) {
+type CallerAria = { "aria-describedby"?: string | undefined; "aria-invalid"?: ComponentProps<"input">["aria-invalid"] };
+
+/**
+ * Props wiring a control to its label, hint and error. The caller's own aria-describedby is kept
+ * first and its aria-invalid is kept unless a rendered <Field.Error> already marks the control invalid.
+ */
+function useControlProps(part: string, caller: CallerAria) {
   const { controlId, hintId, errorId, hasHint, hasError } = useField(part);
-  const describedBy = [hasHint && hintId, hasError && errorId].filter(Boolean).join(" ");
+  const describedBy = [caller["aria-describedby"], hasHint && hintId, hasError && errorId]
+    .filter(Boolean)
+    .join(" ");
   return {
     id: controlId,
     "aria-describedby": describedBy || undefined,
-    "aria-invalid": hasError || undefined,
+    "aria-invalid": hasError || caller["aria-invalid"] || undefined,
   };
 }
 
@@ -83,14 +90,22 @@ const controlVariants = cva(
 );
 
 type ControlVariants = VariantProps<typeof controlVariants>;
+/** The control's `id` is owned by Field (it links the label), so callers cannot set it. */
+type ControlProps<T extends "input" | "select"> = Omit<ComponentProps<T>, "id"> & ControlVariants;
 
-export function FieldInput({ className, density, ...props }: ComponentProps<"input"> & ControlVariants) {
-  const controlProps = useControlProps("Input");
+export function FieldInput({
+  className,
+  density,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
+  ...props
+}: ControlProps<"input">) {
+  const controlProps = useControlProps("Input", { "aria-describedby": describedBy, "aria-invalid": invalid });
   return (
     <input
       className={cn(controlVariants({ density }), "placeholder:text-ink-subtle", className)}
-      {...controlProps}
       {...props}
+      {...controlProps}
     />
   );
 }
@@ -99,13 +114,19 @@ const chevron =
   "bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%235c5850' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 8 4 4 4-4'/%3E%3C/svg%3E\")] bg-size-[20px] bg-position-[right_8px_center] bg-no-repeat";
 
 /** Native select: keyboard and screen-reader support for short lists (≤ 8 options). */
-export function FieldSelect({ className, density, ...props }: ComponentProps<"select"> & ControlVariants) {
-  const controlProps = useControlProps("Select");
+export function FieldSelect({
+  className,
+  density,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
+  ...props
+}: ControlProps<"select">) {
+  const controlProps = useControlProps("Select", { "aria-describedby": describedBy, "aria-invalid": invalid });
   return (
     <select
       className={cn(controlVariants({ density }), "appearance-none pr-8", chevron, className)}
-      {...controlProps}
       {...props}
+      {...controlProps}
     />
   );
 }
@@ -118,6 +139,21 @@ export function FieldHint({ className, ...props }: ComponentProps<"p">) {
   }, [setHasHint]);
   return <p id={hintId} className={cn("text-caption text-ink-subtle", className)} {...props} />;
 }
+
+const errorIcon = (
+  <svg
+    aria-hidden="true"
+    viewBox="0 0 20 20"
+    className="mt-0.5 size-3.5 shrink-0"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+  >
+    <circle cx="10" cy="10" r="8.5" />
+    <path d="M10 5.5v5.5M10 13.8v.2" />
+  </svg>
+);
 
 /** Rendering an error marks the control invalid; say what happened and how to fix it. */
 export function FieldError({ className, children, ...props }: ComponentProps<"p">) {
@@ -132,18 +168,7 @@ export function FieldError({ className, children, ...props }: ComponentProps<"p"
       className={cn("flex items-start gap-1 text-caption font-medium text-danger", className)}
       {...props}
     >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 20 20"
-        className="mt-0.5 size-3.5 shrink-0"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      >
-        <circle cx="10" cy="10" r="8.5" />
-        <path d="M10 5.5v5.5M10 13.8v.2" />
-      </svg>
+      {errorIcon}
       <span>{children}</span>
     </p>
   );

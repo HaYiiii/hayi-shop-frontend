@@ -1,6 +1,6 @@
 export { cn } from "./cn.js";
 export { Button, type ButtonProps, Spinner } from "./components/button.js";
-export { buttonVariants, focusRing } from "./components/variants.js";
+export { focusRing } from "./components/variants.js";
 export { Card } from "./components/card.js";
 export { Chip, ChipGroup, type ChipProps } from "./components/chip.js";
 export { Dialog } from "./components/dialog.js";

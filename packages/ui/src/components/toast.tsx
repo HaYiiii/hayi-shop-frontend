@@ -1,7 +1,7 @@
 "use client";
 
 import { Toast as ToastPrimitive } from "radix-ui";
-import { type ReactNode, createContext, use, useCallback, useState } from "react";
+import { type ReactNode, createContext, use, useCallback, useRef, useState } from "react";
 import { cn } from "../cn.js";
 import { focusRing } from "./variants.js";
 
@@ -25,15 +25,31 @@ export function useToast() {
   return show;
 }
 
-let nextId = 0;
+const successIcon = (
+  <svg
+    aria-hidden="true"
+    viewBox="0 0 20 20"
+    className="mt-px size-5"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="10" cy="10" r="9" strokeWidth="1.5" />
+    <path d="M6 10.5l2.5 2.5L14 7.5" strokeWidth="1.8" />
+  </svg>
+);
 
 /** Wrap the app once. Toasts auto-hide after 5 s, bottom (mobile) / bottom-right (desktop). */
 export function ToastProvider({ children, label = "Thông báo" }: { children: ReactNode; label?: string }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // Per-provider counter: module-level state would be shared across server renders.
+  const nextId = useRef(0);
 
   const show = useCallback((options: ToastOptions) => {
-    nextId += 1;
-    setToasts((current) => [...current, { ...options, id: nextId }]);
+    nextId.current += 1;
+    const id = nextId.current;
+    setToasts((current) => [...current, { ...options, id }]);
   }, []);
 
   const remove = useCallback((id: number) => {
@@ -57,18 +73,7 @@ export function ToastProvider({ children, label = "Thông báo" }: { children: R
               focusRing,
             )}
           >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 20 20"
-              className="mt-px size-5"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="10" cy="10" r="9" strokeWidth="1.5" />
-              <path d="M6 10.5l2.5 2.5L14 7.5" strokeWidth="1.8" />
-            </svg>
+            {successIcon}
             <div className="min-w-0 break-words">
               <ToastPrimitive.Title className="font-semibold">{toast.title}</ToastPrimitive.Title>
               {toast.description ? (
