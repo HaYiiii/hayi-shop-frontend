@@ -10,8 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource/be-vietnam-pro": "5.3.0",
+    "@fontsource/cormorant-garamond": "5.3.0",
     "@hayi/api-client": "workspace:*",
     "@hayi/domain-utils": "workspace:*",
+    "@hayi/ui": "workspace:*",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
