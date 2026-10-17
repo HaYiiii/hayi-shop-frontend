@@ -12,6 +12,7 @@
   "dependencies": {
     "@hayi/api-client": "workspace:*",
     "@hayi/domain-utils": "workspace:*",
+    "@hayi/ui": "workspace:*",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
