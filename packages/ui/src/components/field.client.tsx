@@ -51,14 +51,21 @@ export function FieldLabel({ className, ...props }: ComponentProps<"label">) {
   return <label htmlFor={controlId} className={cn("text-label text-ink", className)} {...props} />;
 }
 
-/** Props wiring a control to its label, hint and error; a caller's own description is kept first. */
-function useControlProps(part: string, callerDescribedBy: string | undefined) {
+type CallerAria = { "aria-describedby"?: string | undefined; "aria-invalid"?: ComponentProps<"input">["aria-invalid"] };
+
+/**
+ * Props wiring a control to its label, hint and error. The caller's own aria-describedby is kept
+ * first and its aria-invalid is kept unless a rendered <Field.Error> already marks the control invalid.
+ */
+function useControlProps(part: string, caller: CallerAria) {
   const { controlId, hintId, errorId, hasHint, hasError } = useField(part);
-  const describedBy = [callerDescribedBy, hasHint && hintId, hasError && errorId].filter(Boolean).join(" ");
+  const describedBy = [caller["aria-describedby"], hasHint && hintId, hasError && errorId]
+    .filter(Boolean)
+    .join(" ");
   return {
     id: controlId,
     "aria-describedby": describedBy || undefined,
-    "aria-invalid": hasError || undefined,
+    "aria-invalid": hasError || caller["aria-invalid"] || undefined,
   };
 }
 
@@ -90,9 +97,10 @@ export function FieldInput({
   className,
   density,
   "aria-describedby": describedBy,
+  "aria-invalid": invalid,
   ...props
 }: ControlProps<"input">) {
-  const controlProps = useControlProps("Input", describedBy);
+  const controlProps = useControlProps("Input", { "aria-describedby": describedBy, "aria-invalid": invalid });
   return (
     <input
       className={cn(controlVariants({ density }), "placeholder:text-ink-subtle", className)}
@@ -110,9 +118,10 @@ export function FieldSelect({
   className,
   density,
   "aria-describedby": describedBy,
+  "aria-invalid": invalid,
   ...props
 }: ControlProps<"select">) {
-  const controlProps = useControlProps("Select", describedBy);
+  const controlProps = useControlProps("Select", { "aria-describedby": describedBy, "aria-invalid": invalid });
   return (
     <select
       className={cn(controlVariants({ density }), "appearance-none pr-8", chevron, className)}

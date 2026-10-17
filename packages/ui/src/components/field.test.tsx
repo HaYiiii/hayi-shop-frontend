@@ -78,6 +78,27 @@ describe("Field", () => {
     );
   });
 
+  it("keeps a caller's aria-invalid when no error message is rendered", () => {
+    render(
+      <Field.Root>
+        <Field.Label>Mã giảm giá</Field.Label>
+        <Field.Input aria-invalid />
+      </Field.Root>,
+    );
+    expect(screen.getByLabelText("Mã giảm giá")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("owns the control's id (type-level interface)", () => {
+    render(
+      <Field.Root>
+        <Field.Label>Tên người nhận</Field.Label>
+        {/* @ts-expect-error id links the label and is owned by Field */}
+        <Field.Input id="custom" />
+      </Field.Root>,
+    );
+    expect(screen.getByLabelText("Tên người nhận")).toBeInTheDocument();
+  });
+
   it("labels a native select the same way", () => {
     render(
       <Field.Root>
