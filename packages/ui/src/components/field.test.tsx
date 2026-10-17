@@ -61,6 +61,23 @@ describe("Field", () => {
     expect(input).not.toHaveAttribute("aria-describedby");
   });
 
+  it("keeps a caller's aria-describedby alongside the hint and error", () => {
+    render(
+      <>
+        <p id="phone-policy">Chỉ dùng để báo đơn.</p>
+        <Field.Root>
+          <Field.Label>Số điện thoại</Field.Label>
+          <Field.Input aria-describedby="phone-policy" />
+          <Field.Hint>Ví dụ 0901234567</Field.Hint>
+          <Field.Error>Số điện thoại cần 10 chữ số.</Field.Error>
+        </Field.Root>
+      </>,
+    );
+    expect(screen.getByLabelText("Số điện thoại")).toHaveAccessibleDescription(
+      "Chỉ dùng để báo đơn. Ví dụ 0901234567 Số điện thoại cần 10 chữ số.",
+    );
+  });
+
   it("labels a native select the same way", () => {
     render(
       <Field.Root>
