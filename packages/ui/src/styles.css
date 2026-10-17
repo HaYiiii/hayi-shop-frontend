@@ -1,0 +1,125 @@
+/*
+ * HaYi Shop design system (D2, approved 2026-10-17 v7) as Tailwind 4 theme.
+ * Source: https://claude.ai/artifact/C9MRLTJKHjcbZ6dxKmKjBY (project/tokens.json).
+ * The default Tailwind palette, radii, shadows and type scale are cleared so only
+ * approved tokens produce utilities. Apps import this file after "tailwindcss" and
+ * point @source at this package's dist.
+ */
+
+@theme {
+  --color-*: initial;
+  --color-cream: #f5f2ea;
+  --color-paper: #fffdf8;
+  --color-sunken: #ece7dc;
+  --color-ink: #2b2b2b;
+  --color-ink-muted: #5c5850;
+  --color-ink-subtle: #6b655b;
+  --color-line: #ddd6c8;
+  --color-line-strong: #8f8778;
+  --color-matcha-50: #f1f3ea;
+  --color-matcha-100: #e3e8d7;
+  --color-matcha-500: #6b7f4e;
+  --color-matcha-700: #556540;
+  --color-matcha-800: #46533a;
+  --color-houjicha-100: #f2e7dd;
+  --color-houjicha-500: #8a5e3c;
+  --color-houjicha-700: #6e4a2f;
+  --color-on-primary: #ffffff;
+  --color-success: #2e6a63;
+  --color-success-soft: #e1eeec;
+  --color-warning: #835a0e;
+  --color-warning-soft: #f6ebd3;
+  --color-danger: #a1382a;
+  --color-danger-soft: #f7e3df;
+  --color-info: #3f5a7e;
+  --color-info-soft: #e3e9f2;
+  --color-focus: #556540;
+  --color-scrim: rgba(43, 43, 43, 0.4);
+
+  /* Apps may set --hy-font-sans / --hy-font-display (e.g. from next/font). */
+  --font-*: initial;
+  --font-sans: var(--hy-font-sans, "Be Vietnam Pro"), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--hy-font-display, "Cormorant Garamond"), "Noto Serif", Georgia, serif;
+
+  --text-*: initial;
+  --text-display-xl: 40px;
+  --text-display-xl--line-height: 48px;
+  --text-display-xl--font-weight: 600;
+  --text-display-lg: 32px;
+  --text-display-lg--line-height: 40px;
+  --text-display-lg--font-weight: 600;
+  --text-heading-lg: 26px;
+  --text-heading-lg--line-height: 34px;
+  --text-heading-lg--font-weight: 600;
+  --text-title: 18px;
+  --text-title--line-height: 26px;
+  --text-title--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body: 14px;
+  --text-body--line-height: 21px;
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-label--font-weight: 500;
+  --text-label--letter-spacing: 0.01em;
+  --text-caption: 12px;
+  --text-caption--line-height: 17px;
+  --text-barista-item: 22px;
+  --text-barista-item--line-height: 30px;
+  --text-barista-item--font-weight: 600;
+  --text-barista-meta: 18px;
+  --text-barista-meta--line-height: 26px;
+  --text-barista-meta--font-weight: 500;
+
+  /* 4px grid: p-1 = space-1 (4px) … p-12 = space-12 (48px). */
+  --spacing: 4px;
+  --spacing-control-compact: 32px;
+  --spacing-control-default: 40px;
+  --spacing-control-touch: 48px;
+  --spacing-control-barista: 56px;
+  --spacing-row-compact: 40px;
+  --spacing-row-comfortable: 64px;
+  --container-content: 640px;
+
+  --radius-*: initial;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  --shadow-*: initial;
+  --shadow-overlay: 0 12px 32px rgba(43, 43, 43, 0.14);
+
+  --animate-hy-pulse: hy-pulse 1.4s ease-in-out infinite;
+
+  @keyframes hy-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

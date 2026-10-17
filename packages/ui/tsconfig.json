@@ -1,0 +1,6 @@
+{
+  "extends": "@hayi/config/tsconfig/library.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist", "jsx": "react-jsx" },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.tsx", "src/test-setup.ts"]
+}
