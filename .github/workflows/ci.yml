@@ -1,0 +1,79 @@
+# CI for the frontend: canonical SOURCE-STRUCTURE §3.3, §4.
+# API types are regenerated from the backend's published `api-spec` artifact (latest green
+# CI run on backend main); a diff against the committed types fails the build.
+# Public repo: no secrets are used here.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+# Superseded PR runs are cancelled; every commit on main keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  BACKEND_REPO: HaYiiii/hayi-shop-backend
+
+jobs:
+  build:
+    name: Typecheck, test & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # Version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Find latest green backend CI run on main
+        id: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --repo "$BACKEND_REPO" --workflow CI --branch main --status success \
+            --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$run_id" ]; then
+            echo "::error::No successful backend CI run on main to take api-spec from"
+            exit 1
+          fi
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "Using api-spec from https://github.com/$BACKEND_REPO/actions/runs/$run_id"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: api-spec
+          path: ${{ runner.temp }}/api-spec
+          repository: ${{ env.BACKEND_REPO }}
+          run-id: ${{ steps.backend.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: Generate API types
+        run: pnpm generate:api
+        env:
+          HAYI_API_SPEC_DIR: ${{ runner.temp }}/api-spec
+
+      - name: Check API types match the backend spec
+        run: |
+          if ! git diff --exit-code --stat -- packages/api-client/src/generated; then
+            echo "::error::Generated API types differ from the backend spec on main. Run 'pnpm generate:api' against the backend's api-spec and commit packages/api-client/src/generated."
+            exit 1
+          fi
+
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
