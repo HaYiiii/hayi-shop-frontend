@@ -24,7 +24,7 @@ pnpm dev               # customer-web :3000, backoffice-web :5173
 Mỗi PR và mỗi push vào `main` chạy `.github/workflows/ci.yml`: cài dependency, sinh type API từ artifact `api-spec` của lần chạy CI xanh gần nhất trên `main` của backend, rồi typecheck, test và build. Nếu type sinh ra khác bản đã commit thì CI đỏ. Để sửa, sinh lại type từ đúng artifact đó rồi commit:
 
 ```bash
-run=$(gh run list -R HaYiiii/hayi-shop-backend --workflow CI --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+run=$(gh run list -R HaYiiii/hayi-shop-backend --workflow ci.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')
 gh run download "$run" -R HaYiiii/hayi-shop-backend -n api-spec -D /tmp/hayi-api-spec
 HAYI_API_SPEC_DIR=/tmp/hayi-api-spec pnpm generate:api
 ```
