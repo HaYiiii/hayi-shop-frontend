@@ -3,15 +3,342 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log in with email and password
+         * @description On success sets `hy_b_at`, `hy_b_rt` and `hy_csrf` and returns `passwordChangeRequired: false`.
+         *     A user with a temporary password gets `passwordChangeRequired: true` + `changeToken` instead and no cookie
+         *     (Decision K3). Wrong identifier or password, or an account without Backoffice access →
+         *     `401 AUTH_INVALID_CREDENTIALS`; locked after 5 failures within a sliding 15 minutes →
+         *     `429 AUTH_LOGIN_LOCKED` with `Retry-After` (Decision K2).
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/first-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the temporary password
+         * @description Uses the `changeToken` from login (TTL 5 minutes). Returns `204` without a session; the user logs in again
+         *     with the new password (Decision K3). Password policy: 12–128 characters, different from the current one,
+         *     not a common password → otherwise `422 AUTH_PASSWORD_POLICY_VIOLATION` (Decision K4).
+         */
+        post: operations["changeFirstPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate the refresh token
+         * @description Issues a new access token and refresh token and marks the old refresh token rotated. Reusing a rotated
+         *     token within 10 seconds returns the pair already issued; later reuse revokes the whole session
+         *     (`401 AUTH_SESSION_REVOKED`, API 01-security §5). Requires `X-CSRF-Token`.
+         */
+        post: operations["refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke the current session
+         * @description Revokes the session and clears the auth cookies. Idempotent. Requires `X-CSRF-Token`.
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Re-issue the CSRF cookie
+         * @description Sets a fresh `hy_csrf` bound to the current session (API 01-security §3.1).
+         */
+        get: operations["issueCsrfToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
-    responses: never;
-    parameters: never;
+    schemas: {
+        /** @description RFC 9457 Problem Details with a stable business `code`. */
+        Problem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            /** @description Stable UPPER_SNAKE_CASE error code, e.g. ORDER_INVALID_TRANSITION */
+            code: string;
+            detail?: string;
+            traceId?: string;
+            errors?: {
+                field: string;
+                code: string;
+                message?: string;
+            }[];
+        };
+        LoginRequest: {
+            /** @description Email (Owner/Admin). Employee code and phone arrive with staff provisioning. */
+            identifier: string;
+            password: string;
+        };
+        /** @description Says which step must come first (`passwordChangeRequired` is false once logged in). */
+        LoginResponse: {
+            passwordChangeRequired: boolean;
+            /**
+             * @description Single-purpose token for `POST /auth/password/first-change`, valid 5 minutes; `null` when no
+             *     change is required.
+             */
+            changeToken: string | null;
+        };
+        FirstPasswordChangeRequest: {
+            changeToken: string;
+            newPassword: string;
+        };
+    };
+    responses: {
+        /** @description `VALIDATION_FAILED` */
+        ValidationFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `AUTH_REQUIRED`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS` */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CSRF_INVALID`, `PERMISSION_DENIED` */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `AUTH_PASSWORD_POLICY_VIOLATION` */
+        BusinessRuleViolated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `AUTH_LOGIN_LOCKED` */
+        TooManyRequests: {
+            headers: {
+                /** @description Seconds until the account unlocks. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
+    parameters: {
+        /** @description Opaque refresh token; missing or unknown → `401 AUTH_REQUIRED`. */
+        RefreshTokenCookie: string;
+        /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+        CsrfHeader: string;
+    };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Auth cookies (API 01-security §3). */
+        SetCookie: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Logged in, or a password change is required first. */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    changeFirstPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirstPasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Password changed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["BusinessRuleViolated"];
+        };
+    };
+    refresh: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: {
+                /** @description Opaque refresh token; missing or unknown → `401 AUTH_REQUIRED`. */
+                hy_b_rt?: components["parameters"]["RefreshTokenCookie"];
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tokens rotated. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: {
+                /** @description Opaque refresh token; missing or unknown → `401 AUTH_REQUIRED`. */
+                hy_b_rt?: components["parameters"]["RefreshTokenCookie"];
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked and cookies cleared. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    issueCsrfToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSRF cookie set. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+}
