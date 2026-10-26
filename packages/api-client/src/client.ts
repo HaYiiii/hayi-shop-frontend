@@ -1,25 +1,14 @@
 import createClient, { type Middleware } from "openapi-fetch";
+import { applyCsrf } from "./csrf.js";
 import type { paths as BackofficePaths } from "./generated/backoffice.js";
 import type { paths as CustomerPaths } from "./generated/customer.js";
 import type { paths as PublicPaths } from "./generated/public.js";
-
-const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const CSRF_COOKIE = "hy_csrf";
-
-function readCookie(name: string): string | undefined {
-  if (typeof document === "undefined") return undefined;
-  const match = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.slice(name.length + 1)) : undefined;
-}
+import { createSessionFetch, type SessionFetchOptions } from "./session-fetch.js";
 
 /** Double-submit CSRF header for cookie-authenticated unsafe requests (01-security.md §3.1). */
 export const csrfMiddleware: Middleware = {
   onRequest({ request }) {
-    if (UNSAFE_METHODS.has(request.method)) {
-      const token = readCookie(CSRF_COOKIE);
-      if (token) request.headers.set("X-CSRF-Token", token);
-    }
-    return request;
+    return applyCsrf(request);
   },
 };
 
@@ -43,8 +32,14 @@ export function createCustomerClient({ baseUrl }: ClientOptions) {
   return client;
 }
 
-export function createBackofficeClient({ baseUrl }: ClientOptions) {
-  const client = createClient<BackofficePaths>({ baseUrl: `${baseUrl}/api/backoffice/v1`, credentials: "include" });
+export type BackofficeClientOptions = ClientOptions &
+  Pick<SessionFetchOptions, "onSessionExpired" | "onStepUpRequired">;
+
+/** Refreshes an expired session once and replays; hands `STEP_UP_REQUIRED` to `onStepUpRequired`. */
+export function createBackofficeClient({ baseUrl, onSessionExpired, onStepUpRequired }: BackofficeClientOptions) {
+  const apiUrl = `${baseUrl}/api/backoffice/v1`;
+  const fetch = createSessionFetch({ refreshUrl: `${apiUrl}/auth/refresh`, onSessionExpired, onStepUpRequired });
+  const client = createClient<BackofficePaths>({ baseUrl: apiUrl, credentials: "include", fetch });
   client.use(csrfMiddleware);
   return client;
 }
