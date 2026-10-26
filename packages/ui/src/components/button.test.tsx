@@ -83,4 +83,19 @@ describe("Button", () => {
     await userEvent.click(link);
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("renders a text action without the control height for the link variants", () => {
+    render(
+      <>
+        <Button variant="link">Dùng mã khôi phục</Button>
+        <Button variant="link-muted">Đăng nhập tài khoản khác</Button>
+      </>,
+    );
+
+    for (const name of ["Dùng mã khôi phục", "Đăng nhập tài khoản khác"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveClass("h-auto", "px-0");
+      expect(button).not.toHaveClass("h-control-default");
+    }
+  });
 });

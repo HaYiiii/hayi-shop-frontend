@@ -5,6 +5,7 @@ export { Card } from "./components/card.js";
 export { Chip, ChipGroup, type ChipProps } from "./components/chip.js";
 export { Dialog } from "./components/dialog.js";
 export { EmptyState } from "./components/empty-state.js";
+export { Menu } from "./components/menu.js";
 export { Field } from "./components/field.js";
 export { Sheet } from "./components/sheet.js";
 export { Skeleton, SkeletonGroup } from "./components/skeleton.js";

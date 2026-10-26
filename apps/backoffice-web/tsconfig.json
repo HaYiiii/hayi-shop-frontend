@@ -1,5 +1,5 @@
 {
   "extends": "@hayi/config/tsconfig/react-app.json",
   "compilerOptions": { "types": ["vite/client"] },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "e2e", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }

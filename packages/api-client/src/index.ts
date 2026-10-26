@@ -5,5 +5,8 @@ export {
   createPublicClient,
   csrfMiddleware,
   newIdempotencyKey,
+  type BackofficeClientOptions,
   type ClientOptions,
 } from "./client.js";
+export { createSessionFetch, type SessionFetchOptions } from "./session-fetch.js";
+export type { components as BackofficeComponents } from "./generated/backoffice.js";
