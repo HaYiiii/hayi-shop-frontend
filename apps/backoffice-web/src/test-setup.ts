@@ -9,4 +9,7 @@ if (!Element.prototype.hasPointerCapture) {
   Element.prototype.releasePointerCapture = () => {};
 }
 
+// jsdom lacks scrolling; the router restores scroll positions.
+window.scrollTo = () => {};
+
 afterEach(cleanup);

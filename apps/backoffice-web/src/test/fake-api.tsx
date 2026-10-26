@@ -2,7 +2,7 @@ import { createBackofficeClient } from "@hayi/api-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { vi } from "vitest";
-import { ApiProvider } from "../api";
+import { ApiProvider } from "../lib/api";
 
 type Handler = (body: unknown, request: Request) => Response | Promise<Response>;
 

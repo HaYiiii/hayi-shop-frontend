@@ -66,19 +66,19 @@ test("Owner: first sign-in with password change and MFA enrolment, then TOTP sig
   await page.getByLabel("Tôi đã lưu các mã ở nơi an toàn").check();
   await page.getByRole("button", { name: "Vào Backoffice" }).click();
 
-  // Shell: store-wide scope and the Owner's menu.
+  // Shell: store-wide scope and its store-level screens (Branch screens need a Branch in the URL).
   const nav = page.getByRole("navigation", { name: "Điều hướng chính" });
-  await expect(page.getByRole("heading", { level: 1, name: "Bảng đơn" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Nhân sự" })).toBeVisible();
+  await expect(page).toHaveURL(/\/staff$/);
   await expect(page.getByText("Toàn hệ thống").first()).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Bảng đơn" })).toHaveAttribute("aria-current", "page");
-  await expect(nav.getByRole("link", { name: "Nhân sự" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Nhân sự" })).toHaveAttribute("aria-current", "page");
   await snap(page, "6-shell");
 
   // Sign out, then sign in with password + TOTP.
   await page.getByRole("button", { name: email }).click();
   await page.getByRole("menuitem", { name: "Đăng xuất" }).click();
   await expect(page).toHaveURL(/\/login$/);
-  await page.goto("/orders");
+  await page.goto("/staff");
   await expect(page).toHaveURL(/\/login$/);
 
   await logIn(page, newPassword);
@@ -86,12 +86,12 @@ test("Owner: first sign-in with password change and MFA enrolment, then TOTP sig
   await snap(page, "2-mfa");
   await page.getByLabel("Mã xác thực").fill(await freshCode(page, totp, usedSteps));
   await page.getByRole("button", { name: "Xác nhận" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Bảng đơn" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Nhân sự" })).toBeVisible();
 
   // Access cookie gone (as after its 10-minute Max-Age): the client refreshes once and carries on (§5).
   await context.clearCookies({ name: "hy_b_at" });
   const refreshed = page.waitForResponse((r) => r.url().endsWith("/auth/refresh") && r.status() === 204);
   await page.reload();
   await refreshed;
-  await expect(nav.getByRole("link", { name: "Bảng đơn" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Nhân sự" })).toBeVisible();
 });
