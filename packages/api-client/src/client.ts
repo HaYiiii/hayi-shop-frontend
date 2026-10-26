@@ -35,10 +35,10 @@ export function createCustomerClient({ baseUrl }: ClientOptions) {
 export type BackofficeClientOptions = ClientOptions &
   Pick<SessionFetchOptions, "onSessionExpired" | "onStepUpRequired">;
 
-/** Refreshes an expired session once and replays; hands `STEP_UP_REQUIRED` to `onStepUpRequired`. */
+/** Refreshes an expired session once and replays; re-issues CSRF; hands `STEP_UP_REQUIRED` to `onStepUpRequired`. */
 export function createBackofficeClient({ baseUrl, onSessionExpired, onStepUpRequired }: BackofficeClientOptions) {
   const apiUrl = `${baseUrl}/api/backoffice/v1`;
-  const fetch = createSessionFetch({ refreshUrl: `${apiUrl}/auth/refresh`, onSessionExpired, onStepUpRequired });
+  const fetch = createSessionFetch({ apiUrl, onSessionExpired, onStepUpRequired });
   const client = createClient<BackofficePaths>({ baseUrl: apiUrl, credentials: "include", fetch });
   client.use(csrfMiddleware);
   return client;

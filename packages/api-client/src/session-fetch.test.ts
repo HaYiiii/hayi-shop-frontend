@@ -45,7 +45,7 @@ afterEach(() => {
 describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)", () => {
   it("refreshes once and replays the request with its body", async () => {
     const api = fakeApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, refreshUrl: `${API}/auth/refresh` });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
 
     const res = await sessionFetch(new Request(`${API}/orders`, { method: "POST", body: '{"a":1}' }));
 
@@ -63,14 +63,14 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
       }
       return refreshed ? ok() : problem(401, "AUTH_REQUIRED");
     });
-    const sessionFetch = createSessionFetch({ fetch, refreshUrl: `${API}/auth/refresh` });
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API });
 
     expect((await sessionFetch(new Request(`${API}/auth/me`))).status).toBe(200);
   });
 
   it("shares one refresh between concurrent 401s", async () => {
     const api = fakeApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, refreshUrl: `${API}/auth/refresh` });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
 
     const results = await Promise.all(
       ["/a", "/b", "/c"].map((p) => sessionFetch(new Request(`${API}${p}`))),
@@ -89,7 +89,7 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
       if (request.url.endsWith("/auth/refresh")) jar.cookie = "hy_csrf=new";
       return res;
     });
-    const sessionFetch = createSessionFetch({ fetch, refreshUrl: `${API}/auth/refresh` });
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API });
 
     await sessionFetch(new Request(`${API}/orders`, { method: "POST", headers: { "X-CSRF-Token": "old" } }));
 
@@ -99,7 +99,7 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
   it("reports the session as expired when the refresh fails, and returns the original 401", async () => {
     const api = fakeApi({ refreshSucceeds: false });
     const onSessionExpired = vi.fn();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, refreshUrl: `${API}/auth/refresh`, onSessionExpired });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, onSessionExpired });
 
     const res = await sessionFetch(new Request(`${API}/orders`));
 
@@ -110,7 +110,7 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
 
   it("does not refresh for the sign-in endpoints themselves", async () => {
     const api = fakeApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, refreshUrl: `${API}/auth/refresh` });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
 
     const res = await sessionFetch(new Request(`${API}/auth/login`, { method: "POST", body: "{}" }));
 
@@ -119,12 +119,135 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
   });
 
   it("does not refresh for other 401 codes", async () => {
-    const fetch = vi.fn(async () => problem(401, "AUTH_SESSION_REVOKED"));
-    const sessionFetch = createSessionFetch({ fetch, refreshUrl: `${API}/auth/refresh` });
+    const fetch = vi.fn(async () => problem(401, "AUTH_INVALID_CREDENTIALS"));
+    const onSessionExpired = vi.fn();
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, onSessionExpired });
 
     await sessionFetch(new Request(`${API}/orders`));
 
     expect(fetch).toHaveBeenCalledOnce();
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it("matches sign-in endpoints by exact path, not by substring", async () => {
+    const api = fakeApi();
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+
+    const res = await sessionFetch(new Request(`${API}/reports/auth/login-history`));
+
+    expect(res.status).toBe(200);
+    expect(api.calls.map((c) => c.path)).toEqual(["/reports/auth/login-history", "/auth/refresh", "/reports/auth/login-history"]);
+  });
+
+  it("refreshes for an expired token on step-up (its wrong-input codes are not refreshable)", async () => {
+    const api = fakeApi();
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+
+    const res = await sessionFetch(new Request(`${API}/auth/step-up`, { method: "POST", body: '{"code":"1"}' }));
+
+    expect(res.status).toBe(200);
+    expect(api.calls.map((c) => c.path)).toEqual(["/auth/step-up", "/auth/refresh", "/auth/step-up"]);
+  });
+});
+
+describe("createSessionFetch — end of session", () => {
+  it("ends the session once when concurrent requests fail to refresh", async () => {
+    const api = fakeApi({ refreshSucceeds: false });
+    const onSessionExpired = vi.fn();
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, onSessionExpired });
+
+    await Promise.all(["/a", "/b", "/c"].map((p) => sessionFetch(new Request(`${API}${p}`))));
+
+    expect(api.calls.filter((c) => c.path === "/auth/refresh")).toHaveLength(1);
+    expect(onSessionExpired).toHaveBeenCalledOnce();
+  });
+
+  it("ends the session on AUTH_SESSION_REVOKED without refreshing, once for concurrent requests", async () => {
+    const fetch = vi.fn(async () => problem(401, "AUTH_SESSION_REVOKED"));
+    const onSessionExpired = vi.fn();
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, onSessionExpired });
+
+    await Promise.all(["/a", "/auth/step-up"].map((p) => sessionFetch(new Request(`${API}${p}`, { method: "POST" }))));
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(onSessionExpired).toHaveBeenCalledOnce();
+  });
+
+  it("reports a new end after the user signed in again", async () => {
+    let revoked = true;
+    const fetch = vi.fn(async () => (revoked ? problem(401, "AUTH_SESSION_REVOKED") : ok()));
+    const onSessionExpired = vi.fn();
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, onSessionExpired });
+
+    await sessionFetch(new Request(`${API}/a`));
+    revoked = false;
+    await sessionFetch(new Request(`${API}/auth/login`, { method: "POST" }));
+    revoked = true;
+    await sessionFetch(new Request(`${API}/a`));
+
+    expect(onSessionExpired).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["a network error", () => Promise.reject(new TypeError("Failed to fetch"))],
+    ["429", () => Promise.resolve(problem(429, "RATE_LIMITED"))],
+    ["503", () => Promise.resolve(problem(503, "SERVICE_UNAVAILABLE"))],
+  ])("keeps the session when the refresh meets %s", async (_, refreshAnswer) => {
+    const fetch = vi.fn((request: Request) =>
+      request.url.endsWith("/auth/refresh") ? refreshAnswer() : Promise.resolve(problem(401, "AUTH_TOKEN_EXPIRED")),
+    );
+    const onSessionExpired = vi.fn();
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, onSessionExpired });
+
+    const res = await sessionFetch(new Request(`${API}/orders`));
+
+    expect(res.status).toBe(401);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSessionFetch — CSRF (API 01-security §3.1)", () => {
+  /** Unsafe requests fail with CSRF_INVALID until GET /auth/csrf sets the cookie. */
+  function csrfApi({ accessExpired = false } = {}) {
+    const jar = { cookie: "" };
+    vi.stubGlobal("document", jar);
+    let expired = accessExpired;
+    const calls: string[] = [];
+    const fetch = vi.fn(async (request: Request) => {
+      const path = new URL(request.url).pathname.replace("/api/backoffice/v1", "");
+      calls.push(`${request.method} ${path}`);
+      if (path === "/auth/csrf") {
+        jar.cookie = "hy_csrf=fresh";
+        return new Response(null, { status: 204 });
+      }
+      if (request.method !== "GET" && request.headers.get("X-CSRF-Token") !== "fresh") return problem(403, "CSRF_INVALID");
+      if (path === "/auth/refresh") {
+        expired = false;
+        return new Response(null, { status: 204 });
+      }
+      return expired ? problem(401, "AUTH_TOKEN_EXPIRED") : ok();
+    });
+    return { fetch, calls };
+  }
+
+  it("re-issues the CSRF cookie and replays once", async () => {
+    const api = csrfApi();
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+
+    const res = await sessionFetch(new Request(`${API}/orders`, { method: "POST", body: "{}" }));
+
+    expect(res.status).toBe(200);
+    expect(api.calls).toEqual(["POST /orders", "GET /auth/csrf", "POST /orders"]);
+  });
+
+  it("re-issues the CSRF cookie for the refresh itself", async () => {
+    const api = csrfApi({ accessExpired: true });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+
+    const res = await sessionFetch(new Request(`${API}/auth/me`));
+
+    expect(res.status).toBe(200);
+    expect(api.calls).toEqual(["GET /auth/me", "POST /auth/refresh", "GET /auth/csrf", "POST /auth/refresh", "GET /auth/me"]);
   });
 });
 
@@ -144,7 +267,7 @@ describe("createSessionFetch — 403 STEP_UP_REQUIRED (API 01-security §8)", ()
     const onStepUpRequired = vi.fn(async () => {
       api.verify();
     });
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, refreshUrl: `${API}/auth/refresh`, onStepUpRequired });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, onStepUpRequired });
 
     const res = await sessionFetch(
       new Request(`${API}/refunds/1/approve`, { method: "POST", headers: { "Idempotency-Key": "k-1" } }),
@@ -159,7 +282,7 @@ describe("createSessionFetch — 403 STEP_UP_REQUIRED (API 01-security §8)", ()
     const api = stepUpApi();
     const sessionFetch = createSessionFetch({
       fetch: api.fetch,
-      refreshUrl: `${API}/auth/refresh`,
+      apiUrl: API,
       onStepUpRequired: () => Promise.reject(new Error("cancelled")),
     });
 
