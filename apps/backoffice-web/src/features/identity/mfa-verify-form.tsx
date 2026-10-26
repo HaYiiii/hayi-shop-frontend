@@ -1,6 +1,6 @@
 import { Button, Card, Field } from "@hayi/ui";
 import { useMutation } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { errorCode, unwrap, useApi } from "../../api";
 import { commonAuthMessage } from "./auth-errors";
 import { AuthLayout, AuthTitle, Logo } from "./auth-layout";
@@ -18,6 +18,7 @@ interface MfaVerifyFormProps {
 export function MfaVerifyForm({ challengeId, identifier, onVerified, onRestart }: MfaVerifyFormProps) {
   const api = useApi();
   const [useRecovery, setUseRecovery] = useState(false);
+  const codeInput = useRef<HTMLInputElement>(null);
   const verify = useMutation({
     mutationFn: (code: string) =>
       unwrap(api.POST("/auth/mfa/verify", { body: { mfaChallengeId: challengeId, code } })),
@@ -26,6 +27,7 @@ export function MfaVerifyForm({ challengeId, identifier, onVerified, onRestart }
       const code = errorCode(error);
       if (code === "MFA_CHALLENGE_LOCKED") onRestart("challenge-locked");
       if (code === "AUTH_REQUIRED") onRestart("challenge-expired");
+      if (code === "MFA_CODE_INVALID") codeInput.current?.select();
     },
   });
 
@@ -44,7 +46,9 @@ export function MfaVerifyForm({ challengeId, identifier, onVerified, onRestart }
         <AuthTitle>Xác thực 2 lớp</AuthTitle>
         <p className="max-w-[34ch] text-body text-ink-muted">
           {useRecovery ? "Nhập một mã khôi phục đã lưu cho " : "Mở ứng dụng xác thực trên điện thoại và nhập mã 6 số đang hiển thị cho "}
-          <strong className="font-semibold text-ink">{identifier}</strong>.
+          <strong className="font-semibold text-ink" translate="no">
+            {identifier}
+          </strong>.
         </p>
       </div>
 
@@ -55,6 +59,7 @@ export function MfaVerifyForm({ challengeId, identifier, onVerified, onRestart }
             <Field.Label>{useRecovery ? "Mã khôi phục" : "Mã xác thực"}</Field.Label>
             {useRecovery ? (
               <Field.Input
+                ref={codeInput}
                 name="code"
                 autoComplete="off"
                 autoCapitalize="characters"
@@ -66,6 +71,7 @@ export function MfaVerifyForm({ challengeId, identifier, onVerified, onRestart }
               />
             ) : (
               <Field.Input
+                ref={codeInput}
                 name="code"
                 inputMode="numeric"
                 autoComplete="one-time-code"

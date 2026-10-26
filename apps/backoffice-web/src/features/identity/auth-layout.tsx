@@ -13,7 +13,7 @@ export function AuthLayout({ width = "narrow", children }: { width?: keyof typeo
 }
 
 export function Logo({ size }: { size: 48 | 56 | 64 | 96 }) {
-  return <img src="/logo.webp" width={size} height={size} alt="HaYi Shop" className="shrink-0" />;
+  return <img src="/logo.webp" width={size} height={size} alt="HaYi Shop" fetchPriority="high" className="shrink-0" />;
 }
 
 export function AuthTitle({ children }: { children: ReactNode }) {

@@ -179,6 +179,7 @@ describe("SignIn — first password change (Decision K3, K4)", () => {
 
     expect(screen.getByText(/Hai mật khẩu chưa khớp/)).toBeInTheDocument();
     expect(screen.getByLabelText("Mật khẩu mới")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Mật khẩu mới")).toHaveFocus();
     expect(api.calls.map((c) => c.route)).not.toContain("POST /auth/password/first-change");
   });
 

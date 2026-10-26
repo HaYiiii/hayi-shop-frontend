@@ -110,7 +110,7 @@ export function LoginForm({ defaultIdentifier, notice, onResult }: LoginFormProp
           <Button type="submit" block busy={login.isPending} disabled={locked}>
             Đăng nhập
           </Button>
-          <p className="text-center text-label text-ink-muted">Quên mật khẩu? Nhờ quản lý chi nhánh đặt lại cho bạn.</p>
+          <p className="text-center text-label font-normal text-ink-muted">Quên mật khẩu? Nhờ quản lý chi nhánh đặt lại cho bạn.</p>
         </form>
       </Card>
 

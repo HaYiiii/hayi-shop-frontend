@@ -1,4 +1,4 @@
-import { Button, Card, Field, Skeleton } from "@hayi/ui";
+import { Button, Card, Field, Skeleton, SkeletonGroup } from "@hayi/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import type { FormEvent, ReactNode } from "react";
@@ -120,7 +120,9 @@ export function MfaEnroll({ enrollmentToken, onEnrolled, onRestart }: MfaEnrollP
               </div>
             </>
           ) : setup.isPending ? (
-            <Skeleton className="size-[176px] self-center rounded-lg" />
+            <SkeletonGroup label="Đang tạo mã QR…" className="self-center">
+              <Skeleton className="size-[176px] rounded-lg" />
+            </SkeletonGroup>
           ) : null}
 
           <form className="grid gap-3" onSubmit={submit}>

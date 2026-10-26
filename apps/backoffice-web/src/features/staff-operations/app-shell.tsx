@@ -42,7 +42,7 @@ function ScopeSwitcher({ me, scope, onScopeChange }: Pick<AppShellProps, "me" | 
       <p className="flex h-control-default items-center gap-2.5 px-3 text-body font-medium">
         {HomeIcon}
         <span className="text-ink-muted">Phạm vi:</span>
-        <span>{scopeLabel(scope)}</span>
+        <span className="max-w-[28ch] truncate">{scopeLabel(scope)}</span>
       </p>
     );
   }
@@ -50,7 +50,7 @@ function ScopeSwitcher({ me, scope, onScopeChange }: Pick<AppShellProps, "me" | 
     <Menu.Root>
       <Menu.Trigger>
         {HomeIcon}
-        <span>
+        <span className="max-w-[36ch] min-w-0 truncate">
           <span className="text-ink-muted">Phạm vi:</span> {scopeLabel(scope)}
         </span>
       </Menu.Trigger>
@@ -89,7 +89,9 @@ function AccountMenu({ name, onLogout }: { name: string; onLogout: () => void })
         <span aria-hidden="true" className="grid size-8 place-items-center rounded-pill bg-houjicha-100 text-label font-semibold text-houjicha-700">
           {initials(name)}
         </span>
-        <span className="max-w-[24ch] truncate">{name}</span>
+        <span className="max-w-[24ch] truncate" translate="no">
+          {name}
+        </span>
       </Menu.Trigger>
       <Menu.Content align="end" className="w-60">
         <Menu.Item onSelect={onLogout}>Đăng xuất</Menu.Item>
@@ -121,6 +123,12 @@ export function AppShell({ me, scope, onScopeChange, accountName, onLogout, rend
   );
   return (
     <div className="grid min-h-dvh grid-rows-[64px_1fr] bg-cream">
+      <a
+        href="#main"
+        className="sr-only rounded-md bg-paper px-3 py-2 text-body font-medium text-matcha-700 focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus-visible:outline-2 focus-visible:outline-focus"
+      >
+        Bỏ qua đến nội dung chính
+      </a>
       <header className="flex items-center gap-4 border-b border-line bg-paper px-4 md:px-6">
         {homeLink ? homeLink(brand) : brand}
         <div className="md:ml-6">
@@ -134,7 +142,7 @@ export function AppShell({ me, scope, onScopeChange, accountName, onLogout, rend
         <div className="border-b border-line bg-paper md:border-r md:border-b-0">
           <NavMenu permissions={permissionsIn(me, scope)} renderLink={renderLink} />
         </div>
-        <main className="flex min-w-0 flex-col gap-4 px-4 py-6 md:px-8">{children}</main>
+        <main id="main" tabIndex={-1} className="flex min-w-0 flex-col gap-4 px-4 py-6 outline-none md:px-8">{children}</main>
       </div>
     </div>
   );

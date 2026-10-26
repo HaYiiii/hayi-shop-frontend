@@ -50,10 +50,13 @@ export function FirstPasswordForm({ changeToken, identifier, onChanged, onRestar
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const confirm = String(new FormData(event.currentTarget).get("confirmPassword"));
+    const form = event.currentTarget;
+    const confirm = String(new FormData(form).get("confirmPassword"));
     const next = { length: !lengthOk, mismatch: confirm !== password };
     setErrors(next);
-    if (!next.length && !next.mismatch) change.mutate(password);
+    const firstInvalid = next.length ? "newPassword" : next.mismatch ? "confirmPassword" : null;
+    if (firstInvalid) form.querySelector<HTMLInputElement>(`[name="${firstInvalid}"]`)?.focus();
+    else change.mutate(password);
   }
 
   const policyRejected = errorCode(change.error) === "AUTH_PASSWORD_POLICY_VIOLATION";
@@ -88,7 +91,7 @@ export function FirstPasswordForm({ changeToken, identifier, onChanged, onRestar
               <Field.Error>Mật khẩu này quá phổ biến hoặc trùng mật khẩu hiện tại. Bạn chọn mật khẩu khác nhé.</Field.Error>
             ) : null}
           </Field.Root>
-          <ul id="pw-rules" className="grid gap-1.5 text-label">
+          <ul id="pw-rules" className="grid gap-1.5 text-label font-normal">
             <Rule met={lengthOk}>{`Từ ${MIN_LENGTH} ký tự trở lên`}</Rule>
             <Rule met={null}>Khác mật khẩu tạm</Rule>
             <Rule met={null}>Không nằm trong danh sách mật khẩu phổ biến</Rule>
