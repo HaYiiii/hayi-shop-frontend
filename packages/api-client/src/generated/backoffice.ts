@@ -15,9 +15,12 @@ export interface paths {
         put?: never;
         /**
          * Log in with email and password
-         * @description On success sets `hy_b_at`, `hy_b_rt` and `hy_csrf` and returns `passwordChangeRequired: false`.
-         *     A user with a temporary password gets `passwordChangeRequired: true` + `changeToken` instead and no cookie
-         *     (Decision K3). Wrong identifier or password, or an account without Backoffice access →
+         * @description On success sets `hy_b_at`, `hy_b_rt` and `hy_csrf` and every flag of the response is false.
+         *     Otherwise exactly one step comes first, and no cookie is set:
+         *     a temporary password → `passwordChangeRequired` + `changeToken` (Decision K3); an active MFA factor →
+         *     `mfaRequired` + `mfaChallengeId` (`POST /auth/mfa/verify`); a STORE role without MFA →
+         *     `mfaEnrollmentRequired` + `enrollmentToken` (`POST /auth/mfa/enroll`, Decision D4, L6).
+         *     Wrong identifier or password, or an account without Backoffice access →
          *     `401 AUTH_INVALID_CREDENTIALS`; locked after 5 failures within a sliding 15 minutes →
          *     `429 AUTH_LOGIN_LOCKED` with `Retry-After` (Decision K2).
          */
@@ -44,6 +47,98 @@ export interface paths {
          *     not a common password → otherwise `422 AUTH_PASSWORD_POLICY_VIOLATION` (Decision K4).
          */
         post: operations["changeFirstPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete login with a TOTP or recovery code
+         * @description Answers the challenge from login (TTL 5 minutes) with a 6-digit TOTP code or an unused recovery code, then
+         *     sets the session cookies. Wrong code → `401 MFA_CODE_INVALID`; the 5th wrong code locks the challenge →
+         *     `401 MFA_CHALLENGE_LOCKED` and the user logs in again. Unknown, expired, used or replaced challenge (a new
+         *     login replaces the user's open one) → `401 AUTH_REQUIRED`. The 10th wrong code of the user within a sliding
+         *     15 minutes, across challenges, locks the login for 15 minutes → `429 AUTH_LOGIN_LOCKED` (Decision L1). MFA
+         *     failures do not count towards the password failures.
+         */
+        post: operations["verifyMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start TOTP enrollment
+         * @description Uses the `enrollmentToken` from login (TTL 10 minutes, Decision L2) and returns a new TOTP secret as an
+         *     `otpauth://` URI (the UI draws the QR code) and as base32 for manual entry (Decision L4). Calling it again
+         *     replaces the pending secret. Invalid token or MFA already enabled → `401 AUTH_REQUIRED`.
+         */
+        post: operations["startMfaEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/enroll/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm TOTP enrollment with a first code
+         * @description Activates the pending factor when the code matches, returns 10 single-use recovery codes — shown this one
+         *     time only — and sets the session cookies (Decision L5). Wrong code → `401 MFA_CODE_INVALID`; invalid token
+         *     or nothing pending → `401 AUTH_REQUIRED`.
+         */
+        post: operations["confirmMfaEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/step-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-authenticate the current session for sensitive actions
+         * @description With MFA: `code` (TOTP); without MFA: `password`. Sets the session's `stepUpVerifiedAt`, so actions marked
+         *     **S** are allowed for 5 minutes (API 01-security §8, Decision L7); they answer `403 STEP_UP_REQUIRED`
+         *     otherwise. Wrong code → `401 MFA_CODE_INVALID`, wrong password → `401 AUTH_INVALID_CREDENTIALS`; the 5th
+         *     failure within 15 minutes revokes the session → `401 AUTH_SESSION_REVOKED`. Requires `X-CSRF-Token`.
+         */
+        post: operations["stepUp"];
         delete?: never;
         options?: never;
         head?: never;
@@ -112,6 +207,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current user's roles and permissions
+         * @description For the UI permission guard only; the server checks every endpoint itself (API 01-security §6.2, Decision M4).
+         *     `storePermissions` apply at every Branch (STORE roles: Owner/Admin). `branches` lists the Branches where a
+         *     BRANCH role is in effect, i.e. backed by an active staff assignment (Decision A); their `permissions` already
+         *     include `storePermissions`. Resolved live, so a role change shows on the next call.
+         */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -137,7 +255,7 @@ export interface components {
             identifier: string;
             password: string;
         };
-        /** @description Says which step must come first (`passwordChangeRequired` is false once logged in). */
+        /** @description Says which step must come first; every flag is false once logged in. */
         LoginResponse: {
             passwordChangeRequired: boolean;
             /**
@@ -145,6 +263,63 @@ export interface components {
              *     change is required.
              */
             changeToken: string | null;
+            mfaRequired: boolean;
+            /**
+             * Format: uuid
+             * @description Challenge for `POST /auth/mfa/verify`, valid 5 minutes; `null` unless `mfaRequired`.
+             */
+            mfaChallengeId: string | null;
+            mfaEnrollmentRequired: boolean;
+            /**
+             * @description Single-purpose token for `POST /auth/mfa/enroll` and `/auth/mfa/enroll/confirm`, valid 10 minutes;
+             *     `null` unless `mfaEnrollmentRequired`.
+             */
+            enrollmentToken: string | null;
+        };
+        MfaVerifyRequest: {
+            /** Format: uuid */
+            mfaChallengeId: string;
+            /** @description 6-digit TOTP code or a recovery code (`XXXXX-XXXXX`, case and dash ignored). */
+            code: string;
+        };
+        MfaEnrollmentRequest: {
+            enrollmentToken: string;
+        };
+        MfaEnrollmentResponse: {
+            /** @description `otpauth://totp/...` for the authenticator app; the UI renders it as a QR code. */
+            otpauthUri: string;
+            /** @description The same TOTP secret in base32, for manual entry. */
+            secret: string;
+        };
+        MfaEnrollmentConfirmRequest: {
+            enrollmentToken: string;
+            code: string;
+        };
+        MfaEnrollmentConfirmResponse: {
+            /** @description 10 single-use recovery codes, returned this one time only. */
+            recoveryCodes: string[];
+        };
+        /** @description `code` when the user has MFA, `password` otherwise. */
+        StepUpRequest: {
+            code?: string | null;
+            password?: string | null;
+        };
+        BackofficeMe: {
+            /** Format: uuid */
+            userId: string;
+            /** @description Role codes held at STORE scope, e.g. `OWNER`, `ADMIN`. */
+            storeRoles: string[];
+            /** @description Permission codes (API 01-security §7) granted by the STORE roles, at every Branch. */
+            storePermissions: string[];
+            branches: components["schemas"]["BranchAccess"][];
+        };
+        BranchAccess: {
+            /** Format: uuid */
+            branchId: string;
+            /** @description BRANCH role codes in effect at this Branch, e.g. `MANAGER`, `BARISTA`. */
+            roles: string[];
+            /** @description Every permission at this Branch, `storePermissions` included. */
+            permissions: string[];
         };
         FirstPasswordChangeRequest: {
             changeToken: string;
@@ -161,7 +336,10 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `AUTH_REQUIRED`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS` */
+        /**
+         * @description `AUTH_REQUIRED`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS`, `MFA_CODE_INVALID`,
+         *     `MFA_CHALLENGE_LOCKED`
+         */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;
@@ -170,7 +348,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `CSRF_INVALID`, `PERMISSION_DENIED` */
+        /** @description `CSRF_INVALID`, `PERMISSION_DENIED`, `BRANCH_SCOPE_DENIED`, `STEP_UP_REQUIRED` */
         Forbidden: {
             headers: {
                 [name: string]: unknown;
@@ -268,6 +446,113 @@ export interface operations {
             422: components["responses"]["BusinessRuleViolated"];
         };
     };
+    verifyMfa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Logged in. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    startMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaEnrollmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Pending TOTP secret. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaEnrollmentResponse"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    confirmMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaEnrollmentConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description MFA enabled and logged in. */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaEnrollmentConfirmResponse"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    stepUp: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpRequest"];
+            };
+        };
+        responses: {
+            /** @description Session re-authenticated. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     refresh: {
         parameters: {
             query?: never;
@@ -337,6 +622,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's effective access. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackofficeMe"];
+                };
             };
             401: components["responses"]["Unauthorized"];
         };
