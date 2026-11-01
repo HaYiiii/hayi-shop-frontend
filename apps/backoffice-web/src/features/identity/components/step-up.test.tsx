@@ -10,10 +10,10 @@ import { meQuery } from "../api/session";
 import { createStepUpGate } from "../api/step-up-gate";
 import { StepUpDialog } from "./step-up";
 
-const owner: Me = { userId: "u-1", storeRoles: ["OWNER"], storePermissions: [], branches: [] };
+const owner: Me = { userId: "u-1", email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: ["OWNER"], storePermissions: [], branches: [] };
 const barista: Me = {
   userId: "u-2",
-  storeRoles: [],
+  email: null, displayName: "Lê Thu", mfaEnrolled: false, storeRoles: [],
   storePermissions: [],
   branches: [{ branchId: "b-q1", roles: ["BARISTA"], permissions: ["ORDER_PREPARE"] }],
 };

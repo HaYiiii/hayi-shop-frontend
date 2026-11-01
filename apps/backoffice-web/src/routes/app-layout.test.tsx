@@ -12,7 +12,7 @@ import { API_ORIGIN, fakeApi, json, problem } from "../test/fake-api";
 
 const manager: Me = {
   userId: "u-manager",
-  storeRoles: [],
+  email: null, displayName: "Trần Minh", mfaEnrolled: false, storeRoles: [],
   storePermissions: [],
   branches: [
     { branchId: "b-q1", roles: ["MANAGER"], permissions: ["ORDER_VIEW", "ORDER_PREPARE", "STAFF_VIEW"] },
@@ -20,7 +20,7 @@ const manager: Me = {
   ],
 };
 
-const owner: Me = { userId: "u-owner", storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
+const owner: Me = { userId: "u-owner", email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
 
 function renderApp(me: Me | null | (() => Response), path: string) {
   fakeApi({

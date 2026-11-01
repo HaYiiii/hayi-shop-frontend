@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PermissionGuard } from "./permission-guard";
 import { WorkspaceProvider } from "./workspace";
 
-const me = { userId: "u-1", storeRoles: [], storePermissions: [], branches: [] };
+const me = { userId: "u-1", email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: [], storePermissions: [], branches: [] };
 
 function renderWith(permissions: string[]) {
   render(

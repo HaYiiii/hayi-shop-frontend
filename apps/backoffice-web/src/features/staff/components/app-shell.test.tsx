@@ -9,7 +9,7 @@ import { NavMenu } from "./nav-menu";
 
 const manager: Me = {
   userId: "u-manager",
-  storeRoles: [],
+  email: null, displayName: "Trần Minh", mfaEnrolled: false, storeRoles: [],
   storePermissions: [],
   branches: [
     { branchId: "b-q1", roles: ["MANAGER"], permissions: ["ORDER_VIEW", "STAFF_VIEW"] },
@@ -17,7 +17,7 @@ const manager: Me = {
   ],
 };
 
-const owner: Me = { userId: "u-owner", storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
+const owner: Me = { userId: "u-owner", email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
 
 /** The shell as the signed-in layout composes it. */
 function Harness({ me, onLogout = () => {} }: { me: Me; onLogout?: () => void }) {
