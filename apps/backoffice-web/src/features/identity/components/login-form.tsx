@@ -3,6 +3,7 @@ import { Button, Card, Field } from "@hayi/ui";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { errorCode, unwrap, useApi } from "../../../lib/api";
+import { formText } from "../../../lib/form";
 import { commonAuthMessage, isLocked } from "./auth-errors";
 import { AuthLayout, AuthTitle, Logo } from "./auth-layout";
 import { FormAlert } from "./form-alert";
@@ -51,8 +52,8 @@ export function LoginForm({ defaultIdentifier, notice, onResult }: LoginFormProp
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    login.mutate({ identifier: String(form.get("identifier")).trim(), password: String(form.get("password")) });
+    const form = event.currentTarget;
+    login.mutate({ identifier: formText(form, "identifier").trim(), password: formText(form, "password") });
   }
 
   const invalidCredentials = errorCode(login.error) === "AUTH_INVALID_CREDENTIALS";

@@ -62,7 +62,9 @@ describe("Toast", () => {
       await userEvent.click(screen.getByRole("button", { name: "Thêm vào giỏ" }));
       expect(screen.getByText("Đã thêm vào giỏ")).toBeInTheDocument();
 
-      act(() => vi.advanceTimersByTime(5100));
+      act(() => {
+        vi.advanceTimersByTime(5100);
+      });
       expect(screen.queryByText("Đã thêm vào giỏ")).toBeNull();
     } finally {
       vi.useRealTimers();

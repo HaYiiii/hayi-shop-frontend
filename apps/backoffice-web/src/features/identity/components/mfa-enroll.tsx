@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { type FormEvent, type ReactNode, useId } from "react";
 import { errorCode, unwrap, useApi } from "../../../lib/api";
+import { formText } from "../../../lib/form";
 import { commonAuthMessage } from "./auth-errors";
 import { AuthLayout, AuthTitle, Logo } from "./auth-layout";
 import { CopyButton } from "./copy-button";
@@ -58,7 +59,7 @@ export function MfaEnroll({ enrollmentToken, onEnrolled, onRestart }: MfaEnrollP
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    confirm.mutate(String(new FormData(event.currentTarget).get("code")).replace(/\s/g, ""));
+    confirm.mutate(formText(event.currentTarget, "code").replace(/\s/g, ""));
   }
 
   const wrongCode = errorCode(confirm.error) === "MFA_CODE_INVALID";

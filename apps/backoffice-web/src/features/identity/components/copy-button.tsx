@@ -14,12 +14,12 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
   return (
     <Button
       variant="outline"
-      onClick={() =>
+      onClick={() => {
         navigator.clipboard.writeText(text).then(
           () => setState("copied"),
           () => setState("failed"),
-        )
-      }
+        );
+      }}
     >
       <span aria-live="polite">{state === "copied" ? "Đã sao chép" : state === "failed" ? "Không sao chép được" : label}</span>
     </Button>

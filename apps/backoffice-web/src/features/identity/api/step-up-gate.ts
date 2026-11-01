@@ -9,8 +9,9 @@ export function createStepUpGate() {
     for (const listener of listeners) listener();
   };
 
+  // Arrow properties: the client and useSyncExternalStore receive them detached from the object.
   return {
-    request(): Promise<void> {
+    request: (): Promise<void> => {
       if (!pending) {
         let resolve!: () => void;
         let reject!: (reason: Error) => void;
@@ -23,7 +24,7 @@ export function createStepUpGate() {
       }
       return pending.promise;
     },
-    settle(outcome: "verified" | "cancelled") {
+    settle: (outcome: "verified" | "cancelled") => {
       if (!pending) return;
       if (outcome === "verified") pending.resolve();
       else pending.reject(new Error("Step-up cancelled"));
@@ -31,9 +32,11 @@ export function createStepUpGate() {
       notify();
     },
     isOpen: () => pending !== null,
-    subscribe(listener: () => void) {
+    subscribe: (listener: () => void) => {
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
   };
 }
