@@ -40,6 +40,8 @@
   --font-*: initial;
   --font-sans: var(--hy-font-sans, "Be Vietnam Pro"), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: var(--hy-font-display, "Cormorant Garamond"), "Noto Serif", Georgia, serif;
+  /* Codes the user copies or types (setup key, recovery codes). Not yet in D2: add it there. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --text-*: initial;
   --text-display-xl: 40px;

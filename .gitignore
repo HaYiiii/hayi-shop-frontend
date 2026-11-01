@@ -13,3 +13,7 @@ coverage/
 playwright-report/
 test-results/
 next-env.d.ts
+
+# tsc output must go to dist/, never next to the sources
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts

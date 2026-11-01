@@ -21,6 +21,10 @@ export const buttonVariants = cva(
         outline: "bg-paper text-ink border-line-strong hover:bg-sunken",
         ghost: "bg-transparent text-matcha-700 hover:bg-matcha-50",
         danger: "bg-danger text-on-primary",
+        /** Text action inside a form or dialog ("Dùng mã khôi phục"). */
+        link: "bg-transparent text-matcha-700 underline-offset-2 hover:text-matcha-800 hover:underline",
+        /** Secondary text action ("Đăng nhập tài khoản khác"). */
+        "link-muted": "bg-transparent text-ink-muted underline-offset-2 hover:text-ink hover:underline",
       },
       density: {
         compact: "h-control-compact px-3 text-label",
@@ -30,6 +34,7 @@ export const buttonVariants = cva(
       },
       block: { true: "w-full" },
     },
+    compoundVariants: [{ variant: ["link", "link-muted"], class: "h-auto px-0 font-medium leading-normal" }],
     defaultVariants: { variant: "primary", density: "default" },
   },
 );
