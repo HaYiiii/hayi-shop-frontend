@@ -1,6 +1,6 @@
 import { Button, Dialog, Field } from "@hayi/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { type FormEvent, useState, useSyncExternalStore } from "react";
+import { type FormEvent, useSyncExternalStore } from "react";
 import { errorCode, unwrap, useApi } from "../../../lib/api";
 import { meQuery } from "../api/session";
 import type { StepUpGate } from "../api/step-up-gate";
@@ -22,10 +22,8 @@ function StepUpForm({ gate }: { gate: StepUpGate }) {
   const api = useApi();
   // Loaded by the signed-in route; the dialog only reads it.
   const { data: me } = useQuery({ ...meQuery(api), enabled: false });
-  // MFA is mandatory for STORE roles (Decision D4) and users with MFA step up by TOTP only (L7):
-  // a password attempt would only spend one of the 5 tries before the session is revoked.
-  const passwordAllowed = me !== undefined && me.storeRoles.length === 0;
-  const [method, setMethod] = useState<"totp" | "password">("totp");
+  // With MFA the code, without it the password (API 01-security §8, Decision L7); no switching between them.
+  const method = me?.mfaEnrolled === false ? "password" : "totp";
   const stepUp = useMutation({
     mutationFn: (body: { code: string } | { password: string }) => unwrap(api.POST("/auth/step-up", { body })),
     onSuccess: () => gate.settle("verified"),
@@ -63,7 +61,7 @@ function StepUpForm({ gate }: { gate: StepUpGate }) {
 
       <form className="grid gap-4" onSubmit={submit}>
         {stepUp.isError && !wrongSecret ? <FormAlert tone="danger">{commonAuthMessage(stepUp.error)}</FormAlert> : null}
-        <Field.Root key={method}>
+        <Field.Root>
           {method === "totp" ? (
             <>
               <Field.Label>Mã từ ứng dụng xác thực</Field.Label>
@@ -74,26 +72,10 @@ function StepUpForm({ gate }: { gate: StepUpGate }) {
             <>
               <Field.Label>Mật khẩu của bạn</Field.Label>
               <Field.Input name="secret" type="password" autoComplete="current-password" required autoFocus />
-              {wrongSecret ? (
-                <Field.Error>Mật khẩu chưa đúng. Bạn nhập lại nhé.</Field.Error>
-              ) : (
-                <Field.Hint>Dùng khi tài khoản chưa bật xác thực 2 lớp.</Field.Hint>
-              )}
+              {wrongSecret ? <Field.Error>Mật khẩu chưa đúng. Bạn nhập lại nhé.</Field.Error> : null}
             </>
           )}
         </Field.Root>
-        {passwordAllowed ? (
-          <Button
-            variant="link"
-            className="justify-self-start"
-            onClick={() => {
-              setMethod((m) => (m === "totp" ? "password" : "totp"));
-              stepUp.reset();
-            }}
-          >
-            {method === "totp" ? "Chưa bật xác thực 2 lớp? Dùng mật khẩu" : "Dùng mã từ ứng dụng xác thực"}
-          </Button>
-        ) : null}
         <Dialog.Actions>
           <Dialog.Close asChild>
             <Button variant="ghost">Hủy</Button>

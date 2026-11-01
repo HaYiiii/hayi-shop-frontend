@@ -3,7 +3,7 @@ import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, Outlet, createFileRoute, redirect, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { Button } from "@hayi/ui";
 import { useMemo, useState } from "react";
-import { meQuery, signedInIdentifier } from "../features/identity/api/session";
+import { meQuery } from "../features/identity/api/session";
 import { AccountMenu, AppShell, Brand } from "../features/staff/components/app-shell";
 import { NavMenu, navLinkClass } from "../features/staff/components/nav-menu";
 import { unwrap, useApi } from "../lib/api";
@@ -102,7 +102,7 @@ function AppLayout() {
           </Link>
         }
         scope={<BranchSwitcher me={me} scope={scope} onScopeChange={changeScope} />}
-        account={<AccountMenu name={signedInIdentifier(queryClient) ?? "Tài khoản của bạn"} onLogout={logout} />}
+        account={<AccountMenu name={me.displayName ?? me.email ?? "Tài khoản của bạn"} onLogout={logout} />}
         nav={
           <NavMenu
             scope={scope}

@@ -94,4 +94,6 @@ test("Owner: first sign-in with password change and MFA enrolment, then TOTP sig
   await page.reload();
   await refreshed;
   await expect(nav.getByRole("link", { name: "Nhân sự" })).toBeVisible();
+  // The account name comes from /auth/me, so it survives the reload (bootstrapped Owner: no display name → email).
+  await expect(page.getByRole("button", { name: email })).toBeVisible();
 });

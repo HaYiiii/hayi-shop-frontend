@@ -72,6 +72,16 @@ describe("Signed-in layout — scope from the URL (SOURCE-STRUCTURE §3.1, Staff
     expect(await screen.findByRole("heading", { level: 1, name: "Bảng đơn" })).toBeInTheDocument();
   });
 
+  it.each([
+    ["the display name", { displayName: "Trần Minh", email: "minh@hayi.vn" }, "Trần Minh"],
+    ["the email without a display name", { displayName: null, email: "owner@hayi.vn" }, "owner@hayi.vn"],
+    ["a generic label without either", { displayName: null, email: null }, "Tài khoản của bạn"],
+  ])("shows %s on the account menu, from /auth/me", async (_, account, label) => {
+    renderApp({ ...manager, ...account }, "/branches/b-q1/orders");
+
+    expect(await screen.findByRole("button", { name: new RegExp(label) })).toBeInTheDocument();
+  });
+
   it("opens the first permitted screen of the default branch", async () => {
     const { router } = renderApp(manager, "/");
 
