@@ -2,6 +2,7 @@ import { Button, Card, Field } from "@hayi/ui";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useRef, useState } from "react";
 import { errorCode, unwrap, useApi } from "../../../lib/api";
+import { formText } from "../../../lib/form";
 import { commonAuthMessage } from "./auth-errors";
 import { AuthLayout, AuthTitle, Logo } from "./auth-layout";
 import { FormAlert } from "./form-alert";
@@ -34,7 +35,7 @@ export function MfaVerifyForm({ challengeId, identifier, onVerified, onRestart }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const code = String(new FormData(event.currentTarget).get("code")).trim();
+    const code = formText(event.currentTarget, "code").trim();
     verify.mutate(useRecovery ? code : code.replace(/\s/g, ""));
   }
 

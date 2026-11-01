@@ -2,6 +2,7 @@ import { Button, Dialog, Field } from "@hayi/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type FormEvent, useSyncExternalStore } from "react";
 import { errorCode, unwrap, useApi } from "../../../lib/api";
+import { formText } from "../../../lib/form";
 import { meQuery } from "../api/session";
 import type { StepUpGate } from "../api/step-up-gate";
 import { commonAuthMessage } from "./auth-errors";
@@ -35,7 +36,7 @@ function StepUpForm({ gate }: { gate: StepUpGate }) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const value = String(new FormData(event.currentTarget).get("secret"));
+    const value = formText(event.currentTarget, "secret");
     stepUp.mutate(method === "totp" ? { code: value.replace(/\s/g, "") } : { password: value });
   }
 

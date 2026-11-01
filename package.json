@@ -8,7 +8,8 @@
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "generate:api": "pnpm --filter @hayi/api-client generate"
+    "generate:api": "pnpm --filter @hayi/api-client generate",
+    "lint": "turbo run lint"
   },
   "devDependencies": {
     "turbo": "2.11.7",

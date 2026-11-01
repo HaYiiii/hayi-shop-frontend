@@ -81,7 +81,7 @@ function AppLayout() {
         <div className="grid max-w-[40ch] gap-3">
           <h1 className="font-display text-heading-lg">Tài khoản chưa được giao chi nhánh</h1>
           <p className="text-body text-ink-muted">Nhờ quản lý giao chi nhánh và vai trò cho bạn, rồi đăng nhập lại.</p>
-          <Button variant="link" className="justify-self-center" onClick={logout}>
+          <Button variant="link" className="justify-self-center" onClick={() => void logout()}>
             Đăng xuất
           </Button>
         </div>
@@ -102,7 +102,7 @@ function AppLayout() {
           </Link>
         }
         scope={<BranchSwitcher me={me} scope={scope} onScopeChange={changeScope} />}
-        account={<AccountMenu name={me.displayName ?? me.email ?? "Tài khoản của bạn"} onLogout={logout} />}
+        account={<AccountMenu name={me.displayName ?? me.email ?? "Tài khoản của bạn"} onLogout={() => void logout()} />}
         nav={
           <NavMenu
             scope={scope}

@@ -2,6 +2,7 @@ import { Button, Card, Field, cn } from "@hayi/ui";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
 import { errorCode, unwrap, useApi } from "../../../lib/api";
+import { formText } from "../../../lib/form";
 import { commonAuthMessage } from "./auth-errors";
 import { AuthLayout, AuthTitle, Logo } from "./auth-layout";
 import { FormAlert } from "./form-alert";
@@ -52,7 +53,7 @@ export function FirstPasswordForm({ changeToken, identifier, onChanged, onRestar
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const confirm = String(new FormData(form).get("confirmPassword"));
+    const confirm = formText(form, "confirmPassword");
     const next = { length: !lengthOk, mismatch: confirm !== password };
     setErrors(next);
     const firstInvalid = next.length ? "newPassword" : next.mismatch ? "confirmPassword" : null;
