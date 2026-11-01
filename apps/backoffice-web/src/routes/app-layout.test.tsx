@@ -22,8 +22,10 @@ const manager: Me = {
 
 const owner: Me = { userId: "u-owner", storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
 
-function renderApp(me: Me | null, path: string) {
-  fakeApi({ "GET /auth/me": () => (me ? json(me) : problem(401, "AUTH_REQUIRED")) });
+function renderApp(me: Me | null | (() => Response), path: string) {
+  fakeApi({
+    "GET /auth/me": () => (typeof me === "function" ? me() : me ? json(me) : problem(401, "AUTH_REQUIRED")),
+  });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const api = createBackofficeClient({ baseUrl: API_ORIGIN });
   const router = createAppRouter(
@@ -55,6 +57,19 @@ describe("Signed-in layout — scope from the URL (SOURCE-STRUCTURE §3.1, Staff
 
     expect(await screen.findByRole("heading", { name: "Đăng nhập Backoffice" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/login");
+  });
+
+  it("keeps the session when /auth/me fails for another reason, and retries", async () => {
+    let answer = () => problem(503, "SERVICE_UNAVAILABLE");
+    const { router, user } = renderApp(() => answer(), "/branches/b-q1/orders");
+
+    expect(await screen.findByRole("heading", { name: "Chưa tải được Backoffice" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/branches/b-q1/orders");
+
+    answer = () => json(manager);
+    await user.click(screen.getByRole("button", { name: "Thử lại" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Bảng đơn" })).toBeInTheDocument();
   });
 
   it("opens the first permitted screen of the default branch", async () => {

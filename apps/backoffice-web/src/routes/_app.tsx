@@ -1,5 +1,6 @@
+import { ApiError } from "@hayi/api-client";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Link, Outlet, createFileRoute, redirect, useNavigate, useParams } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, redirect, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { Button } from "@hayi/ui";
 import { useMemo, useState } from "react";
 import { meQuery, signedInIdentifier } from "../features/identity/api/session";
@@ -15,12 +16,30 @@ export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context }) => {
     try {
       await context.queryClient.ensureQueryData(meQuery(context.api));
-    } catch {
-      throw redirect({ to: "/login" });
+    } catch (error) {
+      // Only "no session" means sign in again; a network error or 5xx leaves the session alive.
+      if (error instanceof ApiError && error.status === 401) throw redirect({ to: "/login" });
+      throw error;
     }
   },
   component: AppLayout,
+  errorComponent: AppLoadError,
 });
+
+function AppLoadError() {
+  const router = useRouter();
+  return (
+    <main className="grid min-h-dvh place-items-center bg-cream px-4 text-center">
+      <div role="alert" className="grid max-w-[40ch] gap-3">
+        <h1 className="font-display text-heading-lg">Chưa tải được Backoffice</h1>
+        <p className="text-body text-ink-muted">Không kết nối được máy chủ hoặc hệ thống đang bận. Kiểm tra mạng rồi thử lại.</p>
+        <Button className="justify-self-center" onClick={() => void router.invalidate()}>
+          Thử lại
+        </Button>
+      </div>
+    </main>
+  );
+}
 
 function AppLayout() {
   const api = useApi();

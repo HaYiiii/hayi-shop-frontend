@@ -50,7 +50,7 @@ export function MenuContent({ className, sideOffset = 8, align = "start", ...pro
 export function MenuLabel({ className, ...props }: ComponentProps<typeof DropdownMenu.Label>) {
   return (
     <DropdownMenu.Label
-      className={cn("px-3 pt-2 pb-1 text-caption font-semibold tracking-[0.06em] text-ink-subtle uppercase", className)}
+      className={cn("px-3 pt-2 pb-1 text-caption font-semibold tracking-wider text-ink-subtle uppercase", className)}
       {...props}
     />
   );
@@ -89,7 +89,7 @@ export function MenuRadioItem({
     <DropdownMenu.RadioItem className={cn(itemClass, className)} {...props}>
       <ItemText description={description}>{children}</ItemText>
       <DropdownMenu.ItemIndicator className="text-matcha-700">
-        <svg aria-hidden="true" viewBox="0 0 20 20" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 10.5l3 3 7-7" />
         </svg>
       </DropdownMenu.ItemIndicator>

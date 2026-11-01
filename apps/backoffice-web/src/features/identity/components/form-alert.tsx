@@ -33,7 +33,7 @@ export function FormAlert({ tone, children }: { tone: keyof typeof tones; childr
       <svg
         aria-hidden="true"
         viewBox="0 0 20 20"
-        className="mt-px size-[18px] shrink-0"
+        className="mt-px size-4.5 shrink-0"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.5"

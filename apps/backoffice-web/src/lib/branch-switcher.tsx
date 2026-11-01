@@ -20,7 +20,7 @@ function scopeDescription(me: Me, scope: Scope): string {
 }
 
 const HomeIcon = (
-  <svg aria-hidden="true" viewBox="0 0 20 20" className="size-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+  <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
     <path d="M3 8.5 10 3l7 5.5V17H3V8.5Z" />
     <path d="M8 17v-5h4v5" />
   </svg>
