@@ -14,6 +14,3 @@ export function formatVnd(amount: number): string {
   }
   return vndFormatter.format(amount);
 }
-
-// Deliberate lint error: the required check must block the merge (reverted next commit).
-export const unused = async () => 1;
