@@ -14,3 +14,6 @@ export function formatVnd(amount: number): string {
   }
   return vndFormatter.format(amount);
 }
+
+// Deliberate lint error to show the CI step fails (reverted next commit).
+export const unused = async () => 1;
