@@ -33,12 +33,17 @@ HAYI_API_SPEC_DIR=/tmp/hayi-api-spec pnpm generate:api
 
 ```text
 apps/customer-web     Next.js (App Router), mobile-first
-apps/backoffice-web   Vite + React, desktop/tablet
-packages/api-client   type sinh từ OpenAPI + openapi-fetch (cookie, CSRF, Idempotency-Key, Problem Details)
+apps/backoffice-web   Vite + React, desktop/tablet; route theo file trong src/routes/ (TanStack Router)
+packages/api-client   type sinh từ OpenAPI + openapi-fetch (cookie, CSRF, refresh-on-401, step-up, Idempotency-Key, Problem Details)
+packages/ui           design system D2: theme Tailwind 4 (token) + component dùng chung (Button, Field, Dialog, Menu…; Radix + CVA)
 packages/domain-utils format VND, giờ theo Branch
 packages/config       tsconfig dùng chung
 ```
 
-`ui` (Tailwind + shadcn/ui) và `realtime` (SSE) được thêm ở P0.4.
+`realtime` (SSE client) chưa có; được thêm ở slice S6 Order Board (canonical `IMPLEMENTATION-PLAN.md` §2).
+
+E2E Playwright của Backoffice nằm ở `apps/backoffice-web/e2e` (chạy với backend local, xem README trong đó).
+
+Package chỉ commit mã nguồn (và `src/generated/` của `api-client`); build ra `dist/`.
 
 Quy tắc: app chỉ import `packages/*`; không lưu token trong storage; tổng tiền luôn lấy từ server.
