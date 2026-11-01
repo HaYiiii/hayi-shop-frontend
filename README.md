@@ -22,7 +22,9 @@ pnpm dev               # customer-web :3000, backoffice-web :5173
 
 ## CI
 
-Mỗi PR và mỗi push vào `main` chạy `.github/workflows/ci.yml`: cài dependency, sinh type API từ artifact `api-spec` của lần chạy CI xanh gần nhất trên `main` của backend, rồi typecheck, lint, test và build. Nếu type sinh ra khác bản đã commit thì CI đỏ. Để sửa, sinh lại type từ đúng artifact đó rồi commit:
+Mỗi PR và mỗi push vào `main` chạy `.github/workflows/ci.yml`: cài dependency, sinh type API từ artifact `api-spec` của lần chạy CI xanh gần nhất trên `main` của backend, rồi typecheck, lint, test và build.
+
+`main` có ruleset **"main: CI required"**: check *Typecheck, lint, test & build* (GitHub Actions) phải xanh thì mới merge được, không ai được bỏ qua. Nếu đổi tên job trong `ci.yml` thì phải sửa tên check trong ruleset (Settings → Rules → Rulesets), nếu không mọi PR sẽ chờ một check không bao giờ chạy. Nếu type sinh ra khác bản đã commit thì CI đỏ. Để sửa, sinh lại type từ đúng artifact đó rồi commit:
 
 ```bash
 run=$(gh run list -R HaYiiii/hayi-shop-backend --workflow ci.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')
