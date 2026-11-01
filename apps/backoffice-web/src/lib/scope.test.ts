@@ -3,14 +3,14 @@ import { type Me, initialScope, permissionsIn, scopeOptions } from "./scope";
 
 const owner: Me = {
   userId: "u-owner",
-  storeRoles: ["OWNER"],
+  email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: ["OWNER"],
   storePermissions: ["ORDER_VIEW", "STAFF_VIEW", "AUDIT_VIEW"],
   branches: [],
 };
 
 const manager: Me = {
   userId: "u-manager",
-  storeRoles: [],
+  email: null, displayName: "Trần Minh", mfaEnrolled: false, storeRoles: [],
   storePermissions: [],
   branches: [
     { branchId: "b-q1", roles: ["MANAGER"], permissions: ["ORDER_VIEW", "STAFF_VIEW"] },

@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { meQuery, rememberIdentifier } from "../features/identity/api/session";
+import { meQuery } from "../features/identity/api/session";
 import { SignIn } from "../features/identity/components/sign-in";
 import { useApi } from "../lib/api";
 
@@ -12,8 +12,7 @@ function LoginScreen() {
   const navigate = useNavigate();
   return (
     <SignIn
-      onSignedIn={(identifier) => {
-        rememberIdentifier(queryClient, identifier);
+      onSignedIn={() => {
         void queryClient.invalidateQueries({ queryKey: meQuery(api).queryKey }).then(() => navigate({ to: "/" }));
       }}
     />

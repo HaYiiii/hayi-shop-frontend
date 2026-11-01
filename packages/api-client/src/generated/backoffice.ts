@@ -215,8 +215,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Current user's roles and permissions
-         * @description For the UI permission guard only; the server checks every endpoint itself (API 01-security §6.2, Decision M4).
+         * Current user's account and effective access
+         * @description `email`, `displayName` and `mfaEnrolled` feed the account header and the step-up dialog: with `mfaEnrolled`
+         *     step-up asks for a TOTP code, without it for the password (API 01-security §8). Access fields are for the UI
+         *     permission guard only; the server checks every endpoint itself (API 01-security §6.2, Decision M4).
          *     `storePermissions` apply at every Branch (STORE roles: Owner/Admin). `branches` lists the Branches where a
          *     BRANCH role is in effect, i.e. backed by an active staff assignment (Decision A); their `permissions` already
          *     include `storePermissions`. Resolved live, so a role change shows on the next call.
@@ -307,6 +309,15 @@ export interface components {
         BackofficeMe: {
             /** Format: uuid */
             userId: string;
+            /**
+             * Format: email
+             * @description The EMAIL login identifier, normalized; `null` when the user has none.
+             */
+            email: string | null;
+            /** @description The StaffProfile full name; `null` when the user has no StaffProfile (e.g. a bootstrapped Owner). */
+            displayName: string | null;
+            /** @description The user has an active MFA factor, so step-up asks for a TOTP code instead of the password. */
+            mfaEnrolled: boolean;
             /** @description Role codes held at STORE scope, e.g. `OWNER`, `ADMIN`. */
             storeRoles: string[];
             /** @description Permission codes (API 01-security §7) granted by the STORE roles, at every Branch. */

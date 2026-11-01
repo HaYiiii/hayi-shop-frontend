@@ -10,10 +10,10 @@ import { meQuery } from "../api/session";
 import { createStepUpGate } from "../api/step-up-gate";
 import { StepUpDialog } from "./step-up";
 
-const owner: Me = { userId: "u-1", storeRoles: ["OWNER"], storePermissions: [], branches: [] };
+const owner: Me = { userId: "u-1", email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: ["OWNER"], storePermissions: [], branches: [] };
 const barista: Me = {
   userId: "u-2",
-  storeRoles: [],
+  email: null, displayName: "Lê Thu", mfaEnrolled: false, storeRoles: [],
   storePermissions: [],
   branches: [{ branchId: "b-q1", roles: ["BARISTA"], permissions: ["ORDER_PREPARE"] }],
 };
@@ -63,23 +63,34 @@ describe("StepUpDialog", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("offers a STORE role only the TOTP code: MFA is mandatory there (Decision D4, L7)", async () => {
+  it("asks an MFA-enrolled user only for the TOTP code (API 01-security §8, Decision L7)", async () => {
     setup({ me: owner });
 
-    await screen.findByRole("dialog");
-    expect(screen.queryByRole("button", { name: /Dùng mật khẩu/ })).not.toBeInTheDocument();
+    await screen.findByLabelText("Mã từ ứng dụng xác thực");
     expect(screen.queryByLabelText("Mật khẩu của bạn")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /mật khẩu/i })).not.toBeInTheDocument();
   });
 
-  it("lets a BRANCH-only user without MFA re-enter the password (Decision D4)", async () => {
+  it("asks a user without MFA for the password, with no TOTP option", async () => {
     const { api, action, user } = setup({ me: barista });
 
-    await user.click(await screen.findByRole("button", { name: "Chưa bật xác thực 2 lớp? Dùng mật khẩu" }));
-    await user.type(screen.getByLabelText("Mật khẩu của bạn"), "mat khau dung 01");
+    await user.type(await screen.findByLabelText("Mật khẩu của bạn"), "mat khau dung 01");
+    expect(screen.queryByLabelText("Mã từ ứng dụng xác thực")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /mã từ ứng dụng/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Xác thực và tiếp tục" }));
 
     expect((await action).response.status).toBe(200);
     expect(api.bodyOf("POST /auth/step-up")).toEqual({ password: "mat khau dung 01" });
+  });
+
+  it("keeps the dialog open after a wrong password", async () => {
+    const { user } = setup({ me: barista, stepUp: () => problem(401, "AUTH_INVALID_CREDENTIALS") });
+
+    await user.type(await screen.findByLabelText("Mật khẩu của bạn"), "sai");
+    await user.click(screen.getByRole("button", { name: "Xác thực và tiếp tục" }));
+
+    expect(await screen.findByText(/Mật khẩu chưa đúng/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("keeps the dialog open after a wrong code", async () => {

@@ -38,7 +38,7 @@ function nextStep(result: LoginResponse): Step | "signed-in" {
   return "signed-in";
 }
 
-export function SignIn({ onSignedIn }: { onSignedIn: (identifier: string) => void }) {
+export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   const [step, setStep] = useState<Step>({ kind: "login" });
   const [identifier, setIdentifier] = useState("");
   const restart = (notice?: LoginNotice) => setStep({ kind: "login", notice });
@@ -53,7 +53,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: (identifier: string) => voi
           onResult={(result, id) => {
             setIdentifier(id);
             const next = nextStep(result);
-            if (next === "signed-in") onSignedIn(id);
+            if (next === "signed-in") onSignedIn();
             else setStep(next);
           }}
         />
@@ -77,9 +77,9 @@ export function SignIn({ onSignedIn }: { onSignedIn: (identifier: string) => voi
       );
     case "mfa":
       return (
-        <MfaVerifyForm challengeId={step.challengeId} identifier={identifier} onVerified={() => onSignedIn(identifier)} onRestart={restart} />
+        <MfaVerifyForm challengeId={step.challengeId} identifier={identifier} onVerified={onSignedIn} onRestart={restart} />
       );
     case "recovery":
-      return <RecoveryCodes codes={step.codes} onContinue={() => onSignedIn(identifier)} />;
+      return <RecoveryCodes codes={step.codes} onContinue={onSignedIn} />;
   }
 }

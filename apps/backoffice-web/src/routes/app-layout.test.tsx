@@ -12,7 +12,7 @@ import { API_ORIGIN, fakeApi, json, problem } from "../test/fake-api";
 
 const manager: Me = {
   userId: "u-manager",
-  storeRoles: [],
+  email: null, displayName: "Trần Minh", mfaEnrolled: false, storeRoles: [],
   storePermissions: [],
   branches: [
     { branchId: "b-q1", roles: ["MANAGER"], permissions: ["ORDER_VIEW", "ORDER_PREPARE", "STAFF_VIEW"] },
@@ -20,7 +20,7 @@ const manager: Me = {
   ],
 };
 
-const owner: Me = { userId: "u-owner", storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
+const owner: Me = { userId: "u-owner", email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
 
 function renderApp(me: Me | null | (() => Response), path: string) {
   fakeApi({
@@ -70,6 +70,16 @@ describe("Signed-in layout — scope from the URL (SOURCE-STRUCTURE §3.1, Staff
     await user.click(screen.getByRole("button", { name: "Thử lại" }));
 
     expect(await screen.findByRole("heading", { level: 1, name: "Bảng đơn" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["the display name", { displayName: "Trần Minh", email: "minh@hayi.vn" }, "Trần Minh"],
+    ["the email without a display name", { displayName: null, email: "owner@hayi.vn" }, "owner@hayi.vn"],
+    ["a generic label without either", { displayName: null, email: null }, "Tài khoản của bạn"],
+  ])("shows %s on the account menu, from /auth/me", async (_, account, label) => {
+    renderApp({ ...manager, ...account }, "/branches/b-q1/orders");
+
+    expect(await screen.findByRole("button", { name: new RegExp(label) })).toBeInTheDocument();
   });
 
   it("opens the first permitted screen of the default branch", async () => {
