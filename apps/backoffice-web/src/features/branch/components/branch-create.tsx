@@ -26,6 +26,7 @@ export function BranchCreate() {
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const [localErrors, setLocalErrors] = useState<FieldErrors>({});
+  const [attempt, setAttempt] = useState(0);
   const create = useMutation({
     mutationFn: (body: Parameters<typeof createBranch>[1]) => createBranch(api, body),
     onSuccess: (branch) => {
@@ -38,6 +39,9 @@ export function BranchCreate() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fields = readFields(event.currentTarget);
+    setAttempt((n) => n + 1);
+    // Errors of the previous answer no longer describe what is in the form.
+    create.reset();
     if (parseLocation(fields.location) === "invalid") {
       setLocalErrors({ location: locationError });
       return;
@@ -47,7 +51,7 @@ export function BranchCreate() {
   }
 
   const errors = { ...errorsOf(create.error), ...localErrors };
-  useFocusFirstError(formRef, errors);
+  useFocusFirstError(formRef, errors, attempt);
   const unexpected = create.isError && Object.keys(errorsOf(create.error)).length === 0;
 
   return (
@@ -92,7 +96,7 @@ export function BranchCreate() {
               Chi nhánh được tạo ở trạng thái Nháp. Sau đó bạn đặt giờ mở cửa rồi kích hoạt.
             </span>
             <Button asChild variant="ghost" className="no-underline">
-              <Link to="/admin/branches">Huỷ</Link>
+              <Link to="/admin/branches">Hủy</Link>
             </Button>
             <Button type="submit" busy={create.isPending}>
               Tạo chi nhánh

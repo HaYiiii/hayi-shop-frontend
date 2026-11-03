@@ -77,15 +77,18 @@ export function ContactFields({ values, errors, disabled }: GroupProps) {
   );
 }
 
-/** After a failed submit, put the keyboard on the first field marked invalid (Field sets `aria-invalid`). */
-export function useFocusFirstError(form: RefObject<HTMLFormElement | null>, errors: FieldErrors) {
+/**
+ * After a failed submit, put the keyboard on the first field marked invalid (Field sets `aria-invalid`).
+ * `attempt` counts submits, so the same errors on a later submit focus again.
+ */
+export function useFocusFirstError(form: RefObject<HTMLFormElement | null>, errors: FieldErrors, attempt: number) {
   const signature = Object.keys(errors).join(",");
   useEffect(() => {
     if (!signature) return;
     // Field.Error marks its control in an effect of its own: wait one frame for it.
     const frame = requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
     return () => cancelAnimationFrame(frame);
-  }, [form, signature]);
+  }, [form, signature, attempt]);
 }
 
 export const locationError = "Nhập vĩ độ và kinh độ cách nhau bằng dấu phẩy, ví dụ 10.7757, 106.7019.";

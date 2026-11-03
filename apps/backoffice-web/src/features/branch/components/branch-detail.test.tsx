@@ -98,6 +98,35 @@ describe("Branch information (D3c screen 16)", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("clears the server's field errors on Bỏ thay đổi and on a submit stopped on the client", async () => {
+    const s = server();
+    const { user } = renderAdmin("/admin/branches/b-q1", {
+      ...s.handlers,
+      "PATCH /branches/b-q1": () =>
+        Response.json(
+          { status: 400, code: "VALIDATION_FAILED", errors: [{ field: "email", code: "EMAIL", message: "Email chưa đúng định dạng" }] },
+          { status: 400, headers: { "Content-Type": "application/problem+json" } },
+        ),
+    });
+
+    const email = await screen.findByLabelText("Email");
+    await user.type(email, "x");
+    await user.click(screen.getByRole("button", { name: "Lưu thông tin" }));
+    expect(await screen.findByText("Email chưa đúng định dạng")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Bỏ thay đổi" }));
+    expect(screen.queryByText("Email chưa đúng định dạng")).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Email"), "x");
+    await user.click(screen.getByRole("button", { name: "Lưu thông tin" }));
+    expect(await screen.findByText("Email chưa đúng định dạng")).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Toạ độ/), "abc");
+    await user.click(screen.getByRole("button", { name: "Lưu thông tin" }));
+
+    expect(await screen.findByText(/Nhập vĩ độ và kinh độ/)).toBeInTheDocument();
+    expect(screen.queryByText("Email chưa đúng định dạng")).not.toBeInTheDocument();
+  });
+
   it("does not send anything when nothing changed", async () => {
     const s = server();
     const { api, user } = renderAdmin("/admin/branches/b-q1", s.handlers);
@@ -106,6 +135,22 @@ describe("Branch information (D3c screen 16)", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("Không có thay đổi nào để lưu.");
     expect(api.calls.some((c) => c.route === "PATCH /branches/b-q1")).toBe(false);
+  });
+
+  it("links a DRAFT Branch to its pickup slots, to set them up before activating", async () => {
+    const s = server({ status: "DRAFT", activatedAt: null });
+    renderAdmin("/admin/branches/b-q1", s.handlers);
+
+    const tabs = within(await screen.findByRole("navigation", { name: "Phần chi nhánh" }));
+    expect(tabs.getByRole("link", { name: "Khung giờ nhận đơn" })).toHaveAttribute("href", "/branches/b-q1/slots");
+  });
+
+  it("does not send a CLOSED Branch to its operational screens (they would switch the working scope)", async () => {
+    const s = server({ status: "CLOSED", closedAt: "2026-10-20T03:00:00Z" });
+    renderAdmin("/admin/branches/b-q1", s.handlers);
+
+    const tabs = within(await screen.findByRole("navigation", { name: "Phần chi nhánh" }));
+    expect(tabs.queryByRole("link", { name: "Khung giờ nhận đơn" })).not.toBeInTheDocument();
   });
 
   it("locks the form of a CLOSED Branch", async () => {

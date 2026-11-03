@@ -65,6 +65,33 @@ describe("Create Branch (D3c screen 15)", () => {
     expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true");
   });
 
+  it("moves focus back to the invalid field on every failed submit", async () => {
+    const { user } = renderAdmin("/admin/branches/new", {});
+
+    await fillRequired(user);
+    await user.type(screen.getByLabelText(/Toạ độ/), "10.7757");
+    const submit = screen.getByRole("button", { name: "Tạo chi nhánh" });
+    await user.click(submit);
+    await waitFor(() => expect(screen.getByLabelText(/Toạ độ/)).toHaveFocus());
+
+    await user.click(submit);
+    await waitFor(() => expect(screen.getByLabelText(/Toạ độ/)).toHaveFocus());
+  });
+
+  it("drops the previous server errors when a new submit is stopped on the client", async () => {
+    const { user } = renderAdmin("/admin/branches/new", { "POST /branches": () => problem(409, "BRANCH_CODE_TAKEN") });
+
+    await fillRequired(user);
+    await user.click(screen.getByRole("button", { name: "Tạo chi nhánh" }));
+    expect(await screen.findByText(/Mã này đã được dùng/)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/Toạ độ/), "10.7757");
+    await user.click(screen.getByRole("button", { name: "Tạo chi nhánh" }));
+
+    expect(await screen.findByText(/Nhập vĩ độ và kinh độ/)).toBeInTheDocument();
+    expect(screen.queryByText(/Mã này đã được dùng/)).not.toBeInTheDocument();
+  });
+
   it("checks the coordinates before sending", async () => {
     const { api, user } = renderAdmin("/admin/branches/new", { "POST /branches": () => branchResponse(created, 201) });
 

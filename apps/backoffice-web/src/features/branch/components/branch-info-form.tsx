@@ -21,6 +21,7 @@ export function BranchInfoForm({ branch, onSaved, onReload }: BranchInfoFormProp
   const queryClient = useQueryClient();
   const formRef = useRef<HTMLFormElement>(null);
   const [localErrors, setLocalErrors] = useState<FieldErrors>({});
+  const [attempt, setAttempt] = useState(0);
   const save = useMutation({
     mutationFn: (body: Parameters<typeof updateBranch>[2]) => updateBranch(api, branch, body),
     onSuccess: (saved) => {
@@ -35,6 +36,9 @@ export function BranchInfoForm({ branch, onSaved, onReload }: BranchInfoFormProp
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fields = readFields(event.currentTarget);
+    setAttempt((n) => n + 1);
+    // Errors of the previous answer no longer describe what is in the form.
+    save.reset();
     if (parseLocation(fields.location) === "invalid") {
       setLocalErrors({ location: locationError });
       return;
@@ -49,7 +53,7 @@ export function BranchInfoForm({ branch, onSaved, onReload }: BranchInfoFormProp
   const serverErrors =
     save.error instanceof ApiError && code === "VALIDATION_FAILED" ? fieldErrors(save.error.problem.errors ?? []) : {};
   const errors = { ...serverErrors, ...localErrors };
-  useFocusFirstError(formRef, errors);
+  useFocusFirstError(formRef, errors, attempt);
 
   return (
     <Card className="gap-5 p-6">
@@ -84,7 +88,11 @@ export function BranchInfoForm({ branch, onSaved, onReload }: BranchInfoFormProp
 
         {closed ? null : (
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="reset" variant="ghost" onClick={() => setLocalErrors({})}>
+            <Button type="reset" variant="ghost" onClick={() => {
+                setLocalErrors({});
+                save.reset();
+              }}
+            >
               Bỏ thay đổi
             </Button>
             <Button type="submit" busy={save.isPending}>
