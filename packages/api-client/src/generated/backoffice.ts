@@ -386,6 +386,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/branches/{branchId}/business-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Weekly hours and the overrides from today on
+         * @description `BRANCH_VIEW` at that Branch. The `ETag` is the Branch version, for `If-Match` on edits (Decision Q4).
+         */
+        get: operations["getBranchBusinessHours"];
+        /**
+         * Replace the whole weekly schedule
+         * @description `BRANCH_MANAGE` at that Branch. Requires `If-Match` (missing → `428`, stale → `412`). Intervals of one day must
+         *     not overlap; touching is fine; `open < close`, latest `23:59` → otherwise `422 BRANCH_HOURS_INVALID` with
+         *     `errors[]` (Decision Q2). A `CLOSED` Branch → `409`. Bumps the Branch version; audited. Requires `X-CSRF-Token`.
+         */
+        put: operations["replaceBranchBusinessHours"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}/business-hour-overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the hours of one date, replacing its previous override
+         * @description `BRANCH_MANAGE` at that Branch. `isClosed = true` with no intervals closes the day; otherwise ≥ 1 interval.
+         *     A date in the past (`Asia/Ho_Chi_Minh`) or invalid intervals → `422 BRANCH_HOURS_INVALID` (Decision Q2–Q3).
+         *     Optional `If-Match`. Bumps the Branch version; audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["putBranchHourOverride"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}/business-hour-overrides/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                date: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove the override of one date
+         * @description `BRANCH_MANAGE` at that Branch. No override that date → `404 BRANCH_HOURS_OVERRIDE_NOT_FOUND` (Decision Q3).
+         *     Optional `If-Match`. Bumps the Branch version; audited. Requires `X-CSRF-Token`.
+         */
+        delete: operations["deleteBranchHourOverride"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -497,6 +576,42 @@ export interface components {
         };
         /** @description `BRANCH_HAS_OPEN_COMMITMENTS` carries `conflicts[]`; `BRANCH_INVALID_TRANSITION` is a plain Problem. */
         BranchLifecycleProblem: components["schemas"]["BranchOpenCommitmentsProblem"] | components["schemas"]["Problem"];
+        /** @description `HH:mm`, `00:00`–`23:59` (no `24:00`, Decision Q2). */
+        TimeOfDay: string;
+        TimeInterval: {
+            open: components["schemas"]["TimeOfDay"];
+            close: components["schemas"]["TimeOfDay"];
+        };
+        WeeklyInterval: {
+            /** @description 1 = Monday … 7 = Sunday (ISO-8601). */
+            dayOfWeek: number;
+            open: components["schemas"]["TimeOfDay"];
+            close: components["schemas"]["TimeOfDay"];
+        };
+        BusinessHoursReplaceRequest: {
+            /** @description The whole week; a day without intervals is closed. */
+            weekly: components["schemas"]["WeeklyInterval"][];
+        };
+        HourOverrideRequest: {
+            /** Format: date */
+            date: string;
+            isClosed: boolean;
+            intervals: components["schemas"]["TimeInterval"][];
+            reason?: string | null;
+        };
+        HourOverride: {
+            /** Format: date */
+            date: string;
+            isClosed: boolean;
+            intervals: components["schemas"]["TimeInterval"][];
+            reason: string | null;
+        };
+        BranchBusinessHours: {
+            /** @description Sorted by day, then opening time. */
+            weekly: components["schemas"]["WeeklyInterval"][];
+            /** @description Overrides from today (`Asia/Ho_Chi_Minh`) on, sorted by date. */
+            overrides: components["schemas"]["HourOverride"][];
+        };
         BranchList: {
             items: components["schemas"]["Branch"][];
         };
@@ -616,7 +731,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `BRANCH_NOT_FOUND` */
+        /** @description `BRANCH_NOT_FOUND`, `BRANCH_HOURS_OVERRIDE_NOT_FOUND` */
         NotFound: {
             headers: {
                 [name: string]: unknown;
@@ -650,6 +765,15 @@ export interface components {
             };
             content: {
                 "application/problem+json": components["schemas"]["BranchLifecycleProblem"];
+            };
+        };
+        /** @description `BRANCH_HOURS_INVALID` with `errors[]` (Decision Q2) */
+        HoursInvalid: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
         /** @description `VERSION_CONFLICT` — `If-Match` is not the current version (API README §8) */
@@ -1227,6 +1351,152 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getBranchBusinessHours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Branch's business hours. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchBusinessHours"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replaceBranchBusinessHours: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusinessHoursReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description The business hours after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchBusinessHours"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["InvalidTransition"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["HoursInvalid"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    putBranchHourOverride: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HourOverrideRequest"];
+            };
+        };
+        responses: {
+            /** @description The business hours after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchBusinessHours"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["InvalidTransition"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["HoursInvalid"];
+        };
+    };
+    deleteBranchHourOverride: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The business hours after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchBusinessHours"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["InvalidTransition"];
+            412: components["responses"]["VersionConflict"];
         };
     };
 }
