@@ -7,3 +7,10 @@ export function formatBranchTime(instant: string, timeZone: string = DEFAULT_BRA
     new Date(instant),
   );
 }
+
+/** Formats a UTC instant as the local date dd/MM/yyyy in the branch timezone. */
+export function formatBranchDate(instant: string, timeZone: string = DEFAULT_BRANCH_TIMEZONE): string {
+  return new Intl.DateTimeFormat("vi-VN", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).format(
+    new Date(instant),
+  );
+}
