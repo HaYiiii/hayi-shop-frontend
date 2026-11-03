@@ -1,5 +1,5 @@
 import { formatBranchDate } from "@hayi/domain-utils";
-import { Button, Chip, ChipGroup, Skeleton, StatusBadge, Table } from "@hayi/ui";
+import { Button, Chip, ChipGroup, Skeleton, StatusBadge, Table, cn, focusRing } from "@hayi/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useApi } from "../../../lib/api";
@@ -115,7 +115,7 @@ function BranchTable({ branches, status, onStatusChange }: BranchListProps & { b
                       to="/admin/branches/$id"
                       params={{ id: branch.branchId }}
                       aria-label={`Xem ${branch.name}`}
-                      className="rounded-sm font-medium text-matcha-700 hover:text-matcha-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                      className={cn("rounded-sm font-medium text-matcha-700 hover:text-matcha-800", focusRing)}
                     >
                       Xem
                     </Link>

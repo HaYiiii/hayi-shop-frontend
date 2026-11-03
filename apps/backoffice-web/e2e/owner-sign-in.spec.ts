@@ -156,7 +156,7 @@ test("Owner: creates a Branch and activates it (#28)", async ({ page }) => {
   const dialog = page.getByRole("dialog", { name: "Tạm ngưng HaYi E2E Nguyễn Huệ?" });
   await expect(dialog.getByText("Đã kiểm tra: không còn đơn hay phiên nhóm đang mở.")).toBeVisible();
   await snap(page, "18-branch-deactivate");
-  await dialog.getByRole("button", { name: "Huỷ" }).click();
+  await dialog.getByRole("button", { name: "Hủy" }).click();
 
   // Close dialog (screen 19): locked until the code is typed.
   await summary.getByRole("button", { name: "Đóng chi nhánh…" }).click();

@@ -1,12 +1,12 @@
 import { formatBranchDate } from "@hayi/domain-utils";
-import { Button, Card, Dialog, Skeleton, StatusBadge } from "@hayi/ui";
+import { Button, Card, Dialog, Skeleton, StatusBadge, cn, focusRing } from "@hayi/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { errorCode, useApi } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
 import { type LifecycleCommand, branchQuery } from "../api/branches";
-import { useLifecycle } from "../api/use-lifecycle";
+import { useLifecycle } from "../hooks/use-lifecycle";
 import type { Branch } from "../branch-form";
 import { lifecycleCommands, statusLabel, statusTone } from "../branch-status";
 import { BranchInfoForm } from "./branch-info-form";
@@ -66,13 +66,20 @@ export function BranchDetail({ branchId }: { branchId: string }) {
         <span aria-current="page" className="-mb-px border-b-2 border-matcha-700 px-3 py-2 text-body font-semibold text-matcha-800">
           Thông tin
         </span>
-        <Link
-          to="/branches/$branchId/slots"
-          params={{ branchId: branch.branchId }}
-          className="-mb-px rounded-t-md border-b-2 border-transparent px-3 py-2 text-body font-medium text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
-          Khung giờ nhận đơn
-        </Link>
+        {/* A Branch screen switches the working scope to this Branch: fine for a DRAFT (slots are set up
+            before activating) or an operating one, not for a CLOSED Branch. */}
+        {branch.status === "CLOSED" ? null : (
+          <Link
+            to="/branches/$branchId/slots"
+            params={{ branchId: branch.branchId }}
+            className={cn(
+              "-mb-px rounded-t-md border-b-2 border-transparent px-3 py-2 text-body font-medium text-ink-muted hover:text-ink",
+              focusRing,
+            )}
+          >
+            Khung giờ nhận đơn
+          </Link>
+        )}
       </nav>
 
       {notice ? (
