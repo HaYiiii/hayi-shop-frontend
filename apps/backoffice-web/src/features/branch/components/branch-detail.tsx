@@ -1,8 +1,8 @@
 import { formatBranchDate } from "@hayi/domain-utils";
 import { Button, Card, Dialog, Skeleton, StatusBadge, cn, focusRing } from "@hayi/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, useMatchRoute } from "@tanstack/react-router";
+import { type ReactNode, createContext, use, useState } from "react";
 import { errorCode, useApi } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
 import { type LifecycleCommand, branchQuery } from "../api/branches";
@@ -13,11 +13,35 @@ import { BranchInfoForm } from "./branch-info-form";
 import { Breadcrumb } from "./breadcrumb";
 import { CloseDialog, DeactivateDialog } from "./lifecycle-dialogs";
 
-type Notice = { tone: "success" | "danger"; text: string; reload?: boolean };
+export type Notice = { tone: "success" | "danger"; text: string; reload?: boolean };
 
-/** D3c screen 16: a Branch's information and lifecycle. */
-export function BranchDetail({ branchId }: { branchId: string }) {
+interface BranchPageValue {
+  branch: Branch;
+  /** One message area for the page: lifecycle commands and the section's own saves. */
+  setNotice: (notice: Notice | null) => void;
+  /** Reload the Branch (and clear the message). */
+  reload: () => void;
+}
+
+const BranchPageContext = createContext<BranchPageValue | null>(null);
+
+/** The Branch of the page and its message area, for a section inside `<BranchPage>`. */
+export function useBranchPage(): BranchPageValue {
+  const value = use(BranchPageContext);
+  if (!value) throw new Error("useBranchPage must be used inside <BranchPage>");
+  return value;
+}
+
+const tabClass = cn(
+  "-mb-px rounded-t-md border-b-2 border-transparent px-3 py-2 text-body font-medium text-ink-muted no-underline hover:text-ink",
+  "aria-[current=page]:border-matcha-700 aria-[current=page]:font-semibold aria-[current=page]:text-matcha-800",
+  focusRing,
+);
+
+/** D3c screens 16–17: a Branch's header, lifecycle commands and section tabs around the open section. */
+export function BranchPage({ branchId, children }: { branchId: string; children: ReactNode }) {
   const api = useApi();
+  const matchRoute = useMatchRoute();
   const { data: branch, error, refetch, isFetching } = useQuery(branchQuery(api, branchId));
   const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -47,10 +71,12 @@ export function BranchDetail({ branchId }: { branchId: string }) {
     setNotice(null);
     void refetch();
   };
+  const onHours = Boolean(matchRoute({ to: "/admin/branches/$id/hours", params: { id: branchId } }));
+  const params = { id: branch.branchId };
 
   return (
-    <>
-      <Breadcrumb current={branch.name} />
+    <BranchPageContext value={{ branch, setNotice, reload }}>
+      {onHours ? <Breadcrumb branch={{ id: branch.branchId, name: branch.name }} current="Giờ mở cửa" /> : <Breadcrumb current={branch.name} />}
       <section aria-label="Tóm tắt chi nhánh" className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-heading-lg text-balance">{branch.name}</h1>
         <span translate="no" className="font-mono text-label font-semibold tracking-wide text-ink-muted">
@@ -63,20 +89,16 @@ export function BranchDetail({ branchId }: { branchId: string }) {
       </section>
 
       <nav aria-label="Phần chi nhánh" className="flex gap-1 border-b border-line">
-        <span aria-current="page" className="-mb-px border-b-2 border-matcha-700 px-3 py-2 text-body font-semibold text-matcha-800">
+        <Link to="/admin/branches/$id" params={params} activeOptions={{ exact: true }} className={tabClass} onClick={() => setNotice(null)}>
           Thông tin
-        </span>
+        </Link>
+        <Link to="/admin/branches/$id/hours" params={params} className={tabClass} onClick={() => setNotice(null)}>
+          Giờ mở cửa
+        </Link>
         {/* A Branch screen switches the working scope to this Branch: fine for a DRAFT (slots are set up
             before activating) or an operating one, not for a CLOSED Branch. */}
         {branch.status === "CLOSED" ? null : (
-          <Link
-            to="/branches/$branchId/slots"
-            params={{ branchId: branch.branchId }}
-            className={cn(
-              "-mb-px rounded-t-md border-b-2 border-transparent px-3 py-2 text-body font-medium text-ink-muted hover:text-ink",
-              focusRing,
-            )}
-          >
+          <Link to="/branches/$branchId/slots" params={{ branchId: branch.branchId }} className={tabClass}>
             Khung giờ nhận đơn
           </Link>
         )}
@@ -93,19 +115,27 @@ export function BranchDetail({ branchId }: { branchId: string }) {
         </div>
       ) : null}
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)]">
-        <BranchInfoForm
-          // A new version (save, reload, transition) resets the fields to the server's values.
-          key={branch.version}
-          branch={branch}
-          onSaved={(changed) =>
-            setNotice({ tone: "success", text: changed ? "Đã lưu thông tin chi nhánh." : "Không có thay đổi nào để lưu." })
-          }
-          onReload={reload}
-        />
-        <LifecycleFacts branch={branch} />
-      </div>
-    </>
+      {children}
+    </BranchPageContext>
+  );
+}
+
+/** D3c screen 16: name, address, contact and lifecycle facts. */
+export function BranchInfo() {
+  const { branch, setNotice, reload } = useBranchPage();
+  return (
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)]">
+      <BranchInfoForm
+        // A new version (save, reload, transition) resets the fields to the server's values.
+        key={branch.version}
+        branch={branch}
+        onSaved={(changed) =>
+          setNotice({ tone: "success", text: changed ? "Đã lưu thông tin chi nhánh." : "Không có thay đổi nào để lưu." })
+        }
+        onReload={reload}
+      />
+      <LifecycleFacts branch={branch} />
+    </div>
   );
 }
 
