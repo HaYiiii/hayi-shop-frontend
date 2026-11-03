@@ -2,10 +2,16 @@ import { type Page, expect, test } from "@playwright/test";
 import { Secret, TOTP } from "otpauth";
 
 /**
- * Slice happy path (#11): the bootstrapped Owner signs in for the first time — temporary password,
- * new password, MFA enrolment, recovery codes — reaches the shell, signs out, and signs in again with TOTP.
- * Needs a fresh backend: the bootstrap Owner exists only until its password is changed (e2e/README.md).
+ * Slice happy paths, in order against one fresh backend (e2e/README.md):
+ * - #11: the bootstrapped Owner signs in for the first time — temporary password, new password, MFA enrolment,
+ *   recovery codes — reaches the shell, signs out, and signs in again with TOTP;
+ * - #28: that Owner creates a Branch and activates it.
+ * The bootstrap Owner exists only until its password is changed, so the tests share its TOTP secret.
  */
+test.describe.configure({ mode: "serial" });
+
+let ownerTotp: TOTP | undefined;
+const usedSteps = new Set<number>();
 const email = process.env.E2E_OWNER_EMAIL ?? "owner@hayi.local";
 const temporaryPassword = process.env.E2E_OWNER_TEMP_PASSWORD ?? "mat khau tam thoi 01";
 const newPassword = process.env.E2E_OWNER_NEW_PASSWORD ?? "matcha sua tuoi e2e 2026";
@@ -34,7 +40,6 @@ async function freshCode(page: Page, totp: TOTP, used: Set<number>): Promise<str
 }
 
 test("Owner: first sign-in with password change and MFA enrolment, then TOTP sign-in", async ({ page, context }) => {
-  const usedSteps = new Set<number>();
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/login$/);
@@ -57,6 +62,7 @@ test("Owner: first sign-in with password change and MFA enrolment, then TOTP sig
   const secret = (await page.locator("code").innerText()).replace(/\s/g, "");
   await snap(page, "3-mfa-enroll");
   const totp = new TOTP({ secret: Secret.fromBase32(secret), digits: 6, period: 30, algorithm: "SHA1" });
+  ownerTotp = totp;
   await page.getByLabel("Mã từ ứng dụng").fill(await freshCode(page, totp, usedSteps));
   await page.getByRole("button", { name: "Xác nhận và bật" }).click();
 
@@ -96,4 +102,68 @@ test("Owner: first sign-in with password change and MFA enrolment, then TOTP sig
   await expect(nav.getByRole("link", { name: "Nhân sự" })).toBeVisible();
   // The account name comes from /auth/me, so it survives the reload (bootstrapped Owner: no display name → email).
   await expect(page.getByRole("button", { name: email })).toBeVisible();
+});
+
+test("Owner: creates a Branch and activates it (#28)", async ({ page }) => {
+  test.skip(!ownerTotp, "Needs the Owner enrolled by the previous test");
+  const totp = ownerTotp as TOTP;
+  const code = `E2E-${Date.now().toString(36).toUpperCase()}`;
+
+  await page.goto("/login");
+  await logIn(page, newPassword);
+  await page.getByLabel("Mã xác thực").fill(await freshCode(page, totp, usedSteps));
+  await page.getByRole("button", { name: "Xác nhận" }).click();
+
+  // Quản trị › Chi nhánh (D3c screen 14).
+  const nav = page.getByRole("navigation", { name: "Điều hướng chính" });
+  await nav.getByRole("link", { name: "Chi nhánh" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Chi nhánh" })).toBeVisible();
+  await expect(page.getByText(/^\d+ chi nhánh$/)).toBeVisible();
+  await snap(page, "14-branch-list");
+
+  // Create (screen 15): starts DRAFT.
+  await page.getByRole("link", { name: "Tạo chi nhánh" }).click();
+  await page.getByLabel(/Mã chi nhánh/).fill(code);
+  await page.getByLabel(/Tên hiển thị/).fill("HaYi E2E Nguyễn Huệ");
+  await page.getByLabel(/Số nhà, đường/).fill("12 Nguyễn Huệ");
+  await page.getByLabel(/Phường \/ xã/).fill("Bến Nghé");
+  await page.getByLabel(/Quận \/ huyện/).fill("Quận 1");
+  await page.getByLabel(/Tỉnh \/ thành/).fill("TP.HCM");
+  await page.getByLabel(/Toạ độ/).fill("10.7757, 106.7019");
+  await snap(page, "15-branch-create");
+  await page.getByRole("button", { name: "Tạo chi nhánh" }).click();
+
+  const summary = page.getByRole("region", { name: "Tóm tắt chi nhánh" });
+  await expect(page.getByRole("heading", { level: 1, name: "HaYi E2E Nguyễn Huệ" })).toBeVisible();
+  await expect(summary.getByText(code)).toBeVisible();
+  await expect(summary.getByText("Nháp")).toBeVisible();
+  await snap(page, "16-branch-detail-draft");
+
+  // Activate: DRAFT → ACTIVE (Branch §4.3).
+  await summary.getByRole("button", { name: "Kích hoạt" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã kích hoạt chi nhánh.");
+  await expect(summary.getByText("Đang hoạt động")).toBeVisible();
+  await snap(page, "16-branch-detail-active");
+
+  // The list shows it active.
+  await page.getByRole("navigation", { name: "Vị trí" }).getByRole("link", { name: "Chi nhánh" }).click();
+  const row = page.getByRole("row", { name: new RegExp(code) });
+  await expect(row.getByText("Đang hoạt động")).toBeVisible();
+
+  // Deactivate dialog (screen 18) on a Branch with no open commitments.
+  await row.getByRole("link", { name: "Xem HaYi E2E Nguyễn Huệ" }).click();
+  await summary.getByRole("button", { name: "Tạm ngưng…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Tạm ngưng HaYi E2E Nguyễn Huệ?" });
+  await expect(dialog.getByText("Đã kiểm tra: không còn đơn hay phiên nhóm đang mở.")).toBeVisible();
+  await snap(page, "18-branch-deactivate");
+  await dialog.getByRole("button", { name: "Huỷ" }).click();
+
+  // Close dialog (screen 19): locked until the code is typed.
+  await summary.getByRole("button", { name: "Đóng chi nhánh…" }).click();
+  const close = page.getByRole("dialog", { name: "Đóng vĩnh viễn HaYi E2E Nguyễn Huệ?" });
+  await expect(close.getByRole("button", { name: "Đóng chi nhánh" })).toBeDisabled();
+  await close.getByLabel(/để xác nhận/).fill(code);
+  await expect(close.getByRole("button", { name: "Đóng chi nhánh" })).toBeEnabled();
+  await page.waitForTimeout(300); // let the button's colour transition finish for the screenshot
+  await snap(page, "19-branch-close");
 });
