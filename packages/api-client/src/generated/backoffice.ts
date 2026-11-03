@@ -465,6 +465,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/branches/{branchId}/fulfillment/configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The Branch's fulfillment configs
+         * @description `BRANCH_VIEW` at that Branch. Always has `PICKUP` (MVP); before the first save it shows the ERD defaults with
+         *     `version: 0`, which is the `If-Match` that creates it (Decision R1).
+         */
+        get: operations["listFulfillmentConfigs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}/fulfillment/configs/{fulfillmentType}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                /** @description Only `PICKUP` in the MVP; anything else → `422 FULFILLMENT_CONFIG_INVALID`. */
+                fulfillmentType: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace one fulfillment config
+         * @description `FULFILLMENT_CONFIG_MANAGE` at that Branch. Requires `If-Match` (`"v0"` creates the config; missing → `428`,
+         *     stale → `412`). Values are checked by the server: `slotDurationMinutes` 15 or 30, days/minutes ≥ 0, capacity
+         *     `null` or ≥ 1, instructions ≤ 500 → otherwise `422 FULFILLMENT_CONFIG_INVALID` with `errors[]` (Decision R3).
+         *     A `CLOSED` Branch → `409`. Unchanged values keep the version; changes are audited. Requires `X-CSRF-Token`.
+         */
+        put: operations["replaceFulfillmentConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -611,6 +663,79 @@ export interface components {
             weekly: components["schemas"]["WeeklyInterval"][];
             /** @description Overrides from today (`Asia/Ho_Chi_Minh`) on, sorted by date. */
             overrides: components["schemas"]["HourOverride"][];
+        };
+        /**
+         * @description The whole config (API 09 §2); value rules are checked by the server (422, Decision R3). A nullable key that is
+         *     left out means `null` (Decision R2).
+         */
+        FulfillmentConfigInput: {
+            isEnabled: boolean;
+            /** @description Stored only; ordering is scheduled in the MVP. */
+            asapEnabled: boolean;
+            /** Format: int32 */
+            maxAdvanceDays: number;
+            /**
+             * Format: int32
+             * @description 15 or 30 (Decision N4).
+             */
+            slotDurationMinutes: number;
+            /**
+             * Format: int32
+             * @description Today's slots only (Decision N1).
+             */
+            sameDayCutoffMinutes: number;
+            /**
+             * Format: int32
+             * @description Every day (Decision N2).
+             */
+            minLeadMinutes: number;
+            /** Format: int32 */
+            groupOrderMinLeadMinutes?: number | null;
+            /** Format: int32 */
+            customerCancelCutoffMinutes?: number | null;
+            /**
+             * Format: int32
+             * @description `null` = no limit.
+             */
+            defaultSlotMaxOrders?: number | null;
+            /**
+             * Format: int32
+             * @description `null` = no limit.
+             */
+            defaultSlotMaxItems?: number | null;
+            pickupInstructions?: string | null;
+        };
+        /** @description A config as read; every key present, nullable ones may be `null`. */
+        FulfillmentConfig: {
+            /** @enum {string} */
+            fulfillmentType: "PICKUP";
+            isEnabled: boolean;
+            asapEnabled: boolean;
+            /** Format: int32 */
+            maxAdvanceDays: number;
+            /** Format: int32 */
+            slotDurationMinutes: number;
+            /** Format: int32 */
+            sameDayCutoffMinutes: number;
+            /** Format: int32 */
+            minLeadMinutes: number;
+            /** Format: int32 */
+            groupOrderMinLeadMinutes: number | null;
+            /** Format: int32 */
+            customerCancelCutoffMinutes: number | null;
+            /** Format: int32 */
+            defaultSlotMaxOrders: number | null;
+            /** Format: int32 */
+            defaultSlotMaxItems: number | null;
+            pickupInstructions: string | null;
+            /**
+             * Format: int64
+             * @description `0` until first saved (Decision R1).
+             */
+            version: number;
+        };
+        FulfillmentConfigList: {
+            items: components["schemas"]["FulfillmentConfig"][];
         };
         BranchList: {
             items: components["schemas"]["Branch"][];
@@ -769,6 +894,15 @@ export interface components {
         };
         /** @description `BRANCH_HOURS_INVALID` with `errors[]` (Decision Q2) */
         HoursInvalid: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `FULFILLMENT_CONFIG_INVALID` with `errors[]` (Decision R3) */
+        FulfillmentConfigInvalid: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1497,6 +1631,78 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["InvalidTransition"];
             412: components["responses"]["VersionConflict"];
+        };
+    };
+    listFulfillmentConfigs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One config per fulfillment type. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FulfillmentConfigList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replaceFulfillmentConfig: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                /** @description Only `PICKUP` in the MVP; anything else → `422 FULFILLMENT_CONFIG_INVALID`. */
+                fulfillmentType: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FulfillmentConfigInput"];
+            };
+        };
+        responses: {
+            /** @description The config after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FulfillmentConfig"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["InvalidTransition"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["FulfillmentConfigInvalid"];
+            428: components["responses"]["PreconditionRequired"];
         };
     };
 }
