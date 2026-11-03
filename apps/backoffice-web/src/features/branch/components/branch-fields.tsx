@@ -1,5 +1,5 @@
 import { Field, cn } from "@hayi/ui";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, type RefObject, useEffect } from "react";
 import type { BranchFieldName, BranchFields } from "../branch-form";
 
 export type FieldErrors = Partial<Record<BranchFieldName, string>>;
@@ -75,6 +75,17 @@ export function ContactFields({ values, errors, disabled }: GroupProps) {
       <BranchTextField {...shared} name="email" label="Email" type="email" spellCheck={false} placeholder="Ví dụ: q1@hayi.vn…" />
     </>
   );
+}
+
+/** After a failed submit, put the keyboard on the first field marked invalid (Field sets `aria-invalid`). */
+export function useFocusFirstError(form: RefObject<HTMLFormElement | null>, errors: FieldErrors) {
+  const signature = Object.keys(errors).join(",");
+  useEffect(() => {
+    if (!signature) return;
+    // Field.Error marks its control in an effect of its own: wait one frame for it.
+    const frame = requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [form, signature]);
 }
 
 export const locationError = "Nhập vĩ độ và kinh độ cách nhau bằng dấu phẩy, ví dụ 10.7757, 106.7019.";

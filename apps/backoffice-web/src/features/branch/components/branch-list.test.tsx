@@ -63,6 +63,12 @@ describe("Branch list (D3c screen 14)", () => {
     expect(await screen.findByText("Không có chi nhánh nào ở trạng thái này.")).toBeInTheDocument();
   });
 
+  it("invites to create the first Branch when there is none", async () => {
+    renderAdmin("/admin/branches", { "GET /branches": () => json({ items: [] }) });
+
+    expect(await screen.findByText("Chưa có chi nhánh nào. Bấm Tạo chi nhánh để thêm chi nhánh đầu tiên.")).toBeInTheDocument();
+  });
+
   it("shows the Quản trị › Chi nhánh menu entry only with BRANCH_MANAGE (UX only; the API still answers 403)", async () => {
     renderAdmin("/staff", handlers);
     const nav = within(await screen.findByRole("navigation", { name: "Điều hướng chính" }));

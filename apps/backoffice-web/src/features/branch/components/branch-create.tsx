@@ -2,12 +2,12 @@ import { ApiError } from "@hayi/api-client";
 import { Button, Card } from "@hayi/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { errorCode, useApi } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
 import { branchKeys, createBranch } from "../api/branches";
 import { createBody, fieldErrors, parseLocation, readFields } from "../branch-form";
-import { AddressFields, BranchTextField, ContactFields, FieldGroup, type FieldErrors, locationError } from "./branch-fields";
+import { AddressFields, BranchTextField, ContactFields, FieldGroup, type FieldErrors, locationError, useFocusFirstError } from "./branch-fields";
 import { Breadcrumb } from "./breadcrumb";
 
 /** Problem codes of `POST /branches` shown on a field (API 09 §1.1). */
@@ -24,6 +24,7 @@ export function BranchCreate() {
   const api = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const formRef = useRef<HTMLFormElement>(null);
   const [localErrors, setLocalErrors] = useState<FieldErrors>({});
   const create = useMutation({
     mutationFn: (body: Parameters<typeof createBranch>[1]) => createBranch(api, body),
@@ -46,6 +47,7 @@ export function BranchCreate() {
   }
 
   const errors = { ...errorsOf(create.error), ...localErrors };
+  useFocusFirstError(formRef, errors);
   const unexpected = create.isError && Object.keys(errorsOf(create.error)).length === 0;
 
   return (
@@ -54,7 +56,7 @@ export function BranchCreate() {
       <h1 className="font-display text-heading-lg">Tạo chi nhánh</h1>
 
       <Card className="max-w-[760px] gap-6 p-6">
-        <form className="grid gap-6" onSubmit={submit}>
+        <form ref={formRef} className="grid gap-6" onSubmit={submit}>
           {unexpected ? <FormAlert tone="danger">Chưa tạo được chi nhánh. Bạn thử lại sau ít phút nhé.</FormAlert> : null}
           <FieldGroup legend="Định danh">
             <BranchTextField
@@ -65,7 +67,6 @@ export function BranchCreate() {
               autoComplete="off"
               spellCheck={false}
               translate="no"
-              pattern="[A-Za-z0-9][A-Za-z0-9\-]{1,31}"
               maxLength={32}
               className="[&_input]:font-mono [&_input]:uppercase"
               hint="Chữ in hoa, số và dấu gạch ngang, 2–32 ký tự. Không sửa được sau khi tạo."

@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { json, problem } from "../../../test/fake-api";
 import { aBranch, branchResponse, renderAdmin } from "../test/render-admin";
@@ -46,6 +46,7 @@ describe("Create Branch (D3c screen 15)", () => {
 
     expect(await screen.findByText("Mã này đã được dùng, kể cả chi nhánh đã đóng. Bạn chọn mã khác nhé.")).toBeInTheDocument();
     expect(screen.getByLabelText(/Mã chi nhánh/)).toHaveAttribute("aria-invalid", "true");
+    await waitFor(() => expect(screen.getByLabelText(/Mã chi nhánh/)).toHaveFocus());
   });
 
   it("shows validation errors on their fields", async () => {

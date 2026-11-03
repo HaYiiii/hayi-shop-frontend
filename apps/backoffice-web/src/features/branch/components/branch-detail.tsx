@@ -29,7 +29,7 @@ export function BranchDetail({ branchId }: { branchId: string }) {
           <Breadcrumb current="Chi tiết" />
           <div className="grid justify-items-start gap-2">
             <FormAlert tone="danger">
-              {missing ? "Không tìm thấy chi nhánh này." : "Chưa tải được chi nhánh. Kiểm tra mạng rồi thử lại."}
+              {missing ? "Không tìm thấy chi nhánh này. Quay lại danh sách để chọn chi nhánh khác." : "Chưa tải được chi nhánh. Kiểm tra mạng rồi thử lại."}
             </FormAlert>
             {missing ? null : (
               <Button variant="outline" busy={isFetching} onClick={() => void refetch()}>

@@ -74,7 +74,9 @@ function BranchTable({ branches, status, onStatusChange }: BranchListProps & { b
 
       {shown.length === 0 ? (
         <p role="status" className="rounded-lg border border-dashed border-line-strong bg-paper p-6 text-center text-body text-ink-muted">
-          Không có chi nhánh nào ở trạng thái này.
+          {branches.length === 0
+            ? "Chưa có chi nhánh nào. Bấm Tạo chi nhánh để thêm chi nhánh đầu tiên."
+            : "Không có chi nhánh nào ở trạng thái này."}
         </p>
       ) : (
         <Table.Root aria-label="Danh sách chi nhánh">

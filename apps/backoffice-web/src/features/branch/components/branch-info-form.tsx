@@ -1,12 +1,12 @@
 import { ApiError } from "@hayi/api-client";
 import { Button, Card, Field } from "@hayi/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { errorCode, useApi } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
 import { branchKeys, updateBranch } from "../api/branches";
 import { type Branch, fieldErrors, fieldsOf, parseLocation, patchBody, readFields } from "../branch-form";
-import { AddressFields, BranchTextField, ContactFields, FieldGroup, type FieldErrors, locationError } from "./branch-fields";
+import { AddressFields, BranchTextField, ContactFields, FieldGroup, type FieldErrors, locationError, useFocusFirstError } from "./branch-fields";
 
 interface BranchInfoFormProps {
   branch: Branch;
@@ -19,6 +19,7 @@ interface BranchInfoFormProps {
 export function BranchInfoForm({ branch, onSaved, onReload }: BranchInfoFormProps) {
   const api = useApi();
   const queryClient = useQueryClient();
+  const formRef = useRef<HTMLFormElement>(null);
   const [localErrors, setLocalErrors] = useState<FieldErrors>({});
   const save = useMutation({
     mutationFn: (body: Parameters<typeof updateBranch>[2]) => updateBranch(api, branch, body),
@@ -48,10 +49,11 @@ export function BranchInfoForm({ branch, onSaved, onReload }: BranchInfoFormProp
   const serverErrors =
     save.error instanceof ApiError && code === "VALIDATION_FAILED" ? fieldErrors(save.error.problem.errors ?? []) : {};
   const errors = { ...serverErrors, ...localErrors };
+  useFocusFirstError(formRef, errors);
 
   return (
     <Card className="gap-5 p-6">
-      <form className="grid gap-5" onSubmit={submit}>
+      <form ref={formRef} className="grid gap-5" onSubmit={submit}>
         {code === "VERSION_CONFLICT" ? (
           <Alert tone="warning" onReload={onReload}>
             Chi nhánh vừa được người khác cập nhật. Thay đổi của bạn chưa được lưu. Tải lại để xem bản mới rồi sửa tiếp.

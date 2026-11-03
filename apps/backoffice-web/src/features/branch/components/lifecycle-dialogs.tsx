@@ -47,7 +47,7 @@ const cancel = (
 /** The status changed while the dialog was open (`409 BRANCH_INVALID_TRANSITION`). */
 function InvalidTransition({ title, onReload }: { title: string; onReload: () => void }) {
   return (
-    <Dialog.Content className="w-[min(calc(100%-32px),440px)] p-6">
+    <Dialog.Content className={`${scroll} w-[min(calc(100%-32px),440px)]`}>
       <Dialog.Title>{title}</Dialog.Title>
       <Dialog.Description className="text-ink">
         Trạng thái chi nhánh đã thay đổi trong lúc bạn thao tác. Tải lại để xem trạng thái mới nhất.
@@ -58,6 +58,10 @@ function InvalidTransition({ title, onReload }: { title: string; onReload: () =>
     </Dialog.Content>
   );
 }
+
+/** Long content scrolls inside the dialog, never the page behind it. */
+const scroll = "max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain p-6";
+const tall = `${scroll} w-[min(calc(100%-32px),480px)]`;
 
 const unexpected = "Chưa thực hiện được. Bạn thử lại sau ít phút nhé.";
 
@@ -70,7 +74,7 @@ export function DeactivateDialog({ branch, onDone, onReload }: DialogProps) {
   const blocked = (check.data?.length ?? 0) > 0;
 
   return (
-    <Dialog.Content className="w-[min(calc(100%-32px),480px)] p-6">
+    <Dialog.Content className={tall}>
       <div className="grid gap-1">
         <Dialog.Title>{`Tạm ngưng ${branch.name}?`}</Dialog.Title>
         <Dialog.Description>
@@ -118,7 +122,7 @@ export function CloseDialog({ branch, onDone, onReload }: DialogProps) {
   const matches = typed.trim().toUpperCase() === branch.branchCode;
 
   return (
-    <Dialog.Content className="w-[min(calc(100%-32px),480px)] p-6">
+    <Dialog.Content className={tall}>
       <div className="flex items-start gap-3">
         <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-pill bg-danger-soft text-danger">
           <svg viewBox="0 0 20 20" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
