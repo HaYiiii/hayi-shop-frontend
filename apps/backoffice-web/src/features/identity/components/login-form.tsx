@@ -6,7 +6,7 @@ import { errorCode, unwrap, useApi } from "../../../lib/api";
 import { formText } from "../../../lib/form";
 import { commonAuthMessage, isLocked } from "./auth-errors";
 import { AuthLayout, AuthTitle, Logo } from "./auth-layout";
-import { FormAlert } from "./form-alert";
+import { FormAlert } from "../../../lib/form-alert";
 
 type LoginResponse = BackofficeComponents["schemas"]["LoginResponse"];
 

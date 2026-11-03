@@ -6,7 +6,7 @@ import { formText } from "../../../lib/form";
 import { meQuery } from "../api/session";
 import type { StepUpGate } from "../api/step-up-gate";
 import { commonAuthMessage } from "./auth-errors";
-import { FormAlert } from "./form-alert";
+import { FormAlert } from "../../../lib/form-alert";
 import { OtpInput } from "./otp-input";
 
 /** Re-authentication for actions marked S (API 01-security §8). */
