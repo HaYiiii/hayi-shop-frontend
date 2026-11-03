@@ -23,7 +23,7 @@ export interface BranchNavItem extends NavItemBase {
 /** A screen outside any one Branch. */
 export interface StoreNavItem extends NavItemBase {
   level: "store";
-  to: "/staff";
+  to: "/staff" | "/admin/branches";
 }
 
 export type NavItem = BranchNavItem | StoreNavItem;
@@ -135,6 +135,25 @@ export const navGroups: NavGroup[] = [
           <Icon>
             <circle cx="8" cy="7" r="3" />
             <path d="M2.5 16.5a5.5 5.5 0 0 1 11 0M13.5 4.5a3 3 0 0 1 0 5.5M15.5 12a5 5 0 0 1 2 4.5" />
+          </Icon>
+        ),
+      },
+    ],
+  },
+  {
+    label: "Quản trị",
+    items: [
+      {
+        id: "branches",
+        level: "store",
+        to: "/admin/branches",
+        label: "Chi nhánh",
+        // D3c: the Quản trị group shows only with BRANCH_MANAGE (API 01-security §7).
+        permission: "BRANCH_MANAGE",
+        icon: (
+          <Icon>
+            <path d="M3 8.5 10 3l7 5.5V17H3V8.5Z" />
+            <path d="M8 17v-5h4v5" />
           </Icon>
         ),
       },
