@@ -2,7 +2,7 @@ import { ApiError } from "@hayi/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../../../lib/api";
 import type { Branch, BranchConflict } from "../branch-form";
-import { type LifecycleCommand, branchKeys, changeLifecycle, closureCheckQuery } from "./branches";
+import { type LifecycleCommand, branchKeys, changeLifecycle, closureCheckQuery } from "../api/branches";
 
 /** `conflicts[]` of a `409 BRANCH_HAS_OPEN_COMMITMENTS`, or `null` for any other error. */
 export function openCommitmentsOf(error: unknown): BranchConflict[] | null {

@@ -2,7 +2,7 @@ import { Button, Dialog, Field } from "@hayi/ui";
 import { type ReactNode, useState } from "react";
 import { errorCode } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
-import { openCommitmentsOf, useClosureCheck, useLifecycle } from "../api/use-lifecycle";
+import { openCommitmentsOf, useClosureCheck, useLifecycle } from "../hooks/use-lifecycle";
 import type { Branch } from "../branch-form";
 import { CommitmentList } from "./commitment-list";
 
@@ -40,7 +40,7 @@ function RecheckButton({ check }: { check: Check }) {
 
 const cancel = (
   <Dialog.Close asChild>
-    <Button variant="ghost">Huỷ</Button>
+    <Button variant="ghost">Hủy</Button>
   </Dialog.Close>
 );
 
