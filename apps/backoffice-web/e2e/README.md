@@ -5,7 +5,8 @@ Vite (started by Playwright) proxies `/api` to it, so the HttpOnly cookies stay 
 
 ## Backend: fresh database with a bootstrap Owner
 
-`owner-sign-in.spec.ts` signs in as the bootstrap Owner with its temporary password, so each run needs a
+`owner-sign-in.spec.ts` signs in as the bootstrap Owner with its temporary password, then (serially, sharing its
+TOTP secret) creates and activates a Branch, so each run needs a
 fresh database. In `hayi-shop-backend`, the Testcontainers runner gives one per start and leaves the
 compose database alone:
 

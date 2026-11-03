@@ -5,7 +5,7 @@ import { errorCode, unwrap, useApi } from "../../../lib/api";
 import { formText } from "../../../lib/form";
 import { commonAuthMessage } from "./auth-errors";
 import { AuthLayout, AuthTitle, Logo } from "./auth-layout";
-import { FormAlert } from "./form-alert";
+import { FormAlert } from "../../../lib/form-alert";
 import type { LoginNotice } from "./login-form";
 
 /** Decision K4: 12–128 characters; "different from current" and "not common" are checked by the server. */

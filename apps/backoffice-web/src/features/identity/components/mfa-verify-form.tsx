@@ -5,7 +5,7 @@ import { errorCode, unwrap, useApi } from "../../../lib/api";
 import { formText } from "../../../lib/form";
 import { commonAuthMessage } from "./auth-errors";
 import { AuthLayout, AuthTitle, Logo } from "./auth-layout";
-import { FormAlert } from "./form-alert";
+import { FormAlert } from "../../../lib/form-alert";
 import { OtpInput } from "./otp-input";
 import type { LoginNotice } from "./login-form";
 

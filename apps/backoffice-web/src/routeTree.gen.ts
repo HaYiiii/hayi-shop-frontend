@@ -13,6 +13,9 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppStaffRouteImport } from './routes/_app/staff'
+import { Route as AppAdminBranchesIndexRouteImport } from './routes/_app/admin/branches/index'
+import { Route as AppAdminBranchesIdRouteImport } from './routes/_app/admin/branches/$id'
+import { Route as AppAdminBranchesNewRouteImport } from './routes/_app/admin/branches/new'
 import { Route as AppBranchesBranchIdOrdersRouteImport } from './routes/_app/branches/$branchId/orders'
 import { Route as AppBranchesBranchIdPaymentsRouteImport } from './routes/_app/branches/$branchId/payments'
 import { Route as AppBranchesBranchIdPreparationRouteImport } from './routes/_app/branches/$branchId/preparation'
@@ -36,6 +39,21 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppStaffRoute = AppStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminBranchesIndexRoute = AppAdminBranchesIndexRouteImport.update({
+  id: '/admin/branches/',
+  path: '/admin/branches/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminBranchesIdRoute = AppAdminBranchesIdRouteImport.update({
+  id: '/admin/branches/$id',
+  path: '/admin/branches/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminBranchesNewRoute = AppAdminBranchesNewRouteImport.update({
+  id: '/admin/branches/new',
+  path: '/admin/branches/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBranchesBranchIdOrdersRoute =
@@ -73,21 +91,27 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/staff': typeof AppStaffRoute
+  '/admin/branches/$id': typeof AppAdminBranchesIdRoute
+  '/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
   '/branches/$branchId/payments': typeof AppBranchesBranchIdPaymentsRoute
   '/branches/$branchId/preparation': typeof AppBranchesBranchIdPreparationRoute
   '/branches/$branchId/slots': typeof AppBranchesBranchIdSlotsRoute
   '/branches/$branchId/sold-out': typeof AppBranchesBranchIdSoldOutRoute
+  '/admin/branches/': typeof AppAdminBranchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/staff': typeof AppStaffRoute
   '/': typeof AppIndexRoute
+  '/admin/branches/$id': typeof AppAdminBranchesIdRoute
+  '/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
   '/branches/$branchId/payments': typeof AppBranchesBranchIdPaymentsRoute
   '/branches/$branchId/preparation': typeof AppBranchesBranchIdPreparationRoute
   '/branches/$branchId/slots': typeof AppBranchesBranchIdSlotsRoute
   '/branches/$branchId/sold-out': typeof AppBranchesBranchIdSoldOutRoute
+  '/admin/branches': typeof AppAdminBranchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,11 +119,14 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/staff': typeof AppStaffRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/branches/$id': typeof AppAdminBranchesIdRoute
+  '/_app/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/_app/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
   '/_app/branches/$branchId/payments': typeof AppBranchesBranchIdPaymentsRoute
   '/_app/branches/$branchId/preparation': typeof AppBranchesBranchIdPreparationRoute
   '/_app/branches/$branchId/slots': typeof AppBranchesBranchIdSlotsRoute
   '/_app/branches/$branchId/sold-out': typeof AppBranchesBranchIdSoldOutRoute
+  '/_app/admin/branches/': typeof AppAdminBranchesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,32 +134,41 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/staff'
+    | '/admin/branches/$id'
+    | '/admin/branches/new'
     | '/branches/$branchId/orders'
     | '/branches/$branchId/payments'
     | '/branches/$branchId/preparation'
     | '/branches/$branchId/slots'
     | '/branches/$branchId/sold-out'
+    | '/admin/branches/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/staff'
     | '/'
+    | '/admin/branches/$id'
+    | '/admin/branches/new'
     | '/branches/$branchId/orders'
     | '/branches/$branchId/payments'
     | '/branches/$branchId/preparation'
     | '/branches/$branchId/slots'
     | '/branches/$branchId/sold-out'
+    | '/admin/branches'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/_app/staff'
     | '/_app/'
+    | '/_app/admin/branches/$id'
+    | '/_app/admin/branches/new'
     | '/_app/branches/$branchId/orders'
     | '/_app/branches/$branchId/payments'
     | '/_app/branches/$branchId/preparation'
     | '/_app/branches/$branchId/slots'
     | '/_app/branches/$branchId/sold-out'
+    | '/_app/admin/branches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -168,6 +204,27 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/staff'
       preLoaderRoute: typeof AppStaffRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/branches/': {
+      id: '/_app/admin/branches/'
+      path: '/admin/branches'
+      fullPath: '/admin/branches/'
+      preLoaderRoute: typeof AppAdminBranchesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/branches/$id': {
+      id: '/_app/admin/branches/$id'
+      path: '/admin/branches/$id'
+      fullPath: '/admin/branches/$id'
+      preLoaderRoute: typeof AppAdminBranchesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/branches/new': {
+      id: '/_app/admin/branches/new'
+      path: '/admin/branches/new'
+      fullPath: '/admin/branches/new'
+      preLoaderRoute: typeof AppAdminBranchesNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/branches/$branchId/orders': {
@@ -211,21 +268,27 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppStaffRoute: typeof AppStaffRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminBranchesIdRoute: typeof AppAdminBranchesIdRoute
+  AppAdminBranchesNewRoute: typeof AppAdminBranchesNewRoute
   AppBranchesBranchIdOrdersRoute: typeof AppBranchesBranchIdOrdersRoute
   AppBranchesBranchIdPaymentsRoute: typeof AppBranchesBranchIdPaymentsRoute
   AppBranchesBranchIdPreparationRoute: typeof AppBranchesBranchIdPreparationRoute
   AppBranchesBranchIdSlotsRoute: typeof AppBranchesBranchIdSlotsRoute
   AppBranchesBranchIdSoldOutRoute: typeof AppBranchesBranchIdSoldOutRoute
+  AppAdminBranchesIndexRoute: typeof AppAdminBranchesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppStaffRoute: AppStaffRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminBranchesIdRoute: AppAdminBranchesIdRoute,
+  AppAdminBranchesNewRoute: AppAdminBranchesNewRoute,
   AppBranchesBranchIdOrdersRoute: AppBranchesBranchIdOrdersRoute,
   AppBranchesBranchIdPaymentsRoute: AppBranchesBranchIdPaymentsRoute,
   AppBranchesBranchIdPreparationRoute: AppBranchesBranchIdPreparationRoute,
   AppBranchesBranchIdSlotsRoute: AppBranchesBranchIdSlotsRoute,
   AppBranchesBranchIdSoldOutRoute: AppBranchesBranchIdSoldOutRoute,
+  AppAdminBranchesIndexRoute: AppAdminBranchesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

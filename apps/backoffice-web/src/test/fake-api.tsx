@@ -28,13 +28,13 @@ export function noContent() {
  * Unknown routes answer 404 so a missing handler fails loudly.
  */
 export function fakeApi(handlers: Record<string, Handler>) {
-  const calls: { route: string; body: unknown }[] = [];
+  const calls: { route: string; body: unknown; headers: Headers }[] = [];
   const fetch = vi.fn(async (request: Request) => {
     const path = new URL(request.url).pathname.replace("/api/backoffice/v1", "");
     const route = `${request.method} ${path}`;
     const text = await request.clone().text();
     const body: unknown = text ? JSON.parse(text) : undefined;
-    calls.push({ route, body });
+    calls.push({ route, body, headers: request.headers });
     const handler = handlers[route];
     return handler ? handler(body, request) : problem(404, "NOT_FOUND");
   });

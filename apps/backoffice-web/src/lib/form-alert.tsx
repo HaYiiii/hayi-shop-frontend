@@ -23,7 +23,7 @@ const icons: Record<keyof typeof tones, ReactNode> = {
   success: <path d="M5 10.5l3 3 7-7" strokeWidth="1.8" />,
 };
 
-/** Message above a sign-in form: errors are `alert`, confirmations are `status`. */
+/** Message above a form: errors are `alert`, confirmations are `status`. */
 export function FormAlert({ tone, children }: { tone: keyof typeof tones; children: ReactNode }) {
   return (
     <div

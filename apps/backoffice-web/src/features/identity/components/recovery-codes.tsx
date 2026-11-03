@@ -2,7 +2,7 @@ import { Button, Card, StatusBadge } from "@hayi/ui";
 import { useEffect, useId, useMemo, useState } from "react";
 import { AuthLayout, AuthTitle } from "./auth-layout";
 import { CopyButton } from "./copy-button";
-import { FormAlert } from "./form-alert";
+import { FormAlert } from "../../../lib/form-alert";
 
 /** Recovery codes are shown once (API 01-security §6.2); they live only in memory. */
 export function RecoveryCodes({ codes, onContinue }: { codes: string[]; onContinue: () => void }) {
