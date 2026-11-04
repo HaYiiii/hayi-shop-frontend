@@ -29,10 +29,10 @@ const branches = [
   aBranch({ branchId: "b-q3", branchCode: "Q3-VOVANTAN", name: "Quận 3 · Võ Văn Tần", status: "INACTIVE" }),
 ];
 
-function renderApp(me: Me | null | (() => Response), path: string) {
+function renderApp(me: Me | null | (() => Response), path: string, branchList = () => json({ items: branches })) {
   const api = fakeApi({
     "GET /auth/me": () => (typeof me === "function" ? me() : me ? json(me) : problem(401, "AUTH_REQUIRED")),
-    "GET /branches": () => json({ items: branches }),
+    "GET /branches": branchList,
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const client = createBackofficeClient({ baseUrl: API_ORIGIN });
@@ -128,6 +128,21 @@ describe("Signed-in layout — scope from the URL (SOURCE-STRUCTURE §3.1, Staff
 
     expect(await screen.findByRole("heading", { level: 1, name: "Bảng đơn" })).toBeInTheDocument();
     expect(await within(screen.getByRole("main")).findByText("Quận 3 · Võ Văn Tần")).toBeInTheDocument();
+  });
+
+  it("keeps the app on its retry page when the Branch list of the user's Branches fails", async () => {
+    renderApp(manager, "/branches/b-q1/orders", () => problem(503, "SERVICE_UNAVAILABLE"));
+
+    expect(await screen.findByRole("heading", { name: "Chưa tải được Backoffice" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thử lại" })).toBeInTheDocument();
+  });
+
+  it("says the Branch name could not be loaded for a STORE-only Owner, without blocking the screen", async () => {
+    renderApp(owner, "/branches/b-q3/orders", () => problem(503, "SERVICE_UNAVAILABLE"));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Bảng đơn" })).toBeInTheDocument();
+    expect(await within(screen.getByRole("main")).findByText("Chưa tải được tên chi nhánh")).toBeInTheDocument();
+    expect(screen.queryByText("Chi nhánh không xác định")).not.toBeInTheDocument();
   });
 
   it("does not ask for the Branch list when the account has no role anywhere", async () => {

@@ -1,5 +1,5 @@
 import { Menu, StatusBadge } from "@hayi/ui";
-import { type BranchDirectory, type Me, type Scope, scopeKey, scopeLabel, scopeOptions } from "./scope";
+import { type BranchNames, type Me, type Scope, scopeKey, scopeLabel, scopeOptions } from "./scope";
 
 /** Fixed role system (Decision D3); the spec types role codes as plain strings. */
 const roleLabels: Readonly<Record<string, string>> = {
@@ -29,7 +29,7 @@ const HomeIcon = (
 interface BranchSwitcherProps {
   me: Me;
   /** Names and statuses of the Branches in `me` (`GET /branches`). */
-  branches: BranchDirectory | undefined;
+  branches: BranchNames;
   scope: Scope;
   onScopeChange: (scope: Scope) => void;
 }
@@ -64,7 +64,7 @@ export function BranchSwitcher({ me, branches, scope, onScopeChange }: BranchSwi
           }}
         >
           {options.map((option) => {
-            const status = option.kind === "branch" ? branches?.get(option.branchId)?.status : null;
+            const status = option.kind === "branch" ? typeof branches === "object" ? branches.get(option.branchId)?.status : null : null;
             return (
               <Menu.RadioItem key={scopeKey(option)} value={scopeKey(option)} description={scopeDescription(me, option)}>
                 <span className="flex items-center gap-2">

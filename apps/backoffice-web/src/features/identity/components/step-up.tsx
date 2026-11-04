@@ -21,7 +21,8 @@ export function StepUpDialog({ gate }: { gate: StepUpGate }) {
 
 function StepUpForm({ gate }: { gate: StepUpGate }) {
   const api = useApi();
-  // Already loaded by the signed-in route: a step-up only comes from a signed-in action.
+  // Never suspends: a step-up only comes from a signed-in action, and `/_app` loads `/auth/me` before any of them.
+  // The dialog sits in `__root` without a Suspense boundary, so that must stay true.
   const { data: me } = useSuspenseQuery(meQuery(api));
   // With MFA the code, without it the password (API 01-security §8, Decision L7); no switching between them.
   const method = me.mfaEnrolled ? "totp" : "password";

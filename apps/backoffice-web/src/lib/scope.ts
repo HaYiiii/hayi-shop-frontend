@@ -20,10 +20,13 @@ export interface BranchLabel {
 /** Branches of `GET /branches` (API 09 §1.1) by id; the signed-in layout loads it. */
 export type BranchDirectory = ReadonlyMap<string, BranchLabel>;
 
-/** `branches` is `undefined` while the list is still loading. */
-export function scopeLabel(scope: Scope, branches: BranchDirectory | undefined): string {
+/** The directory, or why there is none yet: names are never guessed. */
+export type BranchNames = BranchDirectory | "loading" | "failed";
+
+export function scopeLabel(scope: Scope, branches: BranchNames): string {
   if (scope.kind === "store") return "Toàn hệ thống";
-  if (!branches) return "Đang tải…";
+  if (branches === "loading") return "Đang tải…";
+  if (branches === "failed") return "Chưa tải được tên chi nhánh";
   // Only an id the user typed into the URL is missing from the list: it has no permission there either.
   return branches.get(scope.branchId)?.name ?? "Chi nhánh không xác định";
 }

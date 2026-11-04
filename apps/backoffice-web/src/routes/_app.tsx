@@ -10,7 +10,7 @@ import { AccountMenu, AppShell, Brand } from "../features/staff/components/app-s
 import { NavMenu, navLinkClass } from "../features/staff/components/nav-menu";
 import { unwrap, useApi } from "../lib/api";
 import { BranchSwitcher } from "../lib/branch-switcher";
-import { type Scope, initialScope, permissionsIn, readLastBranch, writeLastBranch } from "../lib/scope";
+import { type BranchNames, type Scope, initialScope, permissionsIn, readLastBranch, writeLastBranch } from "../lib/scope";
 import { WorkspaceProvider } from "../lib/workspace";
 
 /** Signed-in frame: needs `/auth/me` (the client refreshes an expired session first). */
@@ -61,7 +61,7 @@ function AppLayout() {
   // Loaded before the layout when the user has Branches; a STORE role opening a Branch URL loads it here.
   const branchList = useQuery({ ...directoryQuery(api), enabled: me.branches.length > 0 || routeBranch !== undefined });
   const branches = useMemo(
-    () => (branchList.data ? branchDirectory(branchList.data) : branchList.isError ? new Map() : undefined),
+    (): BranchNames => (branchList.data ? branchDirectory(branchList.data) : branchList.isError ? "failed" : "loading"),
     [branchList.data, branchList.isError],
   );
   const [chosen, setChosen] = useState<Scope | null>(null);

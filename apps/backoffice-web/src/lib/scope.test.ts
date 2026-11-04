@@ -67,7 +67,8 @@ describe("scopeLabel — what the header calls the scope (GET /branches names, A
     expect(scopeLabel({ kind: "branch", branchId: "b-other" }, directory)).toBe("Chi nhánh không xác định");
   });
 
-  it("says the name is loading rather than guessing one", () => {
-    expect(scopeLabel({ kind: "branch", branchId: "b-q1" }, undefined)).toBe("Đang tải…");
+  it("says the name is loading, or could not be loaded, rather than guessing one", () => {
+    expect(scopeLabel({ kind: "branch", branchId: "b-q1" }, "loading")).toBe("Đang tải…");
+    expect(scopeLabel({ kind: "branch", branchId: "b-q1" }, "failed")).toBe("Chưa tải được tên chi nhánh");
   });
 });
