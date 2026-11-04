@@ -91,7 +91,7 @@ export function HourOverrides({ branchId, overrides, readOnly, onReload }: HourO
 }
 
 const timeClass = cn(
-  "h-control-default w-[104px] rounded-md border border-line-strong bg-paper px-2 text-body tabular-nums text-ink",
+  "h-control-default w-auto min-w-[104px] rounded-md border border-line-strong bg-paper px-2 text-body tabular-nums text-ink",
   "hover:border-ink-muted aria-invalid:border-danger disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-subtle",
   focusRing,
 );

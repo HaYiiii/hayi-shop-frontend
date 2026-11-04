@@ -125,7 +125,7 @@ export function WeeklyHours({ branchId, weekly, version, readOnly, onReload }: W
 }
 
 const timeClass = cn(
-  "h-control-compact w-[96px] rounded-md border border-line-strong bg-paper px-2 text-body tabular-nums text-ink",
+  "h-control-compact w-auto min-w-[96px] rounded-md border border-line-strong bg-paper px-2 text-body tabular-nums text-ink",
   "hover:border-ink-muted aria-invalid:border-danger disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-subtle",
   focusRing,
 );
