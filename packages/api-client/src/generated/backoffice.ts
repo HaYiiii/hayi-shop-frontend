@@ -627,6 +627,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/branches/{branchId}/fulfillment/capacity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Real per-slot capacity of one day
+         * @description `BRANCH_VIEW` at that Branch. Any date (past or beyond the horizon) of any existing Branch; the same slots and
+         *     statuses as the public view, with the numbers (Decision V1). Unknown Branch → `404 BRANCH_NOT_FOUND`;
+         *     `fulfillmentType` other than `PICKUP` → `422 FULFILLMENT_CONFIG_INVALID`.
+         */
+        get: operations["getFulfillmentCapacity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -843,6 +868,8 @@ export interface components {
              * @description `0` until first saved (Decision R1).
              */
             version: number;
+            /** @description Filled after a change (Decision V2); empty when read. */
+            overbookedSlots: components["schemas"]["OverbookedSlot"][];
         };
         ScheduleWindow: {
             /** @description 1 = Monday … 7 = Sunday (ISO-8601). */
@@ -893,10 +920,59 @@ export interface components {
             reason: string | null;
         };
         PickupSchedule: {
+            /** @description Filled after a change (Decision V2); empty when read. */
+            overbookedSlots: components["schemas"]["OverbookedSlot"][];
             /** @description Sorted by day, then start. */
             weekly: components["schemas"]["ScheduleWindow"][];
             /** @description From today (`Asia/Ho_Chi_Minh`) on, sorted by date then start. */
             overrides: components["schemas"]["ScheduleOverride"][];
+        };
+        /** @enum {string} */
+        CapacitySlotStatus: "AVAILABLE" | "NEARLY_FULL" | "FULL" | "CUTOFF_PASSED" | "CLOSED";
+        CapacitySlot: {
+            /** @description `HH:mm`, Branch local time. */
+            slotStart: string;
+            slotEnd: string;
+            /** Format: int32 */
+            usedOrders: number;
+            /**
+             * Format: int32
+             * @description `null` = no limit.
+             */
+            maxOrders: number | null;
+            /** Format: int32 */
+            usedItems: number;
+            /**
+             * Format: int32
+             * @description `null` = no limit.
+             */
+            maxItems: number | null;
+            status: components["schemas"]["CapacitySlotStatus"];
+        };
+        CapacityView: {
+            /** Format: date */
+            date: string;
+            /** @enum {string} */
+            fulfillmentType: "PICKUP";
+            slots: components["schemas"]["CapacitySlot"][];
+        };
+        /**
+         * @description A slot from today on whose claimed orders or items exceed its capacity after a change; a claimed slot that is
+         *     no longer generated has max `0`. Nothing claimed is cancelled or moved (Decision V2).
+         */
+        OverbookedSlot: {
+            /** Format: date */
+            date: string;
+            slotStart: string;
+            slotEnd: string;
+            /** Format: int32 */
+            usedOrders: number;
+            /** Format: int32 */
+            maxOrders: number | null;
+            /** Format: int32 */
+            usedItems: number;
+            /** Format: int32 */
+            maxItems: number | null;
         };
         FulfillmentConfigList: {
             items: components["schemas"]["FulfillmentConfig"][];
@@ -2035,6 +2111,37 @@ export interface operations {
             409: components["responses"]["InvalidTransition"];
             412: components["responses"]["VersionConflict"];
             422: components["responses"]["ScheduleInvalid"];
+        };
+    };
+    getFulfillmentCapacity: {
+        parameters: {
+            query?: {
+                /** @description Defaults to today (`Asia/Ho_Chi_Minh`). */
+                date?: string;
+                fulfillmentType?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The slots of that day. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapacityView"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["FulfillmentConfigInvalid"];
         };
     };
 }
