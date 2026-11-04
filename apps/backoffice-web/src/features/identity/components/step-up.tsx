@@ -1,5 +1,5 @@
 import { Button, Dialog, Field } from "@hayi/ui";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { type FormEvent, useSyncExternalStore } from "react";
 import { errorCode, unwrap, useApi } from "../../../lib/api";
 import { formText } from "../../../lib/form";
@@ -21,10 +21,11 @@ export function StepUpDialog({ gate }: { gate: StepUpGate }) {
 
 function StepUpForm({ gate }: { gate: StepUpGate }) {
   const api = useApi();
-  // Loaded by the signed-in route; the dialog only reads it.
-  const { data: me } = useQuery({ ...meQuery(api), enabled: false });
+  // Never suspends: a step-up only comes from a signed-in action, and `/_app` loads `/auth/me` before any of them.
+  // The dialog sits in `__root` without a Suspense boundary, so that must stay true.
+  const { data: me } = useSuspenseQuery(meQuery(api));
   // With MFA the code, without it the password (API 01-security §8, Decision L7); no switching between them.
-  const method = me?.mfaEnrolled === false ? "password" : "totp";
+  const method = me.mfaEnrolled ? "totp" : "password";
   const stepUp = useMutation({
     mutationFn: (body: { code: string } | { password: string }) => unwrap(api.POST("/auth/step-up", { body })),
     onSuccess: () => gate.settle("verified"),
@@ -73,6 +74,7 @@ function StepUpForm({ gate }: { gate: StepUpGate }) {
             <>
               <Field.Label>Mật khẩu của bạn</Field.Label>
               <Field.Input name="secret" type="password" autoComplete="current-password" required autoFocus />
+              <Field.Hint>Tài khoản chưa bật xác thực 2 lớp nên dùng mật khẩu.</Field.Hint>
               {wrongSecret ? <Field.Error>Mật khẩu chưa đúng. Bạn nhập lại nhé.</Field.Error> : null}
             </>
           )}

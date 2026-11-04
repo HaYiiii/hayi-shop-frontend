@@ -7,7 +7,7 @@ const me = { userId: "u-1", email: "owner@hayi.vn", displayName: null, mfaEnroll
 
 function renderWith(permissions: string[]) {
   render(
-    <WorkspaceProvider value={{ me, scope: { kind: "branch", branchId: "b-q1" }, permissions: new Set(permissions) }}>
+    <WorkspaceProvider value={{ me, branches: new Map(), scope: { kind: "branch", branchId: "b-q1" }, permissions: new Set(permissions) }}>
       <PermissionGuard permission="ORDER_VIEW">
         <h1>Bảng đơn</h1>
       </PermissionGuard>

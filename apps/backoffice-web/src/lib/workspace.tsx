@@ -1,8 +1,10 @@
 import { type ReactNode, createContext, use } from "react";
-import type { Me, Scope } from "./scope";
+import type { BranchNames, Me, Scope } from "./scope";
 
 interface Workspace {
   me: Me;
+  /** Names of the Branches the user can work in (`GET /branches`). */
+  branches: BranchNames;
   scope: Scope;
   permissions: ReadonlySet<string>;
 }

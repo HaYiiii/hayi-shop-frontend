@@ -1,5 +1,5 @@
-import { Menu } from "@hayi/ui";
-import { type Me, type Scope, scopeKey, scopeLabel, scopeOptions } from "./scope";
+import { Menu, StatusBadge } from "@hayi/ui";
+import { type BranchNames, type Me, type Scope, scopeKey, scopeLabel, scopeOptions } from "./scope";
 
 /** Fixed role system (Decision D3); the spec types role codes as plain strings. */
 const roleLabels: Readonly<Record<string, string>> = {
@@ -28,19 +28,21 @@ const HomeIcon = (
 
 interface BranchSwitcherProps {
   me: Me;
+  /** Names and statuses of the Branches in `me` (`GET /branches`). */
+  branches: BranchNames;
   scope: Scope;
   onScopeChange: (scope: Scope) => void;
 }
 
 /** Header control for the working scope (Staff Operations §16.2); always shows the current scope. */
-export function BranchSwitcher({ me, scope, onScopeChange }: BranchSwitcherProps) {
+export function BranchSwitcher({ me, branches, scope, onScopeChange }: BranchSwitcherProps) {
   const options = scopeOptions(me);
   if (options.length <= 1) {
     return (
       <p className="flex h-control-default items-center gap-2.5 px-3 text-body font-medium">
         {HomeIcon}
         <span className="text-ink-muted">Phạm vi:</span>
-        <span className="max-w-[28ch] truncate">{scopeLabel(scope)}</span>
+        <span className="max-w-[28ch] truncate">{scopeLabel(scope, branches)}</span>
       </p>
     );
   }
@@ -49,7 +51,7 @@ export function BranchSwitcher({ me, scope, onScopeChange }: BranchSwitcherProps
       <Menu.Trigger>
         {HomeIcon}
         <span className="max-w-[36ch] min-w-0 truncate">
-          <span className="text-ink-muted">Phạm vi:</span> {scopeLabel(scope)}
+          <span className="text-ink-muted">Phạm vi:</span> {scopeLabel(scope, branches)}
         </span>
       </Menu.Trigger>
       <Menu.Content>
@@ -61,11 +63,21 @@ export function BranchSwitcher({ me, scope, onScopeChange }: BranchSwitcherProps
             if (next) onScopeChange(next);
           }}
         >
-          {options.map((option) => (
-            <Menu.RadioItem key={scopeKey(option)} value={scopeKey(option)} description={scopeDescription(me, option)}>
-              {scopeLabel(option)}
-            </Menu.RadioItem>
-          ))}
+          {options.map((option) => {
+            const status = option.kind === "branch" ? typeof branches === "object" ? branches.get(option.branchId)?.status : null : null;
+            return (
+              <Menu.RadioItem key={scopeKey(option)} value={scopeKey(option)} description={scopeDescription(me, option)}>
+                <span className="flex items-center gap-2">
+                  <span className="min-w-0 truncate">{scopeLabel(option, branches)}</span>
+                  {status ? (
+                    <StatusBadge tone={status.tone} dot className="shrink-0">
+                      {status.label}
+                    </StatusBadge>
+                  ) : null}
+                </span>
+              </Menu.RadioItem>
+            );
+          })}
         </Menu.RadioGroup>
         <p className="mt-1 border-t border-line px-3 pt-2 pb-1 text-caption text-ink-muted">
           Đổi chi nhánh sẽ đổi quyền theo vai trò ở chi nhánh đó.

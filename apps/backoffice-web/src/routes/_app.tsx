@@ -1,30 +1,40 @@
 import { ApiError } from "@hayi/api-client";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, Outlet, createFileRoute, redirect, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { Button } from "@hayi/ui";
 import { useMemo, useState } from "react";
+import { branchesQuery } from "../features/branch/api/branches";
+import { branchDirectory } from "../features/branch/branch-directory";
 import { meQuery } from "../features/identity/api/session";
 import { AccountMenu, AppShell, Brand } from "../features/staff/components/app-shell";
 import { NavMenu, navLinkClass } from "../features/staff/components/nav-menu";
 import { unwrap, useApi } from "../lib/api";
 import { BranchSwitcher } from "../lib/branch-switcher";
-import { type Scope, initialScope, permissionsIn, readLastBranch, writeLastBranch } from "../lib/scope";
+import { type BranchNames, type Scope, initialScope, permissionsIn, readLastBranch, writeLastBranch } from "../lib/scope";
 import { WorkspaceProvider } from "../lib/workspace";
 
 /** Signed-in frame: needs `/auth/me` (the client refreshes an expired session first). */
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context }) => {
+    let me;
     try {
-      await context.queryClient.ensureQueryData(meQuery(context.api));
+      me = await context.queryClient.ensureQueryData(meQuery(context.api));
     } catch (error) {
       // Only "no session" means sign in again; a network error or 5xx leaves the session alive.
       if (error instanceof ApiError && error.status === 401) throw redirect({ to: "/login" });
       throw error;
     }
+    // The branch switcher names the user's Branches (API 09 §1.1: every role has BRANCH_VIEW).
+    if (me.branches.length > 0) await context.queryClient.ensureQueryData(directoryQuery(context.api));
   },
   component: AppLayout,
   errorComponent: AppLoadError,
 });
+
+/** Shared with the Branch admin list; the header needs no fresher names than this. */
+function directoryQuery(api: Parameters<typeof branchesQuery>[0]) {
+  return { ...branchesQuery(api), staleTime: 60_000 };
+}
 
 function AppLoadError() {
   const router = useRouter();
@@ -48,6 +58,12 @@ function AppLayout() {
   const { data: me } = useSuspenseQuery(meQuery(api));
   // A Branch in the URL is the scope (SOURCE-STRUCTURE §3.1); elsewhere the last chosen one applies.
   const routeBranch = useParams({ strict: false }).branchId;
+  // Loaded before the layout when the user has Branches; a STORE role opening a Branch URL loads it here.
+  const branchList = useQuery({ ...directoryQuery(api), enabled: me.branches.length > 0 || routeBranch !== undefined });
+  const branches = useMemo(
+    (): BranchNames => (branchList.data ? branchDirectory(branchList.data) : branchList.isError ? "failed" : "loading"),
+    [branchList.data, branchList.isError],
+  );
   const [chosen, setChosen] = useState<Scope | null>(null);
   if (routeBranch && !(chosen?.kind === "branch" && chosen.branchId === routeBranch)) {
     setChosen({ kind: "branch", branchId: routeBranch });
@@ -90,7 +106,7 @@ function AppLayout() {
   }
 
   return (
-    <WorkspaceProvider value={{ me, scope, permissions }}>
+    <WorkspaceProvider value={{ me, branches, scope, permissions }}>
       <AppShell
         brand={
           <Link
@@ -101,7 +117,7 @@ function AppLayout() {
             <Brand />
           </Link>
         }
-        scope={<BranchSwitcher me={me} scope={scope} onScopeChange={changeScope} />}
+        scope={<BranchSwitcher me={me} branches={branches} scope={scope} onScopeChange={changeScope} />}
         account={<AccountMenu name={me.displayName ?? me.email ?? "Tài khoản của bạn"} onLogout={() => void logout()} />}
         nav={
           <NavMenu

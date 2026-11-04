@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { BranchSwitcher } from "../../../lib/branch-switcher";
-import { type Me, type Scope, initialScope, permissionsIn } from "../../../lib/scope";
+import { type BranchDirectory, type Me, type Scope, initialScope, permissionsIn } from "../../../lib/scope";
 import { AccountMenu, AppShell, Brand } from "./app-shell";
 import { NavMenu } from "./nav-menu";
 
@@ -19,13 +19,19 @@ const manager: Me = {
 
 const owner: Me = { userId: "u-owner", email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
 
+/** Names from `GET /branches`; Võ Văn Tần is deactivated. */
+const directory: BranchDirectory = new Map([
+  ["b-q1", { name: "Quận 1 · Lê Lợi", status: null }],
+  ["b-q3", { name: "Quận 3 · Võ Văn Tần", status: { label: "Tạm ngưng", tone: "warning" } }],
+]);
+
 /** The shell as the signed-in layout composes it. */
 function Harness({ me, onLogout = () => {} }: { me: Me; onLogout?: () => void }) {
   const [scope, setScope] = useState<Scope>(() => initialScope(me, null) as Scope);
   return (
     <AppShell
       brand={<Brand />}
-      scope={<BranchSwitcher me={me} scope={scope} onScopeChange={setScope} />}
+      scope={<BranchSwitcher me={me} branches={directory} scope={scope} onScopeChange={setScope} />}
       account={<AccountMenu name="owner@hayi.vn" onLogout={onLogout} />}
       nav={
         <NavMenu scope={scope} permissions={permissionsIn(me, scope)} renderLink={(item) => <a href={item.to}>{item.label}</a>} />
@@ -48,10 +54,10 @@ describe("AppShell — branch switcher and menu by permission (Staff Operations 
     render(<Harness me={manager} />);
     expect(menuLinks()).toEqual(["Bảng đơn", "Nhân sự"]);
 
-    await user.click(screen.getByRole("button", { name: /Phạm vi: Chi nhánh b-q1/ }));
-    await user.click(screen.getByRole("menuitemradio", { name: /b-q3/ }));
+    await user.click(screen.getByRole("button", { name: /Phạm vi: Quận 1 · Lê Lợi/ }));
+    await user.click(screen.getByRole("menuitemradio", { name: /Quận 3 · Võ Văn Tần/ }));
 
-    expect(screen.getByRole("button", { name: /Phạm vi: Chi nhánh b-q3/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Phạm vi: Quận 3 · Võ Văn Tần/ })).toBeInTheDocument();
     expect(menuLinks()).toEqual(["Màn pha chế"]);
   });
 
@@ -61,7 +67,19 @@ describe("AppShell — branch switcher and menu by permission (Staff Operations 
 
     await user.click(screen.getByRole("button", { name: /Phạm vi/ }));
 
-    expect(screen.getByRole("menuitemradio", { name: /b-q3.*Pha chế/ })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: /Quận 3 · Võ Văn Tần.*Pha chế/ })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: /Quận 1 · Lê Lợi.*Quản lý chi nhánh/ })).toBeInTheDocument();
+  });
+
+  it("marks a Branch that is not active (D3b screen 6)", async () => {
+    const user = userEvent.setup();
+    render(<Harness me={manager} />);
+
+    await user.click(screen.getByRole("button", { name: /Phạm vi/ }));
+
+    expect(screen.getByRole("menuitemradio", { name: /Quận 3 · Võ Văn Tần/ })).toHaveTextContent("Tạm ngưng");
+    expect(screen.getByRole("menuitemradio", { name: /Quận 1 · Lê Lợi/ })).not.toHaveTextContent("Tạm ngưng");
+    expect(screen.queryByText(/b-q/)).not.toBeInTheDocument();
   });
 
   it("keeps the scope visible without a switcher when there is only one", () => {
