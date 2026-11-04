@@ -5,7 +5,7 @@ import { Secret, TOTP } from "otpauth";
  * Slice happy paths, in order against one fresh backend (e2e/README.md):
  * - #11: the bootstrapped Owner signs in for the first time — temporary password, new password, MFA enrolment,
  *   recovery codes — reaches the shell, signs out, and signs in again with TOTP;
- * - #28: that Owner creates a Branch and activates it.
+ * - #28: that Owner creates a Branch and activates it; #29: sets its opening hours and a special day.
  * The bootstrap Owner exists only until its password is changed, so the tests share its TOTP secret.
  */
 test.describe.configure({ mode: "serial" });
@@ -144,6 +144,27 @@ test("Owner: creates a Branch and activates it (#28)", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText("Đã kích hoạt chi nhánh.");
   await expect(summary.getByText("Đang hoạt động")).toBeVisible();
   await snap(page, "16-branch-detail-active");
+
+  // Opening hours (screen 17, #29): open Monday, save the week, then add a special day.
+  await page.getByRole("link", { name: "Giờ mở cửa" }).click();
+  const monday = page.getByRole("row", { name: /^Thứ Hai/ });
+  const mondayClosed = monday.getByRole("checkbox", { name: /Đóng/ });
+  if (await mondayClosed.isChecked()) await mondayClosed.uncheck();
+  await monday.getByLabel("Thứ Hai khoảng 1 mở").fill("07:00");
+  await monday.getByLabel("Thứ Hai khoảng 1 đóng").fill("21:30");
+  await page.getByRole("button", { name: "Lưu lịch tuần" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã lưu lịch tuần.");
+
+  const special = page.getByRole("form", { name: "Thêm ngày" });
+  const nextMonth = new Date(Date.now() + 30 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+  await special.getByLabel("Ngày", { exact: true }).fill(nextMonth);
+  await special.getByLabel("Giờ mở ngày đặc biệt").fill("08:00");
+  await special.getByLabel("Giờ đóng ngày đặc biệt").fill("23:00");
+  await special.getByLabel("Lý do").fill("Khai trương");
+  await special.getByRole("button", { name: "Thêm ngày đặc biệt" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã lưu ngày đặc biệt");
+  await expect(page.getByRole("list", { name: "Ngày đặc biệt sắp tới" }).getByText("Khai trương")).toBeVisible();
+  await snap(page, "17-branch-hours");
 
   // The list shows it active.
   await page.getByRole("navigation", { name: "Vị trí" }).getByRole("link", { name: "Chi nhánh" }).click();

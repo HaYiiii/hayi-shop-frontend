@@ -14,3 +14,16 @@ export function formatBranchDate(instant: string, timeZone: string = DEFAULT_BRA
     new Date(instant),
   );
 }
+
+/** Formats a calendar date (`yyyy-MM-dd`, no time or zone) as dd/MM/yyyy. */
+export function formatIsoDate(date: string): string {
+  return new Intl.DateTimeFormat("vi-VN", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" }).format(
+    new Date(`${date}T00:00:00Z`),
+  );
+}
+
+/** Today's calendar date (`yyyy-MM-dd`) in the branch timezone. */
+export function todayInBranch(now: Date = new Date(), timeZone: string = DEFAULT_BRANCH_TIMEZONE): string {
+  // en-CA formats dates as yyyy-MM-dd.
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
