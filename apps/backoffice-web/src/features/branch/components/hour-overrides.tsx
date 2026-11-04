@@ -18,6 +18,9 @@ interface HourOverridesProps {
   onReload: () => void;
 }
 
+/** `409 BRANCH_INVALID_TRANSITION`: the Branch was closed meanwhile, so its hours can no longer change (Decision Q1). */
+const closedMeanwhile = "Chi nhánh đã đóng nên không sửa được giờ mở cửa nữa. Tải lại trang để xem trạng thái mới nhất.";
+
 function hoursText(override: HourOverride) {
   return override.isClosed ? null : override.intervals.map((iv) => `${iv.open}–${iv.close}`).join(", ");
 }
@@ -34,9 +37,12 @@ export function HourOverrides({ branchId, overrides, readOnly, onReload }: HourO
     remove.mutate(date, {
       onSuccess: () => setNotice({ tone: "success", text: `Đã xoá ngày đặc biệt ${formatIsoDate(date)}.` }),
       onError: (error) => {
-        if (errorCode(error) === "BRANCH_HOURS_OVERRIDE_NOT_FOUND") {
+        const code = errorCode(error);
+        if (code === "BRANCH_HOURS_OVERRIDE_NOT_FOUND") {
           setNotice({ tone: "danger", text: `Ngày đặc biệt ${formatIsoDate(date)} đã được xoá trước đó. Danh sách đã được tải lại.` });
           onReload();
+        } else if (code === "BRANCH_INVALID_TRANSITION") {
+          setNotice({ tone: "danger", text: closedMeanwhile });
         } else {
           setNotice({ tone: "danger", text: "Chưa xoá được ngày đặc biệt. Bạn thử lại sau ít phút nhé." });
         }
@@ -45,48 +51,50 @@ export function HourOverrides({ branchId, overrides, readOnly, onReload }: HourO
   }
 
   return (
-    <Card aria-labelledby={`${listId}-title`} role="complementary" className="gap-3.5 p-5">
-      <h2 id={`${listId}-title`} className="text-body-lg font-semibold">
-        Ngày đặc biệt
-      </h2>
-      {overrides.length === 0 ? (
-        <p className="text-label font-normal text-ink-muted">Chưa có ngày đặc biệt nào sắp tới.</p>
-      ) : (
-        <ul aria-label="Ngày đặc biệt sắp tới" className="grid gap-2">
-          {overrides.map((override) => {
-            const date = formatIsoDate(override.date);
-            const hours = hoursText(override);
-            return (
-              <li key={override.date} className="flex items-start gap-2 rounded-md border border-line px-3 py-2.5">
-                <span className="grid min-w-0 flex-1">
-                  <span className="text-body font-semibold tabular-nums">
-                    {`${date} · `}
-                    {hours ?? <span className="text-danger">Đóng cả ngày</span>}
+    <section aria-labelledby={`${listId}-title`} className="min-w-0">
+      <Card className="gap-3.5 p-5">
+        <h2 id={`${listId}-title`} className="text-body-lg font-semibold">
+          Ngày đặc biệt
+        </h2>
+        {overrides.length === 0 ? (
+          <p className="text-label font-normal text-ink-muted">Chưa có ngày đặc biệt nào sắp tới.</p>
+        ) : (
+          <ul aria-label="Ngày đặc biệt sắp tới" className="grid gap-2">
+            {overrides.map((override) => {
+              const date = formatIsoDate(override.date);
+              const hours = hoursText(override);
+              return (
+                <li key={override.date} className="flex items-start gap-2 rounded-md border border-line px-3 py-2.5">
+                  <span className="grid min-w-0 flex-1">
+                    <span className="text-body font-semibold tabular-nums">
+                      {`${date} · `}
+                      {hours ?? <span className="text-danger">Đóng cả ngày</span>}
+                    </span>
+                    {override.reason ? <span className="break-words text-caption text-ink-muted">{override.reason}</span> : null}
                   </span>
-                  {override.reason ? <span className="break-words text-caption text-ink-muted">{override.reason}</span> : null}
-                </span>
-                {readOnly ? null : (
-                  <Button
-                    variant="ghost"
-                    density="compact"
-                    className="size-8 shrink-0 px-0"
-                    aria-label={`Xoá ngày đặc biệt ${date}`}
-                    busy={remove.isPending && remove.variables === override.date}
-                    onClick={() => removeDay(override.date)}
-                  >
-                    <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                      <path d="m5 5 10 10M15 5 5 15" />
-                    </svg>
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {readOnly ? null : <AddOverrideForm branchId={branchId} />}
-      <p className="text-caption text-ink-muted">Ngày đặc biệt được ưu tiên hơn lịch tuần.</p>
-    </Card>
+                  {readOnly ? null : (
+                    <Button
+                      variant="ghost"
+                      density="compact"
+                      className="size-8 shrink-0 px-0"
+                      aria-label={`Xoá ngày đặc biệt ${date}`}
+                      busy={remove.isPending && remove.variables === override.date}
+                      onClick={() => removeDay(override.date)}
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                        <path d="m5 5 10 10M15 5 5 15" />
+                      </svg>
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {readOnly ? null : <AddOverrideForm branchId={branchId} />}
+        <p className="text-caption text-ink-muted">Ngày đặc biệt được ưu tiên hơn lịch tuần.</p>
+      </Card>
+    </section>
   );
 }
 
@@ -143,7 +151,11 @@ function AddOverrideForm({ branchId }: { branchId: string }) {
       <h3 id={titleId} className="text-body font-semibold">
         Thêm ngày
       </h3>
-      {unexpected ? <FormAlert tone="danger">Chưa lưu được ngày đặc biệt. Bạn thử lại sau ít phút nhé.</FormAlert> : null}
+      {unexpected ? (
+        <FormAlert tone="danger">
+          {errorCode(add.error) === "BRANCH_INVALID_TRANSITION" ? closedMeanwhile : "Chưa lưu được ngày đặc biệt. Bạn thử lại sau ít phút nhé."}
+        </FormAlert>
+      ) : null}
       <Field.Root>
         <Field.Label>Ngày</Field.Label>
         <Field.Input name="date" type="date" autoComplete="off" required min={todayInBranch()} className="tabular-nums" />

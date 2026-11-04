@@ -80,6 +80,19 @@ export function weeklyErrors(errors: readonly ProblemError[], at: RequestPositio
   return result;
 }
 
+/** Open days' intervals missing a time: the request would only be refused, so they are marked before it. */
+export function missingTimes(week: WeekEditor): WeeklyErrors {
+  const result: WeeklyErrors = {};
+  week.forEach((day, dayIndex) => {
+    if (day.closed) return;
+    day.intervals.forEach((interval, intervalIndex) => {
+      if (interval.open && interval.close) return;
+      (result[dayIndex] ??= {})[intervalIndex] = hourErrorText("OPEN_WITHOUT_INTERVALS");
+    });
+  });
+  return result;
+}
+
 export function overrideErrors(errors: readonly ProblemError[]): { date?: string; time?: string } {
   const result: { date?: string; time?: string } = {};
   for (const error of errors) {

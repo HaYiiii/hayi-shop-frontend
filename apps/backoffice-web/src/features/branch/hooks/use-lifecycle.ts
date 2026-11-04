@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../../../lib/api";
 import type { Branch, BranchConflict } from "../branch-form";
 import { type LifecycleCommand, branchKeys, changeLifecycle, closureCheckQuery } from "../api/branches";
+import { hoursKey } from "../api/hours";
 
 /** `conflicts[]` of a `409 BRANCH_HAS_OPEN_COMMITMENTS`, or `null` for any other error. */
 export function openCommitmentsOf(error: unknown): BranchConflict[] | null {
@@ -20,6 +21,8 @@ export function useLifecycle(branchId: string, command: LifecycleCommand, onDone
     onSuccess: (branch) => {
       queryClient.setQueryData(branchKeys.detail(branchId), branch);
       void queryClient.invalidateQueries({ queryKey: branchKeys.list() });
+      // The command moved the Branch version, which the hours editor sends as `If-Match` (Decision Q1).
+      void queryClient.invalidateQueries({ queryKey: hoursKey(branchId) });
       onDone(branch);
     },
     onError: (error) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editorOf, overrideErrors, weeklyErrors, weeklyRequest } from "./hours-form";
+import { editorOf, missingTimes, overrideErrors, weeklyErrors, weeklyRequest } from "./hours-form";
 
 const weekly = [
   { dayOfWeek: 1, open: "07:00", close: "11:30" },
@@ -81,5 +81,16 @@ describe("overrideErrors", () => {
     expect(overrideErrors([{ field: "intervals", code: "OPEN_WITHOUT_INTERVALS" }])).toEqual({
       time: "Nhập giờ mở và giờ đóng, hoặc chọn Đóng cả ngày.",
     });
+  });
+});
+
+describe("missingTimes — an open day's interval without both times, caught before the request", () => {
+  it("marks each empty interval of an open day and ignores closed days", () => {
+    const week = editorOf(weekly);
+    week[0] = { closed: false, intervals: [{ open: "07:00", close: "11:30" }, { open: "", close: "21:00" }] };
+    week[1] = { closed: true, intervals: [{ open: "", close: "" }] };
+
+    expect(missingTimes(week)).toEqual({ 0: { 1: "Nhập giờ mở và giờ đóng, hoặc chọn Đóng cả ngày." } });
+    expect(missingTimes(editorOf(weekly))).toEqual({});
   });
 });

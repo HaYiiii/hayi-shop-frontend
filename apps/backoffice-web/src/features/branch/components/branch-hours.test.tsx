@@ -37,11 +37,17 @@ function server(initial: Partial<BranchBusinessHours> = {}, branchOverrides: Par
     branch = { ...branch, version: branch.version + 1 };
     return hoursResponse(hours, branch.version);
   };
+  /** A Branch command (e.g. activate): the hours stay, the version moves. */
+  const command = (next: Partial<Branch>) => {
+    branch = { ...branch, ...next, version: branch.version + 1 };
+    return branchResponse(branch);
+  };
   return {
     get hours() {
       return hours;
     },
     change,
+    command,
     handlers: {
       "GET /branches/b-q1": () => branchResponse(branch),
       "GET /branches/b-q1/business-hours": () => hoursResponse(hours, branch.version),
@@ -148,6 +154,91 @@ describe("Weekly hours (D3c screen 17)", () => {
     expect(friday.getByLabelText("Thứ Sáu khoảng 1 mở")).not.toHaveAttribute("aria-invalid");
     expect(row("Thứ Hai").getByLabelText("Thứ Hai khoảng 1 mở")).not.toHaveAttribute("aria-invalid");
     await waitFor(() => expect(friday.getByLabelText("Thứ Sáu khoảng 2 mở")).toHaveFocus());
+  });
+
+  it("keeps unsaved weekly edits when a special day is added or deleted, and saves with the new version", async () => {
+    const s = server();
+    const { api, user } = renderAdmin(PATH, {
+      ...s.handlers,
+      "POST /branches/b-q1/business-hour-overrides": (body) =>
+        s.change({ overrides: [...s.hours.overrides, body as BranchBusinessHours["overrides"][number]] }),
+      "DELETE /branches/b-q1/business-hour-overrides/2026-12-24": () =>
+        s.change({ overrides: s.hours.overrides.filter((o) => o.date !== "2026-12-24") }),
+      "PUT /branches/b-q1/business-hours": (body) => s.change({ weekly: (body as BranchBusinessHours).weekly }),
+    });
+
+    await loaded();
+    await user.click(row("Thứ Ba").getByRole("checkbox", { name: /Đóng/ }));
+    const form = within(screen.getByRole("form", { name: "Thêm ngày" }));
+    await user.type(form.getByLabelText("Ngày"), "2027-01-01");
+    await user.click(form.getByRole("checkbox", { name: "Đóng cả ngày" }));
+    await user.click(form.getByRole("button", { name: "Thêm ngày đặc biệt" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Đã lưu ngày đặc biệt 01/01/2027.");
+    await user.click(screen.getByRole("button", { name: "Xoá ngày đặc biệt 24/12/2026" }));
+    expect(await screen.findByText("Đã xoá ngày đặc biệt 24/12/2026.")).toBeInTheDocument();
+
+    expect(row("Thứ Ba").getByRole("checkbox", { name: /Đóng/ })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Lưu lịch tuần" }));
+
+    expect(await screen.findByText("Đã lưu lịch tuần.")).toBeInTheDocument();
+    expect(api.bodyOf("PUT /branches/b-q1/business-hours")).toEqual({
+      weekly: [
+        { dayOfWeek: 1, open: "07:00", close: "21:30" },
+        { dayOfWeek: 2, open: "07:00", close: "21:00" },
+        { dayOfWeek: 5, open: "07:00", close: "14:00" },
+        { dayOfWeek: 5, open: "15:00", close: "22:00" },
+      ],
+    });
+    // Two override changes moved the Branch from v3 to v5.
+    expect(api.calls.findLast((c) => c.route === "PUT /branches/b-q1/business-hours")?.headers.get("If-Match")).toBe('"v5"');
+  });
+
+  it("after a lifecycle command on this tab, saves the week with the Branch's new version", async () => {
+    const s = server({}, { status: "DRAFT", activatedAt: null });
+    const { api, user } = renderAdmin(PATH, {
+      ...s.handlers,
+      "POST /branches/b-q1/activate": () => s.command({ status: "ACTIVE", activatedAt: "2026-11-03T03:00:00Z" }),
+      "PUT /branches/b-q1/business-hours": (body) => s.change({ weekly: (body as BranchBusinessHours).weekly }),
+    });
+
+    await loaded();
+    await user.click(screen.getByRole("button", { name: "Kích hoạt" }));
+    expect(await screen.findByText("Đã kích hoạt chi nhánh.")).toBeInTheDocument();
+    await waitFor(() => expect(api.calls.filter((c) => c.route === "GET /branches/b-q1/business-hours")).toHaveLength(2));
+    await user.click(screen.getByRole("button", { name: "Lưu lịch tuần" }));
+
+    expect(await screen.findByText("Đã lưu lịch tuần.")).toBeInTheDocument();
+    expect(api.calls.findLast((c) => c.route === "PUT /branches/b-q1/business-hours")?.headers.get("If-Match")).toBe('"v4"');
+  });
+
+  it("stops an empty time on the client and marks its row", async () => {
+    const s = server();
+    const { api, user } = renderAdmin(PATH, s.handlers);
+
+    await loaded();
+    await user.clear(row("Thứ Hai").getByLabelText("Thứ Hai khoảng 1 đóng"));
+    await user.click(screen.getByRole("button", { name: "Lưu lịch tuần" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Chưa lưu được: 1 ngày có giờ không hợp lệ.");
+    expect(row("Thứ Hai").getByText("Nhập giờ mở và giờ đóng, hoặc chọn Đóng cả ngày.")).toBeInTheDocument();
+    await waitFor(() => expect(row("Thứ Hai").getByLabelText("Thứ Hai khoảng 1 mở")).toHaveFocus());
+    expect(api.calls.some((c) => c.route === "PUT /branches/b-q1/business-hours")).toBe(false);
+  });
+
+  it("drops the server's interval errors once the intervals of the week change", async () => {
+    const s = server();
+    const { user } = renderAdmin(PATH, {
+      ...s.handlers,
+      "PUT /branches/b-q1/business-hours": () => invalid([{ field: "weekly[2]", code: "OVERLAPPING" }]),
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Lưu lịch tuần" }));
+    expect(await row("Thứ Sáu").findByText(/chồng lên một khoảng khác/)).toBeInTheDocument();
+    await user.click(row("Thứ Sáu").getByRole("button", { name: "Xoá khoảng 1 của Thứ Sáu" }));
+
+    // weekly[2] pointed at Friday's second interval, which is now the first one: the old mark would be wrong.
+    expect(row("Thứ Sáu").queryByText(/chồng lên một khoảng khác/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("on 412 VERSION_CONFLICT says the hours changed and reloads them", async () => {
@@ -293,6 +384,36 @@ describe("Special days (D3c screen 17)", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("đã được xoá trước đó");
     expect(await screen.findByText("Chưa có ngày đặc biệt nào sắp tới.")).toBeInTheDocument();
+  });
+});
+
+describe("Special days on a Branch closed meanwhile (409 BRANCH_INVALID_TRANSITION)", () => {
+  const closedText = "Chi nhánh đã đóng nên không sửa được giờ mở cửa nữa. Tải lại trang để xem trạng thái mới nhất.";
+
+  it("says so when adding a day", async () => {
+    const s = server({ overrides: [] });
+    const { user } = renderAdmin(PATH, {
+      ...s.handlers,
+      "POST /branches/b-q1/business-hour-overrides": () => problem(409, "BRANCH_INVALID_TRANSITION"),
+    });
+
+    const form = within(await screen.findByRole("form", { name: "Thêm ngày" }));
+    await user.type(form.getByLabelText("Ngày"), "2027-01-01");
+    await user.click(form.getByRole("button", { name: "Thêm ngày đặc biệt" }));
+
+    expect(await form.findByRole("alert")).toHaveTextContent(closedText);
+  });
+
+  it("says so when deleting a day", async () => {
+    const s = server();
+    const { user } = renderAdmin(PATH, {
+      ...s.handlers,
+      "DELETE /branches/b-q1/business-hour-overrides/2026-12-24": () => problem(409, "BRANCH_INVALID_TRANSITION"),
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Xoá ngày đặc biệt 24/12/2026" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(closedText);
   });
 });
 

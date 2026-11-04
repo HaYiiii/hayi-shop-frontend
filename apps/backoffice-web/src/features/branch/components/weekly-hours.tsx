@@ -14,36 +14,56 @@ import {
   dayLabels,
   defaultInterval,
   editorOf,
+  missingTimes,
   weeklyErrors,
   weeklyRequest,
 } from "../hours-form";
 import { useBranchPage } from "./branch-detail";
 
+type Weekly = Parameters<typeof editorOf>[0];
+
 interface WeeklyHoursProps {
   branchId: string;
-  weekly: Parameters<typeof editorOf>[0];
-  /** Branch version for `If-Match` (API 09 §1.4). */
+  weekly: Weekly;
+  /** Current Branch version; it also moves with special days and lifecycle commands (Decision Q1). */
   version: number;
   readOnly: boolean;
+  /** Fetches the hours again and starts the editor from them (after `412`). */
   onReload: () => void;
 }
+
+const sameWeekly = (a: Weekly, b: Weekly) => JSON.stringify(a) === JSON.stringify(b);
 
 /** "Lịch hàng tuần": several intervals per day, a closed day has none; saved as a whole with `If-Match`. */
 export function WeeklyHours({ branchId, weekly, version, readOnly, onReload }: WeeklyHoursProps) {
   const api = useApi();
   const { setNotice } = useBranchPage();
+  // The server week the editor started from, and the version it was read at.
+  const [basis, setBasis] = useState({ weekly, version });
   const [week, setWeek] = useState<WeekEditor>(() => editorOf(weekly));
   // Request positions of the last save, to put `weekly[i]` errors back on their row.
   const [sent, setSent] = useState<RequestPositions>([]);
+  const [clientErrors, setClientErrors] = useState<WeeklyErrors | null>(null);
   const [attempt, setAttempt] = useState(0);
   const tableRef = useRef<HTMLDivElement>(null);
-  const save = useHoursMutation(branchId, (body: ReturnType<typeof weeklyRequest>["body"]) =>
-    replaceWeekly(api, branchId, version, body),
+  const save = useHoursMutation(branchId, ({ body, ifMatch }: { body: ReturnType<typeof weeklyRequest>["body"]; ifMatch: number }) =>
+    replaceWeekly(api, branchId, ifMatch, body),
   );
+
+  // A newer version with the same week (a special day, a lifecycle command) is safe to save over: unsaved edits stay.
+  // A different week from the server replaces an untouched editor; over edits, the old version makes the save a 412.
+  const weeklyMoved = !sameWeekly(weekly, basis.weekly);
+  const edited = JSON.stringify(week) !== JSON.stringify(editorOf(basis.weekly));
+  if (weeklyMoved && !edited) {
+    setBasis({ weekly, version });
+    setWeek(editorOf(weekly));
+  }
+  const ifMatch = weeklyMoved ? basis.version : version;
 
   const code = errorCode(save.error);
   const errors: WeeklyErrors =
-    save.error instanceof ApiError && code === "BRANCH_HOURS_INVALID" ? weeklyErrors(save.error.problem.errors ?? [], sent) : {};
+    clientErrors ??
+    (save.error instanceof ApiError && code === "BRANCH_HOURS_INVALID" ? weeklyErrors(save.error.problem.errors ?? [], sent) : {});
   const badDays = Object.keys(errors).length;
 
   useEffect(() => {
@@ -52,16 +72,37 @@ export function WeeklyHours({ branchId, weekly, version, readOnly, onReload }: W
     tableRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
   }, [badDays, attempt]);
 
-  function updateDay(dayIndex: number, change: (day: DayHours) => DayHours) {
+  /** `reshape`: intervals added, removed, opened or closed — the marks of the last save no longer point at the right rows. */
+  function updateDay(dayIndex: number, change: (day: DayHours) => DayHours, reshape = false) {
+    if (reshape) {
+      setClientErrors(null);
+      save.reset();
+    }
     setWeek((current) => current.map((day, i) => (i === dayIndex ? change(day) : day)));
   }
 
   function submit() {
-    const { body, at } = weeklyRequest(week);
-    setSent(at);
     setAttempt((n) => n + 1);
     setNotice(null);
-    save.mutate(body, { onSuccess: () => setNotice({ tone: "success", text: "Đã lưu lịch tuần." }) });
+    const missing = missingTimes(week);
+    if (Object.keys(missing).length > 0) {
+      save.reset();
+      setClientErrors(missing);
+      return;
+    }
+    setClientErrors(null);
+    const { body, at } = weeklyRequest(week);
+    setSent(at);
+    save.mutate(
+      { body, ifMatch },
+      {
+        onSuccess: (result) => {
+          setBasis({ weekly: result.hours.weekly, version: result.version });
+          setWeek(editorOf(result.hours.weekly));
+          setNotice({ tone: "success", text: "Đã lưu lịch tuần." });
+        },
+      },
+    );
   }
 
   return (
@@ -93,6 +134,8 @@ export function WeeklyHours({ branchId, weekly, version, readOnly, onReload }: W
         />
       ) : code === "BRANCH_INVALID_TRANSITION" ? (
         <FormAlert tone="danger">Chi nhánh đã đóng nên không sửa được giờ mở cửa nữa. Tải lại trang để xem trạng thái mới nhất.</FormAlert>
+      ) : code === "VALIDATION_FAILED" ? (
+        <FormAlert tone="danger">Giờ chưa hợp lệ. Kiểm tra lại các ô giờ mở và giờ đóng rồi lưu lại.</FormAlert>
       ) : save.isError ? (
         <FormAlert tone="danger">Chưa lưu được lịch tuần. Bạn thử lại sau ít phút nhé.</FormAlert>
       ) : null}
@@ -114,7 +157,7 @@ export function WeeklyHours({ branchId, weekly, version, readOnly, onReload }: W
                 day={day}
                 errors={errors[dayIndex]}
                 readOnly={readOnly}
-                onChange={(change) => updateDay(dayIndex, change)}
+                onChange={(change, reshape) => updateDay(dayIndex, change, reshape)}
               />
             ))}
           </Table.Body>
@@ -135,7 +178,7 @@ interface DayRowProps {
   day: DayHours;
   errors: Record<number, string> | undefined;
   readOnly: boolean;
-  onChange: (change: (day: DayHours) => DayHours) => void;
+  onChange: (change: (day: DayHours) => DayHours, reshape?: boolean) => void;
 }
 
 function DayRow({ label, day, errors, readOnly, onChange }: DayRowProps) {
@@ -187,7 +230,7 @@ function DayRow({ label, day, errors, readOnly, onChange }: DayRowProps) {
                       density="compact"
                       className="size-8 px-0"
                       aria-label={`Xoá khoảng ${n} của ${label}`}
-                      onClick={() => onChange((d) => ({ ...d, intervals: d.intervals.filter((_, i) => i !== index) }))}
+                      onClick={() => onChange((d) => ({ ...d, intervals: d.intervals.filter((_, i) => i !== index) }), true)}
                     >
                       <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                         <path d="m5 5 10 10M15 5 5 15" />
@@ -202,7 +245,7 @@ function DayRow({ label, day, errors, readOnly, onChange }: DayRowProps) {
                 variant="ghost"
                 density="compact"
                 aria-label={`Thêm khoảng cho ${label}`}
-                onClick={() => onChange((d) => ({ ...d, intervals: [...d.intervals, { ...defaultInterval }] }))}
+                onClick={() => onChange((d) => ({ ...d, intervals: [...d.intervals, { ...defaultInterval }] }), true)}
               >
                 + Thêm khoảng
               </Button>
@@ -222,7 +265,7 @@ function DayRow({ label, day, errors, readOnly, onChange }: DayRowProps) {
             className="size-[18px] accent-matcha-700"
             checked={day.closed}
             disabled={readOnly}
-            onChange={(e) => onChange((d) => ({ ...d, closed: e.target.checked }))}
+            onChange={(e) => onChange((d) => ({ ...d, closed: e.target.checked }), true)}
           />
           Đóng<span className="sr-only">{` cả ngày ${label}`}</span>
         </label>
