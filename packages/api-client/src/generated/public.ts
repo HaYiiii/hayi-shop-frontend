@@ -3,10 +3,81 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/branches/{branchId}/fulfillment/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pickup slots of an ACTIVE Branch for the coming days
+         * @description No sign-in. Slots are generated from the pickup windows and cut to the Branch's opening hours (Decision N4);
+         *     each has a status but never a capacity number (T5). Unknown or not `ACTIVE` Branch → `404 BRANCH_NOT_FOUND`;
+         *     `fromDate` in the past, `days < 1` or beyond `maxAdvanceDays` (today included) → `400` (T1). The answer is a
+         *     hint only: capacity is claimed when the order is created. `Cache-Control: no-store`.
+         */
+        get: operations["listPickupSlots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        /** @description RFC 9457 Problem Details with a stable business `code`. */
+        Problem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            /** @description Stable UPPER_SNAKE_CASE error code, e.g. ORDER_INVALID_TRANSITION */
+            code: string;
+            detail?: string;
+            traceId?: string;
+            errors?: {
+                field: string;
+                code: string;
+                message?: string;
+            }[];
+        };
+        /**
+         * @description `CLOSED` is reserved; the MVP does not emit it (Decision T4).
+         * @enum {string}
+         */
+        SlotStatus: "AVAILABLE" | "NEARLY_FULL" | "FULL" | "CUTOFF_PASSED" | "CLOSED";
+        Slot: {
+            /** @description `HH:mm`, Branch local time. */
+            slotStart: string;
+            /** @description `HH:mm`, Branch local time. */
+            slotEnd: string;
+            status: components["schemas"]["SlotStatus"];
+        };
+        SlotDay: {
+            /** Format: date */
+            date: string;
+            /** @description `false` → no slots that day (Decision T3). */
+            isOpen: boolean;
+            slots: components["schemas"]["Slot"][];
+        };
+        PickupSlots: {
+            /** Format: uuid */
+            branchId: string;
+            /** @enum {string} */
+            fulfillmentType: "PICKUP";
+            /** @description Always `Asia/Ho_Chi_Minh`. */
+            timezone: string;
+            /** @description Always `false` in the MVP. */
+            asapAvailable: boolean;
+            days: components["schemas"]["SlotDay"][];
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;
@@ -14,4 +85,57 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    listPickupSlots: {
+        parameters: {
+            query?: {
+                fulfillmentType?: "PICKUP";
+                /** @description Defaults to today (`Asia/Ho_Chi_Minh`). */
+                fromDate?: string;
+                /** @description Defaults to `min(7, maxAdvanceDays)`; bounded by the horizon (Decision T1). */
+                days?: number;
+                /** @description `GROUP` uses the Group Order lead time (Decision N2). */
+                orderType?: "INDIVIDUAL" | "GROUP";
+                /** @description Items the customer intends to order, checked against `maxItems` (T5). */
+                itemCount?: number;
+            };
+            header?: never;
+            path: {
+                branchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The days asked for, each with its slots. */
+            200: {
+                headers: {
+                    /** @description Always `no-store`. */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupSlots"];
+                };
+            };
+            /** @description `VALIDATION_FAILED` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `BRANCH_NOT_FOUND` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+}
