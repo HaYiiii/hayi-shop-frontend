@@ -74,7 +74,10 @@ describe("StepUpDialog", () => {
   it("asks a user without MFA for the password, with no TOTP option", async () => {
     const { api, action, user } = setup({ me: barista });
 
-    await user.type(await screen.findByLabelText("Mật khẩu của bạn"), "mat khau dung 01");
+    const password = await screen.findByLabelText("Mật khẩu của bạn");
+    // D3b screen 7: says why the password is asked.
+    expect(password).toHaveAccessibleDescription("Tài khoản chưa bật xác thực 2 lớp nên dùng mật khẩu.");
+    await user.type(password, "mat khau dung 01");
     expect(screen.queryByLabelText("Mã từ ứng dụng xác thực")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /mã từ ứng dụng/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Xác thực và tiếp tục" }));
