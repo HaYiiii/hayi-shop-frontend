@@ -1,6 +1,6 @@
 import { Field, cn } from "@hayi/ui";
 import { type ComponentProps, type ReactNode, type RefObject, useEffect } from "react";
-import type { BranchFieldName, BranchFields } from "../branch-form";
+import { type BranchFieldName, type BranchFields, fieldNames } from "../branch-form";
 
 export type FieldErrors = Partial<Record<BranchFieldName, string>>;
 
@@ -78,17 +78,17 @@ export function ContactFields({ values, errors, disabled }: GroupProps) {
 }
 
 /**
- * After a failed submit, put the keyboard on the first field marked invalid (Field sets `aria-invalid`).
- * `attempt` counts submits, so the same errors on a later submit focus again.
+ * After a failed submit, put the keyboard on the first field (in form order) that has an error.
+ * `attempt` counts submits, so the same errors on a later submit focus again. The field is found by name,
+ * right after the commit: waiting for Field to mark it `aria-invalid` could steal focus once the user types on.
  */
 export function useFocusFirstError(form: RefObject<HTMLFormElement | null>, errors: FieldErrors, attempt: number) {
-  const signature = Object.keys(errors).join(",");
+  const first = fieldNames.find((name) => errors[name]);
   useEffect(() => {
-    if (!signature) return;
-    // Field.Error marks its control in an effect of its own: wait one frame for it.
-    const frame = requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [form, signature, attempt]);
+    if (!first) return;
+    const control = form.current?.elements.namedItem(first);
+    if (control instanceof HTMLElement) control.focus();
+  }, [form, first, attempt]);
 }
 
 export const locationError = "Nhập vĩ độ và kinh độ cách nhau bằng dấu phẩy, ví dụ 10.7757, 106.7019.";
