@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Me, initialScope, permissionsIn, scopeOptions } from "./scope";
+import { type BranchDirectory, type Me, initialScope, permissionsIn, scopeLabel, scopeOptions } from "./scope";
 
 const owner: Me = {
   userId: "u-owner",
@@ -52,5 +52,22 @@ describe("workspace scope (Staff Operations §16.2, Decision M4)", () => {
 
   it("has no scope when the user has no role anywhere", () => {
     expect(initialScope({ ...manager, branches: [] }, null)).toBeNull();
+  });
+});
+
+describe("scopeLabel — what the header calls the scope (GET /branches names, API 09 §1.1)", () => {
+  const directory: BranchDirectory = new Map([["b-q1", { name: "Quận 1 · Lê Lợi", status: null }]]);
+
+  it("names a Branch by its name and the store-wide scope as such", () => {
+    expect(scopeLabel({ kind: "branch", branchId: "b-q1" }, directory)).toBe("Quận 1 · Lê Lợi");
+    expect(scopeLabel({ kind: "store" }, directory)).toBe("Toàn hệ thống");
+  });
+
+  it("never shows an id for a Branch the list does not have (e.g. an id typed in the URL)", () => {
+    expect(scopeLabel({ kind: "branch", branchId: "b-other" }, directory)).toBe("Chi nhánh không xác định");
+  });
+
+  it("says the name is loading rather than guessing one", () => {
+    expect(scopeLabel({ kind: "branch", branchId: "b-q1" }, undefined)).toBe("Đang tải…");
   });
 });

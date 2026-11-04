@@ -1,4 +1,5 @@
 import type { BackofficeComponents } from "@hayi/api-client";
+import type { StatusBadgeTone } from "@hayi/ui";
 
 export type Me = BackofficeComponents["schemas"]["BackofficeMe"];
 
@@ -10,15 +11,24 @@ export function scopeKey(scope: Scope): string {
   return scope.kind === "store" ? "store" : `branch:${scope.branchId}`;
 }
 
-/** Branch names need the Branch module; until then a Branch shows its id (follow-up ticket). */
-export function scopeLabel(scope: Scope): string {
-  return scope.kind === "store" ? "Toàn hệ thống" : `Chi nhánh ${scope.branchId}`;
+/** How the header shows a Branch: its name, and its status when it is not active (D3b screen 6). */
+export interface BranchLabel {
+  name: string;
+  status: { label: string; tone: StatusBadgeTone } | null;
 }
 
-/**
- * STORE roles may work store-wide; every user may pick a Branch where a BRANCH role is in force.
- * A STORE role picking any single Branch needs the Branch list API (deferred, follow-up ticket).
- */
+/** Branches of `GET /branches` (API 09 §1.1) by id; the signed-in layout loads it. */
+export type BranchDirectory = ReadonlyMap<string, BranchLabel>;
+
+/** `branches` is `undefined` while the list is still loading. */
+export function scopeLabel(scope: Scope, branches: BranchDirectory | undefined): string {
+  if (scope.kind === "store") return "Toàn hệ thống";
+  if (!branches) return "Đang tải…";
+  // Only an id the user typed into the URL is missing from the list: it has no permission there either.
+  return branches.get(scope.branchId)?.name ?? "Chi nhánh không xác định";
+}
+
+/** STORE roles may work store-wide; every user may pick a Branch where a BRANCH role is in force (Decision M4). */
 export function scopeOptions(me: Me): Scope[] {
   const branches = me.branches.map((b): Scope => ({ kind: "branch", branchId: b.branchId }));
   return me.storeRoles.length > 0 ? [{ kind: "store" }, ...branches] : branches;

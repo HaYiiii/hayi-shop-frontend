@@ -8,6 +8,7 @@ import { createStepUpGate } from "../features/identity/api/step-up-gate";
 import { ApiProvider } from "../lib/api";
 import { createAppRouter } from "../lib/router";
 import type { Me } from "../lib/scope";
+import { aBranch } from "../features/branch/test/render-admin";
 import { API_ORIGIN, fakeApi, json, problem } from "../test/fake-api";
 
 const manager: Me = {
@@ -22,24 +23,31 @@ const manager: Me = {
 
 const owner: Me = { userId: "u-owner", email: "owner@hayi.vn", displayName: null, mfaEnrolled: true, storeRoles: ["OWNER"], storePermissions: ["ORDER_VIEW", "STAFF_VIEW"], branches: [] };
 
+/** `GET /branches` in the caller's scope (API 09 §1.1); Võ Văn Tần is deactivated. */
+const branches = [
+  aBranch({ branchId: "b-q1", branchCode: "Q1-LELOI", name: "Quận 1 · Lê Lợi" }),
+  aBranch({ branchId: "b-q3", branchCode: "Q3-VOVANTAN", name: "Quận 3 · Võ Văn Tần", status: "INACTIVE" }),
+];
+
 function renderApp(me: Me | null | (() => Response), path: string) {
-  fakeApi({
+  const api = fakeApi({
     "GET /auth/me": () => (typeof me === "function" ? me() : me ? json(me) : problem(401, "AUTH_REQUIRED")),
+    "GET /branches": () => json({ items: branches }),
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const api = createBackofficeClient({ baseUrl: API_ORIGIN });
+  const client = createBackofficeClient({ baseUrl: API_ORIGIN });
   const router = createAppRouter(
-    { queryClient, api, stepUpGate: createStepUpGate() },
+    { queryClient, api: client, stepUpGate: createStepUpGate() },
     createMemoryHistory({ initialEntries: [path] }),
   );
   render(
     <QueryClientProvider client={queryClient}>
-      <ApiProvider client={api}>
+      <ApiProvider client={client}>
         <RouterProvider router={router} />
       </ApiProvider>
     </QueryClientProvider>,
   );
-  return { router, user: userEvent.setup() };
+  return { api, router, user: userEvent.setup() };
 }
 
 function nav() {
@@ -93,18 +101,40 @@ describe("Signed-in layout — scope from the URL (SOURCE-STRUCTURE §3.1, Staff
   it("takes the scope from the branch in the URL", async () => {
     renderApp(manager, "/branches/b-q3/preparation");
 
-    expect(await screen.findByRole("button", { name: /Phạm vi: Chi nhánh b-q3/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Phạm vi: Quận 3 · Võ Văn Tần/ })).toBeInTheDocument();
     expect(nav().getAllByRole("link").map((a) => a.textContent)).toEqual(["Màn pha chế"]);
   });
 
   it("keeps the screen and changes the branch in the URL when switching", async () => {
     const { router, user } = renderApp(manager, "/branches/b-q1/preparation");
 
-    await user.click(await screen.findByRole("button", { name: /Phạm vi: Chi nhánh b-q1/ }));
-    await user.click(screen.getByRole("menuitemradio", { name: /b-q3/ }));
+    await user.click(await screen.findByRole("button", { name: /Phạm vi: Quận 1 · Lê Lợi/ }));
+    await user.click(screen.getByRole("menuitemradio", { name: /Quận 3 · Võ Văn Tần/ }));
 
     await vi.waitFor(() => expect(router.state.location.pathname).toBe("/branches/b-q3/preparation"));
     expect(localStorage.getItem("hayi.backoffice.lastBranchId")).toBe("b-q3");
+  });
+
+  it("names the Branch of the screen from GET /branches, never by its id", async () => {
+    renderApp(manager, "/branches/b-q1/orders");
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Bảng đơn" })).toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveTextContent("Quận 1 · Lê Lợi");
+    expect(screen.queryByText(/b-q1/)).not.toBeInTheDocument();
+  });
+
+  it("names the Branch of a URL for a STORE-only Owner too, once the list is loaded", async () => {
+    renderApp(owner, "/branches/b-q3/orders");
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Bảng đơn" })).toBeInTheDocument();
+    expect(await within(screen.getByRole("main")).findByText("Quận 3 · Võ Văn Tần")).toBeInTheDocument();
+  });
+
+  it("does not ask for the Branch list when the account has no role anywhere", async () => {
+    const { api } = renderApp({ ...manager, branches: [] }, "/");
+
+    expect(await screen.findByRole("heading", { name: "Tài khoản chưa được giao chi nhánh" })).toBeInTheDocument();
+    expect(api.calls.some((c) => c.route === "GET /branches")).toBe(false);
   });
 
   it("guards a screen the branch does not permit (UX only)", async () => {
