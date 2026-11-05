@@ -166,6 +166,25 @@ test("Owner: creates a Branch and activates it (#28)", async ({ page }) => {
   await expect(page.getByRole("list", { name: "Ngày đặc biệt sắp tới" }).getByText("Khai trương")).toBeVisible();
   await snap(page, "17-branch-hours");
 
+  // Pickup windows (screen 13, #30): take orders on Monday mornings, then preview next Monday's slots.
+  await page.getByRole("link", { name: "Khung giờ nhận đơn" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Khung giờ nhận đơn" })).toBeVisible();
+  await page.getByRole("checkbox", { name: "Nhận đơn lấy tại quầy" }).check();
+  const pickupMonday = page.getByRole("row", { name: /^Thứ Hai/ });
+  await pickupMonday.getByRole("button", { name: "Thêm khung cho Thứ Hai" }).click();
+  await pickupMonday.getByLabel("Thứ Hai khung 1 bắt đầu").fill("08:00");
+  await pickupMonday.getByLabel("Thứ Hai khung 1 kết thúc").fill("11:00");
+  await pickupMonday.getByLabel("Tối đa đơn Thứ Hai").fill("5");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByRole("status")).toContainText("Đã lưu khung giờ nhận đơn.");
+  // Vietnam's wall clock as a local Date, so that adding days and formatting stay in Vietnam time.
+  const vnNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+  const nextMonday = new Date(vnNow.getTime() + ((8 - vnNow.getDay()) % 7 || 7) * 86_400_000).toLocaleDateString("en-CA");
+  await page.getByLabel("Ngày xem trước").fill(nextMonday);
+  await expect(page.getByRole("list", { name: "Khung giờ khách thấy" }).getByRole("listitem").first()).toHaveText("08:00");
+  await snap(page, "13-slot-config");
+  await page.goBack();
+
   // The list shows it active.
   await page.getByRole("navigation", { name: "Vị trí" }).getByRole("link", { name: "Chi nhánh" }).click();
   const row = page.getByRole("row", { name: new RegExp(code) });
