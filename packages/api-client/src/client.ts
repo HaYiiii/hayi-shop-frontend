@@ -22,8 +22,16 @@ export interface ClientOptions {
   baseUrl: string;
 }
 
-export function createPublicClient({ baseUrl }: ClientOptions) {
-  return createClient<PublicPaths>({ baseUrl: `${baseUrl}/api/public/v1` });
+export interface PublicClientOptions extends ClientOptions {
+  /**
+   * Extra options passed as fetch's second argument on the server, e.g. Next.js `{ next: { revalidate } }`
+   * (Decision X1: the public API is rate limited per IP, W9).
+   */
+  requestInitExt?: Record<string, unknown>;
+}
+
+export function createPublicClient({ baseUrl, requestInitExt }: PublicClientOptions) {
+  return createClient<PublicPaths>({ baseUrl: `${baseUrl}/api/public/v1`, requestInitExt });
 }
 
 export function createCustomerClient({ baseUrl }: ClientOptions) {

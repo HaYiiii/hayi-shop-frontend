@@ -4,6 +4,49 @@
  */
 
 export interface paths {
+    "/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ACTIVE Branches, by code
+         * @description No sign-in. Only `ACTIVE` Branches (Decision U1). `openNow`/`todayHours` come from today's actual hours
+         *     (`Asia/Ho_Chi_Minh`, override > weekly, U2); `earliestPickupAt` is the earliest bookable slot, `null` if none
+         *     (N5, U4). `Cache-Control: public, max-age=300`.
+         */
+        get: operations["listPublicBranches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One ACTIVE Branch with its weekly hours and the next 7 days' overrides
+         * @description No sign-in. Unknown or not `ACTIVE` → `404 BRANCH_NOT_FOUND` (Decision U1). Overrides of today … today + 6,
+         *     without the internal `reason` (U3). `Cache-Control: public, max-age=300`.
+         */
+        get: operations["getPublicBranch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/branches/{branchId}/fulfillment/slots": {
         parameters: {
             query?: never;
@@ -47,6 +90,79 @@ export interface components {
                 message?: string;
             }[];
         };
+        /** @enum {string} */
+        PublicFulfillmentType: "PICKUP";
+        PublicAddress: {
+            line: string;
+            ward: string | null;
+            district: string | null;
+            province: string;
+        };
+        PublicGeoPoint: {
+            lat: number;
+            lng: number;
+        };
+        OpeningRange: {
+            /** @description `HH:mm`, Branch local time. */
+            open: string;
+            /** @description `HH:mm`, Branch local time. */
+            close: string;
+        };
+        WeeklyOpening: {
+            /** @description 1 = Monday … 7 = Sunday (ISO-8601). */
+            dayOfWeek: number;
+            open: string;
+            close: string;
+        };
+        PublicHourOverride: {
+            /** Format: date */
+            date: string;
+            isClosed: boolean;
+            intervals: components["schemas"]["OpeningRange"][];
+        };
+        PublicBranch: {
+            /** Format: uuid */
+            branchId: string;
+            branchCode: string;
+            name: string;
+            address: components["schemas"]["PublicAddress"];
+            location: components["schemas"]["PublicGeoPoint"] | null;
+            phone: string | null;
+            /** @description Always `Asia/Ho_Chi_Minh`. */
+            timezone: string;
+            /** @description `ACTIVE` does not mean open now (Branch §4.3). */
+            openNow: boolean;
+            todayHours: components["schemas"]["OpeningRange"][];
+            fulfillmentTypes: components["schemas"]["PublicFulfillmentType"][];
+            /**
+             * Format: date-time
+             * @description UTC; `null` if no bookable slot.
+             */
+            earliestPickupAt: string | null;
+        };
+        PublicBranchList: {
+            items: components["schemas"]["PublicBranch"][];
+        };
+        /** @description A `PublicBranch` plus its hours. */
+        PublicBranchDetail: {
+            /** Format: uuid */
+            branchId: string;
+            branchCode: string;
+            name: string;
+            address: components["schemas"]["PublicAddress"];
+            location: components["schemas"]["PublicGeoPoint"] | null;
+            phone: string | null;
+            timezone: string;
+            openNow: boolean;
+            todayHours: components["schemas"]["OpeningRange"][];
+            fulfillmentTypes: components["schemas"]["PublicFulfillmentType"][];
+            /** Format: date-time */
+            earliestPickupAt: string | null;
+            /** @description Sorted by day, then opening time. */
+            weeklyHours: components["schemas"]["WeeklyOpening"][];
+            /** @description Today … today + 6, by date; no internal reason (Decision U3). */
+            overrides: components["schemas"]["PublicHourOverride"][];
+        };
         /**
          * @description `CLOSED` is reserved; the MVP does not emit it (Decision T4).
          * @enum {string}
@@ -81,11 +197,67 @@ export interface components {
     responses: never;
     parameters: never;
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description `public, max-age=300` (API 02, Decision U1). */
+        FiveMinuteCache: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listPublicBranches: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ACTIVE Branches. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["FiveMinuteCache"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicBranchList"];
+                };
+            };
+        };
+    };
+    getPublicBranch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                branchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Branch. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["FiveMinuteCache"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicBranchDetail"];
+                };
+            };
+            /** @description `BRANCH_NOT_FOUND` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listPickupSlots: {
         parameters: {
             query?: {
