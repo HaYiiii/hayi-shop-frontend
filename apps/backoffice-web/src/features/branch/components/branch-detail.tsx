@@ -1,5 +1,5 @@
 import { formatBranchDate } from "@hayi/domain-utils";
-import { Button, Card, Dialog, Skeleton, StatusBadge, cn, focusRing } from "@hayi/ui";
+import { Button, Dialog, Skeleton, StatusBadge, Summary, cn, focusRing } from "@hayi/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useMatchRoute } from "@tanstack/react-router";
 import { type ReactNode, createContext, use, useState } from "react";
@@ -64,7 +64,7 @@ export function BranchPage({ branchId, children }: { branchId: string; children:
         </>
       );
     }
-    return <Skeleton className="h-80 w-full max-w-[760px]" />;
+    return <Skeleton className="h-80 w-full max-w-form" />;
   }
 
   const reload = () => {
@@ -87,6 +87,7 @@ export function BranchPage({ branchId, children }: { branchId: string; children:
         </StatusBadge>
         <LifecycleActions branch={branch} onNotice={setNotice} onReload={reload} />
       </section>
+      <LifecycleSummary branch={branch} />
 
       <nav aria-label="Phần chi nhánh" className="flex gap-1 border-b border-line">
         <Link to="/admin/branches/$id" params={params} activeOptions={{ exact: true }} className={tabClass} onClick={() => setNotice(null)}>
@@ -105,7 +106,7 @@ export function BranchPage({ branchId, children }: { branchId: string; children:
       </nav>
 
       {notice ? (
-        <div className="grid max-w-[760px] justify-items-start gap-2">
+        <div className="grid max-w-form justify-items-start gap-2">
           <FormAlert tone={notice.tone}>{notice.text}</FormAlert>
           {notice.reload ? (
             <Button variant="outline" density="compact" onClick={reload}>
@@ -124,7 +125,7 @@ export function BranchPage({ branchId, children }: { branchId: string; children:
 export function BranchInfo() {
   const { branch, setNotice, reload } = useBranchPage();
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)]">
+    <div className="grid max-w-form gap-3">
       <BranchInfoForm
         // A new version (save, reload, transition) resets the fields to the server's values.
         key={branch.version}
@@ -134,7 +135,9 @@ export function BranchInfo() {
         }
         onReload={reload}
       />
-      <LifecycleFacts branch={branch} />
+      <p className="text-caption text-ink-muted">
+        Tạm ngưng: khách không đặt mới, mở lại được. Đóng: vĩnh viễn. Cả hai bị chặn khi còn đơn hoặc phiên nhóm đang mở.
+      </p>
     </div>
   );
 }
@@ -214,39 +217,23 @@ function ConfirmCommand({ command, branch, onNotice, onReload }: ActionsProps & 
   );
 }
 
-const lifecycleSteps = ["DRAFT", "ACTIVE", "INACTIVE", "CLOSED"] as const;
-const lifecycleArrows = ["→", "⇄", "→"];
+// INACTIVE can go back to ACTIVE (Branch §4.3).
+const lifecycleSteps = [
+  { key: "DRAFT", label: statusLabel.DRAFT },
+  { key: "ACTIVE", label: statusLabel.ACTIVE, connector: "⇄" },
+  { key: "INACTIVE", label: statusLabel.INACTIVE },
+  { key: "CLOSED", label: statusLabel.CLOSED },
+] as const;
 
-function LifecycleFacts({ branch }: { branch: Branch }) {
-  const date = (instant: string | null) => (instant ? formatBranchDate(instant, branch.timezone) : "—");
+/** D3c screen 16 header: lifecycle and its dates, in the page summary instead of a side column. */
+function LifecycleSummary({ branch }: { branch: Branch }) {
+  const date = (instant: string) => formatBranchDate(instant, branch.timezone);
   return (
-    <Card aria-labelledby="branch-lifecycle-title" className="gap-3 p-5" role="complementary">
-      <h2 id="branch-lifecycle-title" className="text-body-lg font-semibold">
-        Vòng đời
-      </h2>
-      <p className="flex flex-wrap items-center gap-2 text-label text-ink-muted">
-        {lifecycleSteps.map((step, i) => (
-          <span key={step} className="contents">
-            {step === branch.status ? <b className="text-ink">{statusLabel[step]}</b> : <span>{statusLabel[step]}</span>}
-            {lifecycleArrows[i] ? <span aria-hidden="true">{lifecycleArrows[i]}</span> : null}
-          </span>
-        ))}
-      </p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-label font-normal tabular-nums">
-        <dt className="text-ink-muted">Kích hoạt</dt>
-        <dd>{date(branch.activatedAt)}</dd>
-        <dt className="text-ink-muted">Tạo lúc</dt>
-        <dd>{date(branch.createdAt)}</dd>
-        {branch.closedAt ? (
-          <>
-            <dt className="text-ink-muted">Đóng lúc</dt>
-            <dd>{date(branch.closedAt)}</dd>
-          </>
-        ) : null}
-      </dl>
-      <p className="text-caption text-ink-muted">
-        Tạm ngưng: khách không đặt mới, mở lại được. Đóng: vĩnh viễn. Cả hai bị chặn khi còn đơn hoặc phiên nhóm đang mở.
-      </p>
-    </Card>
+    <Summary.Root role="group" aria-label="Vòng đời và mốc thời gian" className="-mt-1 tabular-nums">
+      <Summary.Steps label="Vòng đời" steps={lifecycleSteps} current={branch.status} />
+      {branch.activatedAt ? <Summary.Item>Kích hoạt {date(branch.activatedAt)}</Summary.Item> : null}
+      <Summary.Item>Tạo {date(branch.createdAt)}</Summary.Item>
+      {branch.closedAt ? <Summary.Item>Đóng {date(branch.closedAt)}</Summary.Item> : null}
+    </Summary.Root>
   );
 }

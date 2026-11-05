@@ -652,6 +652,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Category tree
+         * @description `CATALOG_VIEW` (brand-level: at any scope, Decision M1). Roots with their children, both sorted by
+         *     `sortOrder` (Decision Y5). Only `ACTIVE` unless `includeArchived=true`.
+         */
+        get: operations["listCategories"];
+        put?: never;
+        /**
+         * Create an ACTIVE Category, last among its siblings
+         * @description `CATALOG_MANAGE`. `slug` is unique among every Category, archived ones included → `409 CATALOG_SLUG_TAKEN`
+         *     (Decision Y1). `parentId` must be an `ACTIVE` root: a child → `422 CATALOG_CATEGORY_DEPTH_EXCEEDED`, unknown →
+         *     `404 CATALOG_CATEGORY_NOT_FOUND`, archived → `409 CATALOG_CATEGORY_ARCHIVED` (Y2). Audited. Requires
+         *     `X-CSRF-Token`.
+         */
+        post: operations["createCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the order of one group of sibling Categories
+         * @description `CATALOG_MANAGE`. `categoryIds` must be exactly the non-archived Categories under `parentId` (`null` = the
+         *     roots), in the new order; any other set → `409 CATALOG_CATEGORY_ORDER_STALE` (reload and retry). No
+         *     `If-Match`: the order spans many Categories, each with its own version; only moved ones get a new version
+         *     (Decision Y6). Unknown `parentId` → `404`, archived → `409 CATALOG_CATEGORY_ARCHIVED`. Audited when the order
+         *     changes. Requires `X-CSRF-Token`.
+         */
+        put: operations["reorderCategories"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories/{categoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: components["parameters"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * One Category
+         * @description `CATALOG_VIEW`. Archived ones too. Unknown → `404 CATALOG_CATEGORY_NOT_FOUND`.
+         */
+        get: operations["getCategory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a Category's name, slug, description or parent
+         * @description `CATALOG_MANAGE`. JSON Merge Patch on `name`, `slug`, `description` (`null` clears) and `parentId` (`null` =
+         *     make it a root; a new parent puts it last there). Any other key → `400` (Decision Y3). The new parent follows
+         *     the rules of create; moving a Category that has children (archived ones included) under another, or under itself →
+         *     `422 CATALOG_CATEGORY_DEPTH_EXCEEDED`. An archived Category → `409 CATALOG_CATEGORY_ARCHIVED`. Requires
+         *     `If-Match: "v{n}"` (missing → `428`, stale → `412`). Changed fields are audited; a patch that changes nothing
+         *     keeps the version. Requires `X-CSRF-Token`.
+         */
+        patch: operations["updateCategory"];
+        trace?: never;
+    };
+    "/categories/{categoryId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: components["parameters"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive a Category for good
+         * @description `CATALOG_MANAGE`. `ACTIVE → ARCHIVED`, no way back in MVP (Decision Y4). Already archived →
+         *     `409 CATALOG_CATEGORY_ARCHIVED`; still has a non-archived child (or, from BE #61, Product) →
+         *     `409 CATALOG_CATEGORY_IN_USE` (W5). Optional `If-Match`. Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["archiveCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -671,6 +778,88 @@ export interface components {
                 code: string;
                 message?: string;
             }[];
+        };
+        /**
+         * @description MVP uses only these two (Decision W5).
+         * @enum {string}
+         */
+        CategoryStatus: "ACTIVE" | "ARCHIVED";
+        /** @description Lower-case kebab-case, unique among every Category (Decision Y1). */
+        CategorySlug: string;
+        Category: {
+            /** Format: uuid */
+            categoryId: string;
+            slug: string;
+            name: string;
+            description: string | null;
+            /**
+             * Format: uuid
+             * @description `null` for a root.
+             */
+            parentId: string | null;
+            /** Format: int32 */
+            sortOrder: number;
+            status: components["schemas"]["CategoryStatus"];
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @description A root Category with the fields of `Category` plus its children (which have none). */
+        CategoryNode: {
+            /** Format: uuid */
+            categoryId: string;
+            slug: string;
+            name: string;
+            description: string | null;
+            /**
+             * Format: uuid
+             * @description Always `null`.
+             */
+            parentId: string | null;
+            /** Format: int32 */
+            sortOrder: number;
+            status: components["schemas"]["CategoryStatus"];
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            children: components["schemas"]["Category"][];
+        };
+        CategoryTree: {
+            items: components["schemas"]["CategoryNode"][];
+        };
+        CategoryCreateRequest: {
+            slug: components["schemas"]["CategorySlug"];
+            /** @description Not blank. */
+            name: string;
+            description?: string | null;
+            /** Format: uuid */
+            parentId?: string | null;
+        };
+        /**
+         * @description JSON Merge Patch of a Category (Decision Y3). Missing key = unchanged; `null` clears `description` and makes
+         *     it a root for `parentId`; `name` and `slug` cannot be `null` or blank.
+         */
+        CategoryPatch: {
+            name?: string;
+            slug?: components["schemas"]["CategorySlug"];
+            description?: string | null;
+            /** Format: uuid */
+            parentId?: string | null;
+        };
+        CategoryReorderRequest: {
+            /**
+             * Format: uuid
+             * @description `null` = the roots.
+             */
+            parentId: string | null;
+            /** @description In the new order; no duplicates (→ `400`). */
+            categoryIds: string[];
         };
         /**
          * @description Lifecycle (Branch §4.3); `ACTIVE` does not mean open now.
@@ -1096,7 +1285,10 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `BRANCH_NOT_FOUND`, `BRANCH_HOURS_OVERRIDE_NOT_FOUND`, `FULFILLMENT_OVERRIDE_NOT_FOUND` */
+        /**
+         * @description `BRANCH_NOT_FOUND`, `BRANCH_HOURS_OVERRIDE_NOT_FOUND`, `FULFILLMENT_OVERRIDE_NOT_FOUND`,
+         *     `CATALOG_CATEGORY_NOT_FOUND`
+         */
         NotFound: {
             headers: {
                 [name: string]: unknown;
@@ -1107,6 +1299,27 @@ export interface components {
         };
         /** @description `BRANCH_CODE_TAKEN` */
         Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `CATALOG_SLUG_TAKEN`, `CATALOG_CATEGORY_ARCHIVED`, `CATALOG_CATEGORY_IN_USE` or `CATALOG_CATEGORY_ORDER_STALE`
+         *     (Decision Y)
+         */
+        CategoryConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CATALOG_CATEGORY_DEPTH_EXCEEDED` — the tree would get more than 2 levels (Decision Y2, Y3) */
+        CategoryDepthExceeded: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1215,6 +1428,7 @@ export interface components {
         IfMatchOptional: string;
         /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
         BranchId: string;
+        CategoryId: string;
     };
     requestBodies: never;
     headers: {
@@ -2142,6 +2356,201 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["FulfillmentConfigInvalid"];
+        };
+    };
+    listCategories: {
+        parameters: {
+            query?: {
+                includeArchived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tree. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryTree"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createCategory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The created Category. */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    /** @description URL of the new Category. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["CategoryConflict"];
+            422: components["responses"]["CategoryDepthExceeded"];
+        };
+    };
+    reorderCategories: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryReorderRequest"];
+            };
+        };
+        responses: {
+            /** @description The tree after the change (only `ACTIVE`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryTree"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["CategoryConflict"];
+        };
+    };
+    getCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: components["parameters"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Category. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateCategory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                categoryId: components["parameters"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["CategoryPatch"];
+            };
+        };
+        responses: {
+            /** @description The Category after the edit. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["CategoryConflict"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["CategoryDepthExceeded"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    archiveCategory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                categoryId: components["parameters"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archived Category. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["CategoryConflict"];
+            412: components["responses"]["VersionConflict"];
         };
     };
 }

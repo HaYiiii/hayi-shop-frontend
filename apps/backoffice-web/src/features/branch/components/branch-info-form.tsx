@@ -75,11 +75,13 @@ export function BranchInfoForm({ branch, onSaved, onReload }: BranchInfoFormProp
 
         <FieldGroup>
           <Field.Root>
-            <span className="text-label text-ink">Mã chi nhánh</span>
+            <Field.Label asChild>
+              <span>Mã chi nhánh</span>
+            </Field.Label>
             <span translate="no" className="flex h-control-default items-center font-mono text-label font-semibold tracking-wide">
               {branch.branchCode}
             </span>
-            <span className="text-caption text-ink-subtle">Không đổi được sau khi tạo.</span>
+            <Field.Hint>Không đổi được sau khi tạo.</Field.Hint>
           </Field.Root>
           <BranchTextField name="name" label="Tên hiển thị" required values={values} errors={errors} disabled={closed} autoComplete="off" />
           <AddressFields values={values} errors={errors} disabled={closed} />

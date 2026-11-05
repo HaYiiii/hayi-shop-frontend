@@ -321,8 +321,8 @@ function SlotConfigEditor({ branchId, config, schedule, openingHours, onReload }
         </section>
       ) : null}
 
-      {/* The week needs the width: the rules sit above it, and beside it (D3b) only on wide screens. */}
-      <div className="grid items-start gap-x-5 gap-y-4 2xl:grid-cols-[minmax(0,1fr)_320px]">
+      {/* The week needs the full width: the rules sit above it as a horizontal panel (D2 "Bố cục trang"). */}
+      <div className="grid gap-4">
         <PickupRules
           rules={rules}
           errors={ruleErrors}
@@ -331,7 +331,7 @@ function SlotConfigEditor({ branchId, config, schedule, openingHours, onReload }
             setRules((current) => ({ ...current, ...next }));
           }}
         />
-        <div className="grid min-w-0 gap-4 2xl:col-start-1 2xl:row-start-1">
+        <div className="grid min-w-0 gap-4">
           <Tabs.Root value={tab} onValueChange={setTab}>
             <Tabs.List aria-label="Phần cấu hình">
               <Tabs.Tab value="weekly">Lịch hàng tuần</Tabs.Tab>

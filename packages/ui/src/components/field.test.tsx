@@ -26,7 +26,7 @@ describe("Field", () => {
     expect(input).not.toHaveAttribute("aria-invalid");
   });
 
-  it("marks the input invalid and describes it with the error message", () => {
+  it("marks the input invalid and lets the error replace the hint", () => {
     render(
       <Field.Root>
         <Field.Label>Số điện thoại</Field.Label>
@@ -37,9 +37,93 @@ describe("Field", () => {
     );
     const input = screen.getByLabelText("Số điện thoại");
     expect(input).toHaveAttribute("aria-invalid", "true");
-    expect(input).toHaveAccessibleDescription(
-      "Dùng để báo khi đơn sẵn sàng Số điện thoại cần 10 chữ số, ví dụ 0901234567.",
+    expect(input).toHaveAccessibleDescription("Số điện thoại cần 10 chữ số, ví dụ 0901234567.");
+    expect(screen.queryByText("Dùng để báo khi đơn sẵn sàng")).not.toBeVisible();
+  });
+
+  it("shows the hint again once the error is fixed", () => {
+    const field = (error?: string) => (
+      <Field.Root>
+        <Field.Label>Số điện thoại</Field.Label>
+        <Field.Input />
+        <Field.Hint>Dùng để báo khi đơn sẵn sàng</Field.Hint>
+        {error ? <Field.Error>{error}</Field.Error> : null}
+      </Field.Root>
     );
+    const { rerender } = render(field("Số điện thoại cần 10 chữ số."));
+    rerender(field());
+    expect(screen.getByText("Dùng để báo khi đơn sẵn sàng")).toBeVisible();
+    expect(screen.getByLabelText("Số điện thoại")).toHaveAccessibleDescription("Dùng để báo khi đơn sẵn sàng");
+  });
+
+  it("keeps a control with its unit in the control slot", () => {
+    render(
+      <Field.Root>
+        <Field.Label>Cho đặt trước tối đa</Field.Label>
+        <Field.Control>
+          <Field.Input type="number" />
+          <span>ngày</span>
+        </Field.Control>
+        <Field.Hint>Tính từ hôm nay</Field.Hint>
+      </Field.Root>,
+    );
+    const input = screen.getByLabelText("Cho đặt trước tối đa");
+    expect(input).toHaveAccessibleDescription("Tính từ hôm nay");
+    expect(input.closest("[data-slot='field-control']")).toHaveTextContent("ngày");
+  });
+
+  it("labels a read-only value without a control", () => {
+    render(
+      <Field.Group>
+        <Field.Root>
+          <Field.Label asChild>
+            <span>Mã chi nhánh</span>
+          </Field.Label>
+          <span>Q1-LELOI</span>
+          <Field.Hint>Không đổi được sau khi tạo.</Field.Hint>
+        </Field.Root>
+      </Field.Group>,
+    );
+    const label = screen.getByText("Mã chi nhánh");
+    expect(label.tagName).toBe("SPAN");
+    expect(label).toHaveAttribute("data-slot", "field-label");
+    expect(label).not.toHaveAttribute("for");
+    expect(screen.getByText("Không đổi được sau khi tạo.")).toHaveAttribute("data-slot", "field-message");
+  });
+
+  it("names a group of fields rendered as a fieldset", () => {
+    render(
+      <Field.Group asChild>
+        <fieldset>
+          <legend>Liên hệ</legend>
+          <Field.Root>
+            <Field.Label>Email</Field.Label>
+            <Field.Input type="email" />
+          </Field.Root>
+          <Field.Root span="full">
+            <Field.Label>Ghi chú</Field.Label>
+            <Field.Input />
+          </Field.Root>
+        </fieldset>
+      </Field.Group>,
+    );
+    const group = screen.getByRole("group", { name: "Liên hệ" });
+    expect(group).toHaveAttribute("data-slot", "field-group");
+    expect(screen.getByLabelText("Ghi chú").closest("[data-slot='field']")).toHaveAttribute("data-span", "full");
+  });
+
+  it("lays a group out horizontally with a set label width", () => {
+    render(
+      <Field.Group orientation="horizontal" labelWidth="240px" data-testid="rules">
+        <Field.Root>
+          <Field.Label>Độ dài mỗi khung</Field.Label>
+          <Field.Input />
+        </Field.Root>
+      </Field.Group>,
+    );
+    const group = screen.getByTestId("rules");
+    expect(group).toHaveAttribute("data-orientation", "horizontal");
+    expect(group.style.getPropertyValue("--hy-label-w")).toBe("240px");
   });
 
   it("drops the invalid state when the error is removed", () => {
@@ -61,7 +145,7 @@ describe("Field", () => {
     expect(input).not.toHaveAttribute("aria-describedby");
   });
 
-  it("keeps a caller's aria-describedby alongside the hint and error", () => {
+  it("keeps a caller's aria-describedby alongside the error", () => {
     render(
       <>
         <p id="phone-policy">Chỉ dùng để báo đơn.</p>
@@ -74,7 +158,7 @@ describe("Field", () => {
       </>,
     );
     expect(screen.getByLabelText("Số điện thoại")).toHaveAccessibleDescription(
-      "Chỉ dùng để báo đơn. Ví dụ 0901234567 Số điện thoại cần 10 chữ số.",
+      "Chỉ dùng để báo đơn. Số điện thoại cần 10 chữ số.",
     );
   });
 
