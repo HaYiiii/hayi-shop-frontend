@@ -52,9 +52,16 @@ export function FieldRoot({ className, span, ...props }: FieldRootProps) {
   );
 }
 
-export function FieldLabel({ className, ...props }: ComponentProps<"label">) {
+type FieldLabelProps = ComponentProps<"label"> & {
+  /** Use the child (e.g. a `<span>`) as the label of a read-only value: no `for`, same place in the layout. */
+  asChild?: boolean;
+};
+
+export function FieldLabel({ asChild = false, className, ...props }: FieldLabelProps) {
   const { controlId } = useField("Label");
-  return <label data-slot="field-label" htmlFor={controlId} className={cn("text-label text-ink", className)} {...props} />;
+  const classes = cn("text-label text-ink", className);
+  if (asChild) return <Slot.Root data-slot="field-label" className={classes} {...props} />;
+  return <label data-slot="field-label" htmlFor={controlId} className={classes} {...props} />;
 }
 
 /** A control together with its unit or button ("phút", "₫"): the block lines up as the control. */

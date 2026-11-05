@@ -72,6 +72,25 @@ describe("Field", () => {
     expect(input.closest("[data-slot='field-control']")).toHaveTextContent("ngày");
   });
 
+  it("labels a read-only value without a control", () => {
+    render(
+      <Field.Group>
+        <Field.Root>
+          <Field.Label asChild>
+            <span>Mã chi nhánh</span>
+          </Field.Label>
+          <span>Q1-LELOI</span>
+          <Field.Hint>Không đổi được sau khi tạo.</Field.Hint>
+        </Field.Root>
+      </Field.Group>,
+    );
+    const label = screen.getByText("Mã chi nhánh");
+    expect(label.tagName).toBe("SPAN");
+    expect(label).toHaveAttribute("data-slot", "field-label");
+    expect(label).not.toHaveAttribute("for");
+    expect(screen.getByText("Không đổi được sau khi tạo.")).toHaveAttribute("data-slot", "field-message");
+  });
+
   it("names a group of fields rendered as a fieldset", () => {
     render(
       <Field.Group asChild>

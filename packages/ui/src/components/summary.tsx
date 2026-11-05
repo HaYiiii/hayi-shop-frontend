@@ -45,7 +45,7 @@ function SummarySteps({ label, steps, current, className, ...props }: SummarySte
       {...props}
     >
       {steps.map((step, i) => (
-        <li key={step.key} className="contents">
+        <li key={step.key} className="flex items-center gap-2">
           <span
             aria-current={step.key === current ? "step" : undefined}
             className="aria-[current=step]:font-semibold aria-[current=step]:text-ink"
