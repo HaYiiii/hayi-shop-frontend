@@ -2,6 +2,7 @@
 
 import { type VariantProps, cva } from "class-variance-authority";
 import { type ComponentProps, createContext, use, useEffect, useId, useMemo, useState } from "react";
+import { Slot } from "radix-ui";
 import { cn } from "../cn.js";
 import { focusRing } from "./variants.js";
 
@@ -23,7 +24,12 @@ function useField(part: string) {
   return context;
 }
 
-export function FieldRoot({ className, ...props }: ComponentProps<"div">) {
+type FieldRootProps = ComponentProps<"div"> & {
+  /** Inside a `Field.Group`: take the whole row. */
+  span?: "full";
+};
+
+export function FieldRoot({ className, span, ...props }: FieldRootProps) {
   const id = useId();
   const [hasHint, setHasHint] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -41,14 +47,52 @@ export function FieldRoot({ className, ...props }: ComponentProps<"div">) {
   );
   return (
     <FieldContext value={value}>
-      <div className={cn("grid min-w-0 gap-2", className)} {...props} />
+      <div data-slot="field" data-span={span} className={cn("grid min-w-0 content-start gap-2", className)} {...props} />
     </FieldContext>
   );
 }
 
 export function FieldLabel({ className, ...props }: ComponentProps<"label">) {
   const { controlId } = useField("Label");
-  return <label htmlFor={controlId} className={cn("text-label text-ink", className)} {...props} />;
+  return <label data-slot="field-label" htmlFor={controlId} className={cn("text-label text-ink", className)} {...props} />;
+}
+
+/** A control together with its unit or button ("phút", "₫"): the block lines up as the control. */
+export function FieldControl({ className, ...props }: ComponentProps<"div">) {
+  useField("Control");
+  return <div data-slot="field-control" className={cn("flex min-w-0 items-center gap-2", className)} {...props} />;
+}
+
+type FieldGroupProps = ComponentProps<"div"> & {
+  /** Use the child element (e.g. a `<fieldset>` with its `<legend>`) as the group. */
+  asChild?: boolean;
+  /** Columns of the grid layout (default 2); one column below 600px. */
+  columns?: number;
+  /** `horizontal`: label column on the left, for settings panels. */
+  orientation?: "grid" | "horizontal";
+  /** Width of the label column in the horizontal layout (default 200px). */
+  labelWidth?: string;
+};
+
+/**
+ * Fields laid out together so label, control and message of a row share tracks (D2 "Bố cục form"): a label
+ * that wraps or a message under one field never shifts the controls next to it, and the message line is
+ * kept so an error does not make the form jump. Layout CSS lives in styles.css (`[data-slot=field-group]`).
+ */
+export function FieldGroup({ asChild = false, columns, orientation = "grid", labelWidth, className, style, ...props }: FieldGroupProps) {
+  const Comp = asChild ? Slot.Root : "div";
+  const vars: Record<string, string> = {};
+  if (columns) vars["--hy-fields-cols"] = String(columns);
+  if (labelWidth) vars["--hy-label-w"] = labelWidth;
+  return (
+    <Comp
+      data-slot="field-group"
+      data-orientation={orientation}
+      className={cn("m-0 min-w-0 border-0 p-0", className)}
+      style={{ ...vars, ...style }}
+      {...props}
+    />
+  );
 }
 
 type CallerAria = { "aria-describedby"?: string | undefined; "aria-invalid"?: ComponentProps<"input">["aria-invalid"] };
@@ -59,7 +103,8 @@ type CallerAria = { "aria-describedby"?: string | undefined; "aria-invalid"?: Co
  */
 function useControlProps(part: string, caller: CallerAria) {
   const { controlId, hintId, errorId, hasHint, hasError } = useField(part);
-  const describedBy = [caller["aria-describedby"], hasHint && hintId, hasError && errorId]
+  // One message slot: an error replaces the hint.
+  const describedBy = [caller["aria-describedby"], hasHint && !hasError && hintId, hasError && errorId]
     .filter(Boolean)
     .join(" ");
   return {
@@ -131,13 +176,22 @@ export function FieldSelect({
   );
 }
 
+/** Hidden while a `<Field.Error>` is rendered: hint and error share one message slot. */
 export function FieldHint({ className, ...props }: ComponentProps<"p">) {
-  const { hintId, setHasHint } = useField("Hint");
+  const { hintId, hasError, setHasHint } = useField("Hint");
   useEffect(() => {
     setHasHint(true);
     return () => setHasHint(false);
   }, [setHasHint]);
-  return <p id={hintId} className={cn("text-caption text-ink-subtle", className)} {...props} />;
+  return (
+    <p
+      data-slot="field-message"
+      id={hintId}
+      hidden={hasError}
+      className={cn("text-caption text-ink-subtle", className)}
+      {...props}
+    />
+  );
 }
 
 const errorIcon = (
@@ -164,6 +218,7 @@ export function FieldError({ className, children, ...props }: ComponentProps<"p"
   }, [setHasError]);
   return (
     <p
+      data-slot="field-message"
       id={errorId}
       className={cn("flex items-start gap-1 text-caption font-medium text-danger", className)}
       {...props}

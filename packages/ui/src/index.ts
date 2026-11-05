@@ -9,6 +9,7 @@ export { Menu } from "./components/menu.js";
 export { Field } from "./components/field.js";
 export { Sheet } from "./components/sheet.js";
 export { Skeleton, SkeletonGroup } from "./components/skeleton.js";
+export { Summary } from "./components/summary.js";
 export { StatusBadge, type StatusBadgeProps, type StatusBadgeTone } from "./components/status-badge.js";
 export { Table } from "./components/table.js";
 export { Tabs } from "./components/tabs.js";

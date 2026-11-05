@@ -101,6 +101,112 @@
   }
 }
 
+/*
+ * Form layout (D2 TextField "Bố cục form", components/bundle.css `.hy-fields` / `.hy-form-h`).
+ * Grid: every field of a row shares three row tracks (label | control | message) through subgrid, so a label
+ * that wraps or a message under one field never shifts the controls next to it. The message track always
+ * keeps one caption line, so an error appearing does not make the form jump. Spacing is margin, not gap:
+ * an empty track adds nothing.
+ * Horizontal: label in a fixed left column (--hy-label-w), control and message on the right.
+ * Both stack to one column below 600px.
+ * Unlayered on purpose: these must win over the Field parts' own utilities (e.g. Field.Root's gap).
+ * Every part sits in column 1 explicitly; an auto column would add implicit columns where parts share a row.
+ */
+  [data-slot="field-group"] {
+    display: grid;
+    align-items: start;
+    align-content: start;
+    column-gap: calc(var(--spacing) * 4);
+    row-gap: calc(var(--spacing) * 3);
+  }
+
+  [data-slot="field-group"] > legend {
+    margin-bottom: calc(var(--spacing) * 2.5);
+    padding: 0;
+    font-size: var(--text-body-lg);
+    line-height: var(--text-body-lg--line-height);
+    font-weight: 600;
+  }
+
+  [data-slot="field-group"][data-orientation="grid"] {
+    grid-template-columns: repeat(var(--hy-fields-cols, 2), minmax(0, 1fr));
+  }
+
+  [data-slot="field-group"][data-orientation="grid"] > [data-slot="field"] {
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    row-gap: 0;
+  }
+
+  [data-slot="field-group"][data-orientation="grid"] > [data-slot="field"] > * {
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: calc(var(--spacing) * 2);
+  }
+
+  [data-slot="field-group"][data-orientation="grid"] > [data-slot="field"] > [data-slot="field-label"] {
+    grid-row: 1;
+    align-self: end;
+    margin-top: 0;
+  }
+
+  [data-slot="field-group"][data-orientation="grid"] > [data-slot="field"] > [data-slot="field-message"] {
+    grid-row: 3;
+    margin-top: var(--spacing);
+  }
+
+  [data-slot="field-group"][data-orientation="grid"] > [data-slot="field"]::after {
+    content: "";
+    grid-column: 1;
+    grid-row: 3;
+    min-height: var(--text-caption--line-height);
+    margin-top: var(--spacing);
+  }
+
+  [data-slot="field-group"] > [data-slot="field"][data-span="full"] {
+    grid-column: 1 / -1;
+  }
+
+  [data-slot="field-group"][data-orientation="horizontal"] {
+    grid-template-columns: var(--hy-label-w, 200px) minmax(0, 1fr);
+  }
+
+  [data-slot="field-group"][data-orientation="horizontal"] > [data-slot="field"] {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    row-gap: var(--spacing);
+  }
+
+  [data-slot="field-group"][data-orientation="horizontal"] > [data-slot="field"] > * {
+    grid-column: 2;
+  }
+
+  /* First label line sits on the control's text line (40px control, 18px label). */
+  [data-slot="field-group"][data-orientation="horizontal"] > [data-slot="field"] > [data-slot="field-label"] {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    padding-top: 11px;
+  }
+
+  @media (max-width: 599px) {
+    [data-slot="field-group"][data-orientation] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    [data-slot="field-group"][data-orientation="horizontal"] > [data-slot="field"] > *,
+    [data-slot="field-group"][data-orientation="horizontal"] > [data-slot="field"] > [data-slot="field-label"] {
+      grid-column: 1;
+      grid-row: auto;
+      padding-top: 0;
+    }
+  }
+
+  /* Page summary (D2 README "Bố cục trang"): a thin rule between items. */
+  [data-slot="summary"] > [data-slot="summary-item"] + [data-slot="summary-item"] {
+    border-inline-start: 1px solid var(--color-line-strong);
+    padding-inline-start: calc(var(--spacing) * 4);
+  }
+
 @layer base {
   html {
     background-color: var(--color-cream);
