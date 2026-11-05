@@ -34,11 +34,11 @@ function invalid(code: string, errors: { field: string; code: string }[]) {
 }
 
 /** Config + schedule kept by the fake server; every change bumps the one version (Decision S1). */
-function server() {
+function server({ isEnabled = false }: { isEnabled?: boolean } = {}) {
   let version = 3;
   let config: FulfillmentConfig = {
     fulfillmentType: "PICKUP",
-    isEnabled: false,
+    isEnabled,
     asapEnabled: false,
     maxAdvanceDays: 7,
     slotDurationMinutes: 15,
@@ -114,6 +114,8 @@ function server() {
             { slotStart: "14:15", slotEnd: "14:30", usedOrders: 6, maxOrders: 8, usedItems: 10, maxItems: 20, status: "NEARLY_FULL" },
             { slotStart: "14:30", slotEnd: "14:45", usedOrders: 8, maxOrders: 8, usedItems: 12, maxItems: 20, status: "FULL" },
             { slotStart: "14:45", slotEnd: "15:00", usedOrders: 1, maxOrders: 8, usedItems: 2, maxItems: 20, status: "AVAILABLE" },
+            // Cups run out before orders do.
+            { slotStart: "15:00", slotEnd: "15:15", usedOrders: 2, maxOrders: 8, usedItems: 17, maxItems: 20, status: "NEARLY_FULL" },
           ],
         }),
     } as Record<string, (body: unknown, request: Request) => Response>,
@@ -151,7 +153,7 @@ describe("Pickup schedule — weekly (D3b screen 13)", () => {
     // Empty capacity = the config's default.
     expect(row("Chủ nhật").getByLabelText("Tối đa đơn Chủ nhật")).toHaveValue(null);
 
-    const rules = within(screen.getByRole("complementary", { name: "Quy tắc đặt trước" }));
+    const rules = within(screen.getByRole("region", { name: "Quy tắc đặt trước" }));
     expect(rules.getByRole("checkbox", { name: "Nhận đơn lấy tại quầy" })).not.toBeChecked();
     expect(rules.getByLabelText(/Đặt trước giờ lấy tối thiểu/)).toHaveValue(180);
     expect(rules.getByLabelText("Cho đặt trước tối đa")).toHaveValue(7);
@@ -169,7 +171,7 @@ describe("Pickup schedule — weekly (D3b screen 13)", () => {
     );
 
     await loaded();
-    const rules = within(screen.getByRole("complementary", { name: "Quy tắc đặt trước" }));
+    const rules = within(screen.getByRole("region", { name: "Quy tắc đặt trước" }));
     await user.click(rules.getByRole("checkbox", { name: "Nhận đơn lấy tại quầy" }));
     await user.clear(rules.getByLabelText(/Đặt trước giờ lấy tối thiểu/));
     await user.type(rules.getByLabelText(/Đặt trước giờ lấy tối thiểu/), "120");
@@ -246,6 +248,29 @@ describe("Pickup schedule — weekly (D3b screen 13)", () => {
     expect(row("Chủ nhật").getByLabelText("Chủ nhật khung 1 bắt đầu")).toHaveAttribute("aria-invalid", "true");
     expect(row("Thứ Hai").getByLabelText("Thứ Hai khung 1 bắt đầu")).not.toHaveAttribute("aria-invalid");
     await waitFor(() => expect(row("Chủ nhật").getByLabelText("Chủ nhật khung 1 bắt đầu")).toHaveFocus());
+  });
+
+  it("warns when the windows of a day carry different capacities, since the screen sets one per day", async () => {
+    const s = server();
+    const handlers = {
+      ...s.handlers,
+      [`GET ${BASE}/PICKUP/schedule`]: () =>
+        tagged(
+          {
+            ...s.schedule,
+            weekly: [
+              { dayOfWeek: 1, start: "07:30", end: "11:00", maxOrders: 8, maxItems: 20 },
+              { dayOfWeek: 1, start: "13:30", end: "21:00", maxOrders: 12, maxItems: 20 },
+            ],
+          },
+          3,
+        ),
+    };
+    renderAdmin(PATH, handlers, manager);
+
+    await loaded();
+    expect(row("Thứ Hai").getByText("Các khung trong ngày đang có sức chứa khác nhau; lưu sẽ áp một mức cho cả ngày.")).toBeInTheDocument();
+    expect(row("Thứ Ba").queryByText(/sức chứa khác nhau/)).not.toBeInTheDocument();
   });
 
   it("stops a window without times on the client", async () => {
@@ -424,18 +449,34 @@ describe("Pickup schedule — special days", () => {
 
 describe("Pickup schedule — preview from GET /fulfillment/capacity", () => {
   it("shows today's slots as customers see them: few left, full and past cutoff struck", async () => {
-    const s = server();
+    const s = server({ isEnabled: true });
     const { api } = renderAdmin(PATH, s.handlers, manager);
 
     const slots = within(await screen.findByRole("list", { name: "Khung giờ khách thấy" }));
     const items = slots.getAllByRole("listitem");
-    expect(items.map((li) => li.textContent)).toEqual(["14:00 · qua hạn chốt", "14:15 · còn 2 chỗ", "14:30 · đầy", "14:45"]);
+    expect(items.map((li) => li.textContent)).toEqual([
+      "14:00 · qua hạn chốt",
+      "14:15 · còn 2 chỗ",
+      "14:30 · đầy",
+      "14:45",
+      "15:00 · còn 3 ly",
+    ]);
+    expect(screen.getByRole("heading", { name: /khách thấy/ })).toBeInTheDocument();
     expect(items[0]).toHaveClass("line-through");
     expect(items[2]).toHaveClass("line-through");
     expect(items[1]).not.toHaveClass("line-through");
     const request = api.calls.find((c) => c.route === "GET /branches/b-q1/fulfillment/capacity");
     expect(request).toBeDefined();
     expect(screen.getByLabelText("Ngày xem trước")).toHaveValue(todayInBranch());
+  });
+
+  it("says customers do not see the slots while pickup is switched off (saved config)", async () => {
+    const s = server({ isEnabled: false });
+    renderAdmin(PATH, s.handlers, manager);
+
+    await screen.findByRole("list", { name: "Khung giờ khách thấy" });
+    expect(screen.getByText("Đang tắt nhận đơn lấy tại quầy: khách chưa thấy các khung này.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /khách thấy/ })).not.toBeInTheDocument();
   });
 
   it("previews another day", async () => {

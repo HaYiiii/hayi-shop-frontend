@@ -14,6 +14,8 @@ interface WeeklyScheduleProps {
   openingHours: (dayIndex: number) => string;
   slotMinutes: string;
   errors: ScheduleErrors;
+  /** Days whose saved windows carry different capacities (the screen sets one per day). */
+  mixedCapacity: ReadonlySet<number>;
   onDayChange: (dayIndex: number) => DayChange;
 }
 
@@ -24,7 +26,7 @@ const inputClass = cn(
 );
 
 /** "Lịch hàng tuần": pickup windows per day; slots are generated from them (Decision N4). */
-export function WeeklySchedule({ week, openingHours, slotMinutes, errors, onDayChange }: WeeklyScheduleProps) {
+export function WeeklySchedule({ week, openingHours, slotMinutes, errors, mixedCapacity, onDayChange }: WeeklyScheduleProps) {
   return (
     <Table.Root aria-label="Lịch nhận đơn hàng tuần">
       <Table.Head>
@@ -47,6 +49,7 @@ export function WeeklySchedule({ week, openingHours, slotMinutes, errors, onDayC
             slotMinutes={slotMinutes}
             windowErrors={errors.windows[dayIndex]}
             capacityError={errors.capacity[dayIndex]}
+            mixedCapacity={mixedCapacity.has(dayIndex)}
             onChange={onDayChange(dayIndex)}
           />
         ))}
@@ -62,10 +65,11 @@ interface DayRowProps {
   slotMinutes: string;
   windowErrors: Record<number, string> | undefined;
   capacityError: string | undefined;
+  mixedCapacity: boolean;
   onChange: DayChange;
 }
 
-function DayRow({ label, day, openingHours, slotMinutes, windowErrors, capacityError, onChange }: DayRowProps) {
+function DayRow({ label, day, openingHours, slotMinutes, windowErrors, capacityError, mixedCapacity, onChange }: DayRowProps) {
   const errorId = useId();
   const messages = windowErrors ? Object.entries(windowErrors) : [];
   const marked = messages.length > 0 || capacityError !== undefined;
@@ -138,6 +142,11 @@ function DayRow({ label, day, openingHours, slotMinutes, windowErrors, capacityE
           </p>
         ))}
         {capacityError ? <p className="mt-1.5 text-caption font-medium text-danger">{capacityError}</p> : null}
+        {mixedCapacity ? (
+          <p className="mt-1.5 text-caption font-medium text-warning">
+            Các khung trong ngày đang có sức chứa khác nhau; lưu sẽ áp một mức cho cả ngày.
+          </p>
+        ) : null}
       </Table.Cell>
       <Table.Cell className="align-top whitespace-nowrap tabular-nums">
         <span className="flex h-control-compact items-center">{`${slotMinutes} phút`}</span>

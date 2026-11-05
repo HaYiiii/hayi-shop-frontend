@@ -37,6 +37,17 @@ export function scheduleEditorOf(weekly: readonly ScheduleWindow[]): WeekSchedul
   });
 }
 
+/** Days (index) whose windows carry different capacities: one save would set one capacity for the whole day. */
+export function mixedCapacityDays(weekly: readonly ScheduleWindow[]): Set<number> {
+  const result = new Set<number>();
+  for (let index = 0; index < 7; index += 1) {
+    const day = weekly.filter((w) => w.dayOfWeek === index + 1);
+    const capacities = new Set(day.map((w) => `${w.maxOrders ?? ""}/${w.maxItems ?? ""}`));
+    if (capacities.size > 1) result.add(index);
+  }
+  return result;
+}
+
 /** Where each request item came from, to put `weekly[i]` errors back on their window. */
 export type RequestPositions = { day: number; window: number }[];
 

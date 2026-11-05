@@ -48,7 +48,7 @@ export function PickupRules(props: PickupRulesProps) {
   const titleId = useId();
   return (
     <Card
-      role="complementary"
+      role="region"
       aria-labelledby={titleId}
       className="gap-x-5 gap-y-3.5 self-start p-5 sm:grid-cols-2 xl:grid-cols-4 2xl:col-start-2 2xl:row-start-1 2xl:grid-cols-1"
     >

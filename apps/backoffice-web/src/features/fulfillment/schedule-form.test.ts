@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   configRequest,
+  mixedCapacityDays,
   missingWindowTimes,
   rulesOf,
   scheduleEditorOf,
@@ -139,5 +140,17 @@ describe("rulesOf / configRequest — the rules panel over `PUT configs/PICKUP` 
 
   it("sends an empty cancel cutoff as null", () => {
     expect(configRequest(config, rulesOf(config)).customerCancelCutoffMinutes).toBeNull();
+  });
+});
+
+describe("mixedCapacityDays — days whose windows carry different capacities", () => {
+  it("names them, since the screen sets one capacity per day", () => {
+    expect(mixedCapacityDays(weekly)).toEqual(new Set());
+    expect(
+      mixedCapacityDays([
+        { dayOfWeek: 3, start: "07:00", end: "09:00", maxOrders: 8, maxItems: null },
+        { dayOfWeek: 3, start: "10:00", end: "12:00", maxOrders: 9, maxItems: null },
+      ]),
+    ).toEqual(new Set([2]));
   });
 });

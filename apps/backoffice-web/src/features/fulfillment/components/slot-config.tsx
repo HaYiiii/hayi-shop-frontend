@@ -26,6 +26,7 @@ import {
   type WeekSchedule,
   configRequest,
   missingWindowTimes,
+  mixedCapacityDays,
   rulesOf,
   scheduleEditorOf,
   scheduleErrors,
@@ -287,6 +288,7 @@ function SlotConfigEditor({ branchId, config, schedule, openingHours, onReload }
     );
   }
 
+  const mixedCapacity = mixedCapacityDays(basis.weekly);
   const overrideDates = new Set(schedule.schedule.overrides.map((o) => o.date)).size;
 
   return (
@@ -356,6 +358,7 @@ function SlotConfigEditor({ branchId, config, schedule, openingHours, onReload }
                   openingHours={openingHours}
                   slotMinutes={rules.slotDurationMinutes}
                   errors={{ windows: windowErrors, capacity: clientErrors ? {} : serverErrors.capacity }}
+                  mixedCapacity={mixedCapacity}
                   onDayChange={onDayChange}
                 />
               </div>
@@ -368,7 +371,7 @@ function SlotConfigEditor({ branchId, config, schedule, openingHours, onReload }
               <ScheduleOverrides branchId={branchId} overrides={schedule.schedule.overrides} onNotice={setNotice} onReload={onReload} />
             </Tabs.Panel>
           </Tabs.Root>
-          <SlotPreview branchId={branchId} />
+          <SlotPreview branchId={branchId} enabled={basis.config.isEnabled} />
         </div>
       </div>
     </div>
