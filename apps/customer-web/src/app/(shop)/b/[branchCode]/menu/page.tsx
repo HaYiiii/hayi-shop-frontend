@@ -9,6 +9,15 @@ import { publicApi } from "../../../../../lib/api";
 
 export const metadata: Metadata = { title: "Menu · HaYi Shop" };
 
+/** A malformed `%` escape is no Branch code: not found rather than a server error. */
+function decodedOrNull(segment: string): string | null {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 /** Placeholder until the menu slice (S2): confirms the chosen Branch and leads back. */
 export default async function MenuPage({ params }: { params: Promise<{ branchCode: string }> }) {
   await connection();
@@ -16,12 +25,13 @@ export default async function MenuPage({ params }: { params: Promise<{ branchCod
   if (!result.ok) {
     return (
       <main className="mx-auto grid max-w-content gap-4 px-4 py-6">
-        <BranchListError code={result.code} />
+        <BranchListError code={result.code} retryHref={`/b/${branchCode}/menu`} />
       </main>
     );
   }
   // The public API looks Branches up by id; the URL carries the code (SOURCE-STRUCTURE §3.1).
-  const branch = result.branches.find((b) => b.branchCode === decodeURIComponent(branchCode));
+  const code = decodedOrNull(branchCode);
+  const branch = code === null ? undefined : result.branches.find((b) => b.branchCode === code);
   if (!branch) notFound();
 
   return (

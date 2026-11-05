@@ -9,7 +9,8 @@ export const metadata: Metadata = { title: "Chọn chi nhánh · HaYi Shop" };
 
 /** D3a screen 1: choose a Branch (Branch §4.3, API 02 §1). */
 export default async function ChooseBranchPage() {
-  // Rendered per request: openNow and earliestPickupAt change by the minute.
+  // Rendered per request ("today" in the pickup line is the visitor's day, and no API call at build time);
+  // the API answer itself is cached for a minute (PUBLIC_REVALIDATE_SECONDS, Decision X1).
   await connection();
   const result = await loadBranches(publicApi());
 

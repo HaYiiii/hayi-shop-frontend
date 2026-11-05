@@ -50,8 +50,8 @@ export function BranchList({ branches, now = new Date() }: { branches: PublicBra
   );
 }
 
-/** The list could not be loaded: what to do, by Problem `code` (API 02 §4). */
-export function BranchListError({ code }: { code: string }) {
+/** The list could not be loaded: what to do, by Problem `code` (API 02 §4); "Thử lại" reloads `retryHref`. */
+export function BranchListError({ code, retryHref = "/" }: { code: string; retryHref?: string }) {
   const text =
     code === "RATE_LIMITED"
       ? "Bạn tải lại hơi nhanh. Chờ một chút rồi thử lại."
@@ -62,7 +62,7 @@ export function BranchListError({ code }: { code: string }) {
         {text}
       </p>
       <Link
-        href="/"
+        href={retryHref}
         className={cn("inline-flex min-h-11 items-center text-body font-medium text-matcha-700 underline-offset-4 hover:underline", focusRing)}
       >
         Thử lại
