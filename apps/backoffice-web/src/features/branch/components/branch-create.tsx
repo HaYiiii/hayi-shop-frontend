@@ -59,7 +59,7 @@ export function BranchCreate() {
       <Breadcrumb current="Tạo mới" />
       <h1 className="font-display text-heading-lg">Tạo chi nhánh</h1>
 
-      <Card className="max-w-[760px] gap-6 p-6">
+      <Card className="max-w-form gap-6 p-6">
         <form ref={formRef} className="grid gap-6" onSubmit={submit}>
           {unexpected ? <FormAlert tone="danger">Chưa tạo được chi nhánh. Bạn thử lại sau ít phút nhé.</FormAlert> : null}
           <FieldGroup legend="Định danh">

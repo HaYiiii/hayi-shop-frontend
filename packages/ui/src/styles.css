@@ -82,6 +82,8 @@
   --spacing-row-compact: 40px;
   --spacing-row-comfortable: 64px;
   --container-content: 640px;
+  /* Long Backoffice forms (D2 "Bố cục trang"): left-aligned, at most 880px. */
+  --container-form: 880px;
 
   --radius-*: initial;
   --radius-sm: 4px;

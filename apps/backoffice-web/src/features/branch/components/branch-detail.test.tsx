@@ -55,9 +55,13 @@ describe("Branch information (D3c screen 16)", () => {
     const header = within(screen.getByRole("region", { name: "Tóm tắt chi nhánh" }));
     expect(header.getByText("Q1-LELOI")).toBeInTheDocument();
     expect(header.getByText("Đang hoạt động")).toBeInTheDocument();
-    const lifecycle = within(screen.getByRole("complementary", { name: "Vòng đời" }));
-    expect(lifecycle.getByText("02/09/2026")).toBeInTheDocument();
-    expect(lifecycle.getByText("28/08/2026")).toBeInTheDocument();
+    // Lifecycle facts sit in the page summary under the title, not in a side column (D2 "Bố cục trang").
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    const summary = within(screen.getByRole("group", { name: "Vòng đời và mốc thời gian" }));
+    expect(summary.getByRole("list", { name: "Vòng đời" })).toBeInTheDocument();
+    expect(summary.getByText("Đang hoạt động")).toHaveAttribute("aria-current", "step");
+    expect(summary.getByText("Kích hoạt 02/09/2026")).toBeInTheDocument();
+    expect(summary.getByText("Tạo 28/08/2026")).toBeInTheDocument();
     expect(screen.getByLabelText(/Tên hiển thị/)).toHaveValue("Quận 1 · Lê Lợi");
     expect(screen.getByRole("navigation", { name: "Phần chi nhánh" })).toBeInTheDocument();
   });

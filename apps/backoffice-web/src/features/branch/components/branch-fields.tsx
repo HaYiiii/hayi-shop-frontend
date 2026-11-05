@@ -1,4 +1,4 @@
-import { Field, cn } from "@hayi/ui";
+import { Field } from "@hayi/ui";
 import { type ComponentProps, type ReactNode, type RefObject, useEffect } from "react";
 import { type BranchFieldName, type BranchFields, fieldNames } from "../branch-form";
 
@@ -10,12 +10,13 @@ type TextFieldProps = Omit<ComponentProps<typeof Field.Input>, "name" | "default
   values?: Partial<BranchFields> | undefined;
   errors: FieldErrors;
   hint?: string;
+  span?: "full";
 };
 
 /** One labelled Branch input; a required one shows `*` (D3c screen 15). */
-export function BranchTextField({ name, label, values, errors, hint, required, className, ...input }: TextFieldProps) {
+export function BranchTextField({ name, label, values, errors, hint, required, span, ...input }: TextFieldProps) {
   return (
-    <Field.Root className={className}>
+    <Field.Root span={span}>
       <Field.Label>
         {label}
         {required ? (
@@ -31,12 +32,16 @@ export function BranchTextField({ name, label, values, errors, hint, required, c
   );
 }
 
-export function FieldGroup({ legend, children, className }: { legend?: string; children: ReactNode; className?: string }) {
+/** Branch fields two per row (D2 form layout); with a legend it is a named fieldset. */
+export function FieldGroup({ legend, children }: { legend?: string; children: ReactNode }) {
+  if (!legend) return <Field.Group>{children}</Field.Group>;
   return (
-    <fieldset className={cn("m-0 grid min-w-0 grid-cols-1 gap-x-4 gap-y-3.5 border-0 p-0 md:grid-cols-2", className)}>
-      {legend ? <legend className="mb-2.5 p-0 text-body-lg font-semibold">{legend}</legend> : null}
-      {children}
-    </fieldset>
+    <Field.Group asChild>
+      <fieldset>
+        <legend>{legend}</legend>
+        {children}
+      </fieldset>
+    </Field.Group>
   );
 }
 
@@ -50,7 +55,7 @@ export function AddressFields({ values, errors, disabled }: GroupProps) {
   const shared = { values, errors, disabled, autoComplete: "off" } as const;
   return (
     <>
-      <BranchTextField {...shared} name="line" label="Số nhà, đường" required autoComplete="address-line1" className="md:col-span-2" />
+      <BranchTextField {...shared} name="line" label="Số nhà, đường" required autoComplete="address-line1" span="full" />
       <BranchTextField {...shared} name="ward" label="Phường / xã" autoComplete="address-level3" />
       <BranchTextField {...shared} name="district" label="Quận / huyện" autoComplete="address-level2" />
       <BranchTextField {...shared} name="province" label="Tỉnh / thành" required autoComplete="address-level1" />
