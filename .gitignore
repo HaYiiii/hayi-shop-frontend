@@ -13,6 +13,8 @@ coverage/
 playwright-report/
 test-results/
 next-env.d.ts
+# Re-created by `next dev`; agent guidance for this repo lives in CLAUDE.md
+apps/*/AGENTS.md
 
 # tsc output must go to dist/, never next to the sources
 packages/*/src/**/*.js
