@@ -1,6 +1,6 @@
 import { ApiError } from "@hayi/api-client";
 import { Button, Card, Field } from "@hayi/ui";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, type RefObject, useEffect, useId, useRef, useState } from "react";
 import { errorCode } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
 import type { Category, CategoryNode } from "../api/categories";
@@ -198,6 +198,7 @@ export function CategoryForm({ tree, editing, onDone, onReload }: CategoryFormPr
             name="description"
             rows={3}
             maxLength={DESCRIPTION_MAX}
+            autoComplete="off"
             defaultValue={values?.description}
             placeholder="Ví dụ: Trà ủ lạnh với trái cây tươi…"
           />
@@ -227,7 +228,7 @@ export function CategoryForm({ tree, editing, onDone, onReload }: CategoryFormPr
 }
 
 /** After a failed submit, put the keyboard on the first field (in form order) that has an error. */
-function useFocusFirstError(form: React.RefObject<HTMLFormElement | null>, errors: CategoryFieldErrors, attempt: number) {
+function useFocusFirstError(form: RefObject<HTMLFormElement | null>, errors: CategoryFieldErrors, attempt: number) {
   const first = categoryFieldNames.find((name: CategoryFieldName) => errors[name]);
   useEffect(() => {
     if (!first) return;

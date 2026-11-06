@@ -77,10 +77,10 @@ function CategoryRow({ category, siblings, child = false }: { category: Category
       )}
       <span className="min-w-0">
         <span className={cn("flex flex-wrap items-center gap-2", archived && "text-ink-muted")}>
-          <span className={child ? "text-body font-medium" : "text-body-lg font-semibold"}>{category.name}</span>
+          <span className={cn("min-w-0 break-words", child ? "text-body font-medium" : "text-body-lg font-semibold")}>{category.name}</span>
           {archived ? <StatusBadge tone="neutral">Đã lưu trữ</StatusBadge> : null}
         </span>
-        <span translate="no" className="block font-mono text-label font-semibold tracking-wide text-ink-muted">
+        <span translate="no" className="block break-all font-mono text-label font-semibold tracking-wide text-ink-muted">
           {category.slug}
         </span>
       </span>

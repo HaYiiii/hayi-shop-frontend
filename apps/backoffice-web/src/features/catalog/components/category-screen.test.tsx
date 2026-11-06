@@ -55,11 +55,12 @@ describe("Category tree (D3d screen 20)", () => {
   });
 
   it("shows archived Categories on request, without actions", async () => {
-    const { user } = renderAdmin("/admin/categories", server().handlers, catalogOwner);
+    const { router, user } = renderAdmin("/admin/categories", server().handlers, catalogOwner);
 
     await user.click(await screen.findByRole("button", { name: "Xem đã lưu trữ (1)" }));
 
-    expect(screen.getByText("Món cũ")).toBeInTheDocument();
+    expect(await screen.findByText("Món cũ")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ archived: 1 });
     expect(screen.getByText("Đã lưu trữ")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sửa Món cũ" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ẩn đã lưu trữ" }));

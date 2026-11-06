@@ -31,7 +31,13 @@ function inUseMessage({ category, activeChildren }: InUse): string {
 }
 
 /** D3d screen 20: the Category tree with add/edit, reorder and archive (API 08 §1.2, Decision Y). */
-export function CategoryScreen() {
+interface CategoryScreenProps {
+  /** From the URL (`?archived=1`), so the view can be linked and survives a reload. */
+  showArchived: boolean;
+  onShowArchivedChange: (show: boolean) => void;
+}
+
+export function CategoryScreen({ showArchived, onShowArchivedChange }: CategoryScreenProps) {
   const { permissions } = useWorkspace();
   // UX only: the API answers 403 without CATALOG_MANAGE (Decision M4).
   const canManage = permissions.has("CATALOG_MANAGE");
@@ -39,7 +45,6 @@ export function CategoryScreen() {
   const tree = useCategoryTree(true);
   const reorder = useReorderCategories();
   const archive = useArchiveCategory();
-  const [showArchived, setShowArchived] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<Category | null>(null);
   const [inUse, setInUse] = useState<InUse | null>(null);
@@ -142,7 +147,7 @@ export function CategoryScreen() {
           <TreeCard
             all={all}
             showArchived={showArchived}
-            onToggleArchived={() => setShowArchived((v) => !v)}
+            onToggleArchived={() => onShowArchivedChange(!showArchived)}
             canManage={canManage}
             onMove={move}
             onEdit={(category) => setEditingId(category.categoryId)}
