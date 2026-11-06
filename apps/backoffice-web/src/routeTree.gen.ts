@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppStaffRouteImport } from './routes/_app/staff'
+import { Route as AppAdminCategoriesRouteImport } from './routes/_app/admin/categories'
 import { Route as AppAdminBranchesIndexRouteImport } from './routes/_app/admin/branches/index'
 import { Route as AppAdminBranchesIdRouteImport } from './routes/_app/admin/branches/$id'
 import { Route as AppAdminBranchesNewRouteImport } from './routes/_app/admin/branches/new'
@@ -41,6 +42,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppStaffRoute = AppStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminCategoriesRoute = AppAdminCategoriesRouteImport.update({
+  id: '/admin/categories',
+  path: '/admin/categories',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminBranchesIndexRoute = AppAdminBranchesIndexRouteImport.update({
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/staff': typeof AppStaffRoute
+  '/admin/categories': typeof AppAdminCategoriesRoute
   '/admin/branches/$id': typeof AppAdminBranchesIdRouteWithChildren
   '/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/staff': typeof AppStaffRoute
   '/': typeof AppIndexRoute
+  '/admin/categories': typeof AppAdminCategoriesRoute
   '/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
   '/branches/$branchId/payments': typeof AppBranchesBranchIdPaymentsRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/staff': typeof AppStaffRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/categories': typeof AppAdminCategoriesRoute
   '/_app/admin/branches/$id': typeof AppAdminBranchesIdRouteWithChildren
   '/_app/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/_app/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/staff'
+    | '/admin/categories'
     | '/admin/branches/$id'
     | '/admin/branches/new'
     | '/branches/$branchId/orders'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/staff'
     | '/'
+    | '/admin/categories'
     | '/admin/branches/new'
     | '/branches/$branchId/orders'
     | '/branches/$branchId/payments'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/staff'
     | '/_app/'
+    | '/_app/admin/categories'
     | '/_app/admin/branches/$id'
     | '/_app/admin/branches/new'
     | '/_app/branches/$branchId/orders'
@@ -226,6 +238,13 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/staff'
       preLoaderRoute: typeof AppStaffRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/categories': {
+      id: '/_app/admin/categories'
+      path: '/admin/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AppAdminCategoriesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/branches/': {
@@ -317,6 +336,7 @@ const AppAdminBranchesIdRouteWithChildren =
 interface AppRouteChildren {
   AppStaffRoute: typeof AppStaffRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminCategoriesRoute: typeof AppAdminCategoriesRoute
   AppAdminBranchesIdRoute: typeof AppAdminBranchesIdRouteWithChildren
   AppAdminBranchesNewRoute: typeof AppAdminBranchesNewRoute
   AppBranchesBranchIdOrdersRoute: typeof AppBranchesBranchIdOrdersRoute
@@ -330,6 +350,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppStaffRoute: AppStaffRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminCategoriesRoute: AppAdminCategoriesRoute,
   AppAdminBranchesIdRoute: AppAdminBranchesIdRouteWithChildren,
   AppAdminBranchesNewRoute: AppAdminBranchesNewRoute,
   AppBranchesBranchIdOrdersRoute: AppBranchesBranchIdOrdersRoute,
