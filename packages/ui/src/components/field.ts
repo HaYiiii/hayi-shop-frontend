@@ -7,6 +7,7 @@ import {
   FieldLabel,
   FieldRoot,
   FieldSelect,
+  FieldTextarea,
 } from "./field.client.js";
 
 /**
@@ -21,6 +22,7 @@ export const Field = {
   Control: FieldControl,
   Input: FieldInput,
   Select: FieldSelect,
+  Textarea: FieldTextarea,
   Hint: FieldHint,
   Error: FieldError,
 };
