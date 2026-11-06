@@ -195,4 +195,19 @@ describe("Field", () => {
     );
     expect(screen.getByRole("combobox", { name: "Chi nhánh" })).toHaveAttribute("name", "branchId");
   });
+
+  it("labels and describes a textarea the same way", () => {
+    render(
+      <Field.Root>
+        <Field.Label>Mô tả</Field.Label>
+        <Field.Textarea name="description" rows={3} />
+        <Field.Hint>Tối đa 500 ký tự.</Field.Hint>
+        <Field.Error>Mô tả dài quá 500 ký tự.</Field.Error>
+      </Field.Root>,
+    );
+    const textarea = screen.getByRole("textbox", { name: "Mô tả" });
+    expect(textarea.tagName).toBe("TEXTAREA");
+    expect(textarea).toHaveAttribute("aria-invalid", "true");
+    expect(textarea).toHaveAccessibleDescription("Mô tả dài quá 500 ký tự.");
+  });
 });

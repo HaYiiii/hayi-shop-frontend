@@ -143,7 +143,7 @@ const controlVariants = cva(
 
 type ControlVariants = VariantProps<typeof controlVariants>;
 /** The control's `id` is owned by Field (it links the label), so callers cannot set it. */
-type ControlProps<T extends "input" | "select"> = Omit<ComponentProps<T>, "id"> & ControlVariants;
+type ControlProps<T extends "input" | "select" | "textarea"> = Omit<ComponentProps<T>, "id"> & ControlVariants;
 
 export function FieldInput({
   className,
@@ -177,6 +177,28 @@ export function FieldSelect({
   return (
     <select
       className={cn(controlVariants({ density }), "appearance-none pr-8", chevron, className)}
+      {...props}
+      {...controlProps}
+    />
+  );
+}
+
+/** Multi-line text; grows with `rows`, not with the control height token. */
+export function FieldTextarea({
+  className,
+  density,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
+  ...props
+}: ControlProps<"textarea">) {
+  const controlProps = useControlProps("Textarea", { "aria-describedby": describedBy, "aria-invalid": invalid });
+  return (
+    <textarea
+      className={cn(
+        controlVariants({ density }),
+        "h-auto py-2 leading-normal placeholder:text-ink-subtle",
+        className,
+      )}
       {...props}
       {...controlProps}
     />
