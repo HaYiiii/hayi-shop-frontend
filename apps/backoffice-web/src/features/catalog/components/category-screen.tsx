@@ -58,7 +58,8 @@ export function CategoryScreen({ showArchived, onShowArchivedChange }: CategoryS
   const editing = found && isActive(found) ? found : null;
 
   // The moved row may be re-inserted in the DOM, which drops focus: put it back on the pressed button.
-  // Only while focus is lost; once the user moves on, stop following.
+  // Only while focus is lost; once the user moves on, stop following. No deps on purpose: the row
+  // can move on any render (optimistic order, then the server's tree).
   useEffect(() => {
     const target = focusAfterMove.current;
     if (!target) return;

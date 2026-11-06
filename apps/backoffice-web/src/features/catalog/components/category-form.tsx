@@ -85,7 +85,28 @@ export function CategoryForm({ tree, editing, onDone, onReload }: CategoryFormPr
   const [slugTouched, setSlugTouched] = useState(editing !== null);
 
   const parents = tree.filter((root) => isActive(root) && root.categoryId !== editing?.categoryId);
-  const values = editing ? fieldsOf(editing) : undefined;
+  // What the form was filled from. The patch is diffed against it, never against a version reloaded
+  // later, or the other person's changes would be sent back with old values (lost update, API README §8).
+  const [base, setBase] = useState<Category | null>(editing);
+  const values = base ? fieldsOf(base) : undefined;
+
+  // After "Tải lại" a newer version arrives: fields the user has not touched take its values, typed
+  // ones stay; the base moves on, so only the typed changes are sent with the new If-Match.
+  useEffect(() => {
+    const form = formRef.current;
+    if (!editing || !base || editing.version === base.version || !form) return;
+    const before = fieldsOf(base);
+    const after = fieldsOf(editing);
+    const typed = readFields(form);
+    for (const name of categoryFieldNames) {
+      const control = form.elements.namedItem(name);
+      const untouched = typed[name] === before[name];
+      if (untouched && (control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement)) {
+        control.value = after[name];
+      }
+    }
+    setBase(editing);
+  }, [editing, base]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,7 +130,8 @@ export function CategoryForm({ tree, editing, onDone, onReload }: CategoryFormPr
       });
       return;
     }
-    const body = patchBody(editing, fields);
+    // Diff against the base the form shows; If-Match is the newest version known.
+    const body = patchBody(base ?? editing, fields);
     if (Object.keys(body).length === 0) onDone();
     else update.mutate({ category: editing, body }, { onSuccess: onDone });
   }
@@ -135,7 +157,15 @@ export function CategoryForm({ tree, editing, onDone, onReload }: CategoryFormPr
         {stale ? (
           <div className="grid justify-items-start gap-2">
             <FormAlert tone="warning">{stale}</FormAlert>
-            <Button variant="outline" density="compact" onClick={onReload}>
+            <Button
+              variant="outline"
+              density="compact"
+              onClick={() => {
+                create.reset();
+                update.reset();
+                onReload();
+              }}
+            >
               Tải lại
             </Button>
           </div>

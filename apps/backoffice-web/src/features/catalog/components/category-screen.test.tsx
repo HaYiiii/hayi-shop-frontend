@@ -246,17 +246,20 @@ describe("Category tree (D3d screen 20)", () => {
     await user.click(form.getByRole("button", { name: "Lưu thay đổi" }));
 
     expect(await form.findByRole("alert")).toHaveTextContent("vẫn còn trong form");
-    // Someone else's edit moved the version to 6.
+    // Someone else changed the slug, which moved the version to 6.
     const newer = aTree({ archived: true });
-    newer.items[1] = { ...newer.items[1]!, version: 6 };
+    newer.items[1] = { ...newer.items[1]!, slug: "sua-chua-moi", version: 6 };
     s.set(newer);
     await user.click(form.getByRole("button", { name: "Tải lại" }));
 
-    await waitFor(() => expect(api.calls.filter((c) => c.route === "GET /categories")).toHaveLength(2));
+    await waitFor(() => expect(form.getByLabelText("Đường dẫn (slug)")).toHaveValue("sua-chua-moi"));
     expect(form.getByLabelText("Tên")).toHaveValue("Sữa chua dẻo");
+    expect(form.queryByRole("alert")).not.toBeInTheDocument();
     conflict = false;
     await user.click(form.getByRole("button", { name: "Lưu thay đổi" }));
     await waitFor(() => expect(headerOf(api, "PATCH /categories/c-milk", "If-Match")).toBe('"v6"'));
+    // Only what this user typed: the other person's slug is not sent back.
+    expect(api.bodyOf("PATCH /categories/c-milk")).toEqual({ name: "Sữa chua dẻo" });
   });
 
   it("archives after confirming, with If-Match", async () => {

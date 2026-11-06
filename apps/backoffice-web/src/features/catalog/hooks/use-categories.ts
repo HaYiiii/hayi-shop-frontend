@@ -73,11 +73,17 @@ export function reorderTree(tree: readonly CategoryNode[], { parentId, categoryI
  * Moves the group at once in every cached tree (optimistic), then takes the server's active tree.
  * `409 CATALOG_CATEGORY_ORDER_STALE` or any error puts the old order back and reloads (Decision Y6).
  */
+const reorderKey = [...categoryKeys.all, "reorder"] as const;
+
 export function useReorderCategories() {
   const api = useApi();
   const queryClient = useQueryClient();
   const reload = useReloadTrees();
+  // Several quick clicks overlap: only the last one to settle writes the server's tree, so an older
+  // answer does not flash the previous order back.
+  const isLast = () => queryClient.isMutating({ mutationKey: reorderKey }) <= 1;
   return useMutation({
+    mutationKey: reorderKey,
     mutationFn: (body: CategoryReorderRequest) => reorderCategories(api, body),
     onMutate: async (body) => {
       await queryClient.cancelQueries({ queryKey: categoryKeys.all });
@@ -92,6 +98,8 @@ export function useReorderCategories() {
       void reload();
     },
     onSuccess: (tree) => {
+      if (!isLast()) return;
+      // The answer is the active tree (Decision Y6): it replaces that view as is.
       queryClient.setQueryData(categoryKeys.tree(false), tree);
       // The archived view holds the same moves plus archived rows: refresh it from the server.
       void queryClient.invalidateQueries({ queryKey: categoryKeys.tree(true) });
