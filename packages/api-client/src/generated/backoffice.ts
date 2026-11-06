@@ -749,10 +749,133 @@ export interface paths {
         /**
          * Archive a Category for good
          * @description `CATALOG_MANAGE`. `ACTIVE → ARCHIVED`, no way back in MVP (Decision Y4). Already archived →
-         *     `409 CATALOG_CATEGORY_ARCHIVED`; still has a non-archived child (or, from BE #61, Product) →
+         *     `409 CATALOG_CATEGORY_ARCHIVED`; still has a non-archived child or a non-archived Product using it as primary →
          *     `409 CATALOG_CATEGORY_IN_USE` (W5). Optional `If-Match`. Audited. Requires `X-CSRF-Token`.
          */
         post: operations["archiveCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Products, filtered and paged
+         * @description `CATALOG_VIEW` (brand-level). Offset paging (API README §5), sorted by `name` then id (Decision Z6). `q` matches
+         *     `name`, `productCode` or a Variant `sku`, case-insensitive.
+         */
+        get: operations["listProducts"];
+        put?: never;
+        /**
+         * Create a DRAFT Product with its Variants
+         * @description `CATALOG_MANAGE` **and** `CATALOG_PRICE_MANAGE`, since it sets prices (Decision Z4). Starts `DRAFT`, Variants
+         *     `ACTIVE` (Z1). `productCode`/`sku` are upper-cased and unique, archived included → `409 CATALOG_CODE_TAKEN` /
+         *     `CATALOG_SKU_TAKEN`; `slug` unique among Products → `409 CATALOG_SLUG_TAKEN` (Z2). One Variant is the default;
+         *     with more, exactly one `isDefault: true`, else `400` (Z3). `COMBO` → `422 PRODUCT_TYPE_NOT_SUPPORTED`.
+         *     `primaryCategoryId`, when sent, must be an `ACTIVE` Category: unknown → `404`, archived →
+         *     `409 CATALOG_CATEGORY_ARCHIVED` (Z5). Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["createProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{productId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * One Product with its Variants
+         * @description `CATALOG_VIEW`. Unknown → `404 CATALOG_PRODUCT_NOT_FOUND` (Decision Z7).
+         */
+        get: operations["getProduct"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{productId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put a DRAFT or INACTIVE Product on sale
+         * @description `CATALOG_MANAGE`. `DRAFT | INACTIVE → ACTIVE` (Decision AA1). Needs an `ACTIVE` Variant and an `ACTIVE` primary
+         *     Category, else `422 PRODUCT_ACTIVATION_INVALID` with every missing condition in `issues[]` (AA2). Any other
+         *     status → `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Optional `If-Match`. Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["activateProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{productId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take an ACTIVE Product off sale
+         * @description `CATALOG_MANAGE`. `ACTIVE → INACTIVE` (Decision AA1); any other status → `409 CATALOG_PRODUCT_INVALID_TRANSITION`.
+         *     Optional `If-Match`. Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["deactivateProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{productId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive a Product for good
+         * @description `CATALOG_MANAGE`. `DRAFT | ACTIVE | INACTIVE → ARCHIVED`, final in MVP; sets `archivedAt`, never deletes (Catalog
+         *     §5.9, Decision AA1). Already archived → `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Optional `If-Match`. Audited.
+         *     Requires `X-CSRF-Token`.
+         */
+        post: operations["archiveProduct"];
         delete?: never;
         options?: never;
         head?: never;
@@ -778,6 +901,112 @@ export interface components {
                 code: string;
                 message?: string;
             }[];
+        };
+        /**
+         * @description Why a Product cannot be activated (Decision AA2); `OPTION_CONFIG_INVALID` comes with BE
+         * @enum {string}
+         */
+        ActivationIssueCode: "NO_ACTIVE_VARIANT" | "PRIMARY_CATEGORY_MISSING" | "PRIMARY_CATEGORY_INACTIVE";
+        ProductActivationProblem: components["schemas"]["Problem"] & {
+            issues: {
+                code: components["schemas"]["ActivationIssueCode"];
+            }[];
+        };
+        /**
+         * @description Lifecycle (Catalog §5.2).
+         * @enum {string}
+         */
+        ProductStatus: "DRAFT" | "ACTIVE" | "INACTIVE" | "ARCHIVED";
+        /**
+         * @description Only `STANDARD` in v1; `COMBO` is roadmap (Decision B).
+         * @enum {string}
+         */
+        ProductType: "STANDARD" | "COMBO";
+        /** @enum {string} */
+        VariantStatus: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+        /** @description Upper-cased by the server; unique, archived included (Decision Z2). */
+        CatalogCode: string;
+        ProductVariantInput: {
+            sku: components["schemas"]["CatalogCode"];
+            name: string;
+            basePrice: components["schemas"]["MoneyVnd"];
+            /** @description Optional with one Variant; with more, exactly one `true`. */
+            isDefault?: boolean | null;
+        };
+        ProductCreateRequest: {
+            productCode: components["schemas"]["CatalogCode"];
+            name: string;
+            slug: string;
+            productType?: components["schemas"]["ProductType"];
+            /** Format: uuid */
+            primaryCategoryId?: string | null;
+            shortDescription?: string | null;
+            description?: string | null;
+            variants: components["schemas"]["ProductVariantInput"][];
+        };
+        ProductVariant: {
+            /** Format: uuid */
+            variantId: string;
+            sku: string;
+            name: string;
+            basePrice: components["schemas"]["MoneyVnd"];
+            isDefault: boolean;
+            status: components["schemas"]["VariantStatus"];
+            /** Format: int32 */
+            sortOrder: number;
+        };
+        Product: {
+            /** Format: uuid */
+            productId: string;
+            productCode: string;
+            slug: string;
+            name: string;
+            productType: components["schemas"]["ProductType"];
+            status: components["schemas"]["ProductStatus"];
+            /** Format: uuid */
+            primaryCategoryId: string | null;
+            shortDescription: string | null;
+            description: string | null;
+            /** Format: int32 */
+            sortOrder: number;
+            /** Format: date-time */
+            archivedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+            variants: components["schemas"]["ProductVariant"][];
+        };
+        ProductSummary: {
+            /** Format: uuid */
+            productId: string;
+            productCode: string;
+            slug: string;
+            name: string;
+            productType: components["schemas"]["ProductType"];
+            status: components["schemas"]["ProductStatus"];
+            /** Format: uuid */
+            primaryCategoryId: string | null;
+            /**
+             * Format: int64
+             * @description Lowest `basePrice` among non-archived Variants; `null` when none.
+             */
+            fromPrice: number | null;
+            /**
+             * Format: int32
+             * @description Non-archived Variants.
+             */
+            variantCount: number;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ProductPage: {
+            items: components["schemas"]["ProductSummary"][];
+            page: components["schemas"]["OffsetPage"];
         };
         /**
          * @description MVP uses only these two (Decision W5).
@@ -1253,6 +1482,18 @@ export interface components {
             changeToken: string;
             newPassword: string;
         };
+        OffsetPage: {
+            number: number;
+            size: number;
+            /** Format: int64 */
+            totalItems: number;
+            totalPages: number;
+        };
+        /**
+         * Format: int64
+         * @description Amount in VND (đồng), integer only.
+         */
+        MoneyVnd: number;
     };
     responses: {
         /** @description `VALIDATION_FAILED` */
@@ -1287,7 +1528,7 @@ export interface components {
         };
         /**
          * @description `BRANCH_NOT_FOUND`, `BRANCH_HOURS_OVERRIDE_NOT_FOUND`, `FULFILLMENT_OVERRIDE_NOT_FOUND`,
-         *     `CATALOG_CATEGORY_NOT_FOUND`
+         *     `CATALOG_CATEGORY_NOT_FOUND`, `CATALOG_PRODUCT_NOT_FOUND`
          */
         NotFound: {
             headers: {
@@ -1299,6 +1540,42 @@ export interface components {
         };
         /** @description `BRANCH_CODE_TAKEN` */
         Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CATALOG_PRODUCT_INVALID_TRANSITION` — not allowed from the current status (Decision AA1) */
+        ProductInvalidTransition: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `PRODUCT_ACTIVATION_INVALID` with `issues[]` (Decision AA2) */
+        ProductActivationInvalid: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProductActivationProblem"];
+            };
+        };
+        /** @description `CATALOG_CODE_TAKEN`, `CATALOG_SKU_TAKEN`, `CATALOG_SLUG_TAKEN` or `CATALOG_CATEGORY_ARCHIVED` (Decision Z) */
+        ProductConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `PRODUCT_TYPE_NOT_SUPPORTED` — only `STANDARD` in v1 (Decision B) */
+        ProductTypeNotSupported: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1429,6 +1706,7 @@ export interface components {
         /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
         BranchId: string;
         CategoryId: string;
+        ProductId: string;
     };
     requestBodies: never;
     headers: {
@@ -2550,6 +2828,199 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["CategoryConflict"];
+            412: components["responses"]["VersionConflict"];
+        };
+    };
+    listProducts: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                /** @description Only Products in these statuses, e.g. `status=DRAFT,ACTIVE`. */
+                status?: components["schemas"]["ProductStatus"][];
+                /** @description Only Products with this primary Category. */
+                categoryId?: string;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of Products. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductPage"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createProduct: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The created Product. */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    /** @description URL of the new Product. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductConflict"];
+            422: components["responses"]["ProductTypeNotSupported"];
+        };
+    };
+    getProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Product. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    activateProduct: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Product after the transition. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductInvalidTransition"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["ProductActivationInvalid"];
+        };
+    };
+    deactivateProduct: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Product after the transition. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductInvalidTransition"];
+            412: components["responses"]["VersionConflict"];
+        };
+    };
+    archiveProduct: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Product after the transition. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductInvalidTransition"];
             412: components["responses"]["VersionConflict"];
         };
     };
