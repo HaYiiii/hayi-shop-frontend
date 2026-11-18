@@ -148,7 +148,7 @@ test("Owner filters the Products, then creates one with two sizes", async ({ pag
 
   await page.getByLabel("Mã SKU size 2").fill("MATCHA-DX-DUA-L");
   await page.getByRole("button", { name: "Tạo món" }).click();
-  await expect(page).toHaveURL(/\/admin\/products\/matcha-dx-dua\?created=1/);
+  await expect(page).toHaveURL(/\/admin\/products\/matcha-dx-dua$/);
   await expect(page.getByRole("heading", { level: 1, name: "Matcha Đá Xay Dừa" })).toBeVisible();
   await expect(page.getByText("Đã tạo món ở trạng thái Nháp.")).toBeVisible();
   await shot(page, "22-created");

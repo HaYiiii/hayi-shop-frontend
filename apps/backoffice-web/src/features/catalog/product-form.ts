@@ -158,8 +158,9 @@ export function serverErrors(error: unknown, draft: ProductDraft): ProductFieldE
     case "CATALOG_SLUG_TAKEN":
       return { slug: "Đường dẫn này đã được dùng cho món khác. Đặt đường dẫn khác." };
     case "CATALOG_CATEGORY_ARCHIVED":
-    case "CATALOG_CATEGORY_NOT_FOUND":
       return { primaryCategoryId: "Danh mục này vừa được lưu trữ. Chọn danh mục khác." };
+    case "CATALOG_CATEGORY_NOT_FOUND":
+      return { primaryCategoryId: "Danh mục này không còn. Chọn danh mục khác." };
     case "CATALOG_SKU_TAKEN":
       // The Problem may not say which SKU: then the only size, or the size section.
       if (fields.length > 0) return byField(() => skuTaken);

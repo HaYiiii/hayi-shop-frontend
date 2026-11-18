@@ -72,9 +72,21 @@ export function ProductList({ filters, onFiltersChange }: ProductListProps) {
       ) : !data ? (
         <Skeleton className="h-60 w-full" />
       ) : data.items.length === 0 ? (
-        <p role="status" className="rounded-lg border border-dashed border-line-strong bg-paper p-6 text-center text-body text-ink-muted">
-          {filtered ? "Không có món nào khớp bộ lọc." : "Chưa có món nào. Bấm Tạo món để thêm món đầu tiên."}
-        </p>
+        <div
+          role="status"
+          className="grid justify-items-center gap-3 rounded-lg border border-dashed border-line-strong bg-paper p-6 text-center text-body text-ink-muted"
+        >
+          {data.page.number > 0 && data.page.totalItems > 0 ? (
+            <>
+              <p>Trang này không còn món nào.</p>
+              <Button variant="outline" density="compact" onClick={() => onFiltersChange({ ...filters, page: undefined })}>
+                Về trang đầu
+              </Button>
+            </>
+          ) : (
+            <p>{filtered ? "Không có món nào khớp bộ lọc." : "Chưa có món nào. Bấm Tạo món để thêm món đầu tiên."}</p>
+          )}
+        </div>
       ) : (
         <>
           <ProductTable products={data.items} tree={tree} busy={isFetching} />
@@ -127,6 +139,13 @@ function CategoryFilter({
 /** Typed text goes to the URL after a short pause, so each key does not load a page. */
 function SearchFilter({ value, onChange }: { value: string | undefined; onChange: (q: string | undefined) => void }) {
   const [text, setText] = useState(value ?? "");
+  // `q` changed outside the box (the Món link, back/forward): show it, or the old text would come back.
+  // Our own update arrives as the trimmed text, which must not eat a trailing space being typed.
+  const [seen, setSeen] = useState(value);
+  if (value !== seen) {
+    setSeen(value);
+    if ((text.trim() || undefined) !== value) setText(value ?? "");
+  }
   useEffect(() => {
     const q = text.trim() || undefined;
     if (q === value) return;

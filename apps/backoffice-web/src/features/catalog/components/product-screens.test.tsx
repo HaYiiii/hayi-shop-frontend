@@ -136,6 +136,31 @@ describe("Product list (D3d screen 21)", () => {
     expect(await screen.findByText("Không có món nào khớp bộ lọc.")).toBeInTheDocument();
   });
 
+  it("clears the search box when q leaves the URL another way", async () => {
+    const fake = server();
+    const { router, user } = renderAdmin("/admin/products?q=matcha", fake.handlers, catalogOwner);
+    expect(await screen.findByRole("searchbox", { name: "Tìm món" })).toHaveValue("matcha");
+
+    // The sidebar link opens the list without search.
+    await user.click(within(screen.getByRole("region", { name: "Quản trị" })).getByRole("link", { name: "Món" }));
+
+    await waitFor(() => expect(screen.getByRole("searchbox", { name: "Tìm món" })).toHaveValue(""));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(router.state.location.search).toEqual({});
+  });
+
+  it("offers the first page when a page past the end is opened", async () => {
+    const fake = server((query) =>
+      query.get("page") ? aPage([], { number: 4, totalItems: 3, totalPages: 1 }) : aPage(products),
+    );
+    const { router, user } = renderAdmin("/admin/products?page=4", fake.handlers, catalogOwner);
+
+    expect(await screen.findByText("Trang này không còn món nào.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Về trang đầu" }));
+    expect(await screen.findByText("3 món")).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({});
+  });
+
   it("shows an error with a retry", async () => {
     let fail = true;
     const fake = server();
@@ -214,6 +239,9 @@ describe("Product create (D3d screen 22)", () => {
       ],
     });
     expect(await screen.findByRole("heading", { level: 1, name: "Matcha Đá Xay" })).toBeInTheDocument();
+    expect(screen.getByText("Đã tạo món ở trạng thái Nháp.")).toBeInTheDocument();
+    // Shown once: the flag leaves the URL, so a reload does not repeat it.
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
     expect(screen.getByText("Đã tạo món ở trạng thái Nháp.")).toBeInTheDocument();
     const sizes = within(screen.getByRole("table", { name: "Size và giá gốc" }));
     expect(sizes.getByRole("row", { name: /MATCHA-DX-L/ })).toHaveTextContent("65.000 ₫");

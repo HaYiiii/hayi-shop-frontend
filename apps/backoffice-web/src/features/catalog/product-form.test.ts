@@ -138,6 +138,9 @@ describe("serverErrors", () => {
     expect(serverErrors(problem("CATALOG_CATEGORY_ARCHIVED", 409), aDraft())).toEqual({
       primaryCategoryId: "Danh mục này vừa được lưu trữ. Chọn danh mục khác.",
     });
+    expect(serverErrors(problem("CATALOG_CATEGORY_NOT_FOUND", 404), aDraft())).toEqual({
+      primaryCategoryId: "Danh mục này không còn. Chọn danh mục khác.",
+    });
   });
 
   it("puts a taken SKU on the field the server names, else on the only size, else on the sizes", () => {
