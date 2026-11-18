@@ -23,7 +23,7 @@ export interface BranchNavItem extends NavItemBase {
 /** A screen outside any one Branch. */
 export interface StoreNavItem extends NavItemBase {
   level: "store";
-  to: "/staff" | "/admin/branches" | "/admin/categories";
+  to: "/staff" | "/admin/branches" | "/admin/products" | "/admin/categories";
 }
 
 export type NavItem = BranchNavItem | StoreNavItem;
@@ -158,7 +158,20 @@ export const navGroups: NavGroup[] = [
         ),
       },
       {
-        // D3d screen 20: a flat link under Quản trị, after Chi nhánh (Món comes with FE #46).
+        // D3d screens 20–21: flat links under Quản trị: Chi nhánh · Món · Danh mục.
+        id: "products",
+        level: "store",
+        to: "/admin/products",
+        label: "Món",
+        permission: "CATALOG_VIEW",
+        icon: (
+          <Icon>
+            <path d="M5 6h10l-1 11H6L5 6Z" />
+            <path d="M4 6h12M8 3h4" />
+          </Icon>
+        ),
+      },
+      {
         id: "categories",
         level: "store",
         to: "/admin/categories",
