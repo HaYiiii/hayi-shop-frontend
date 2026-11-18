@@ -23,7 +23,7 @@ export function isSlug(value: string): boolean {
 }
 
 /** "Trà sữa đá xay" → "tra-sua-da-xay": Vietnamese marks dropped, `đ` → `d`, anything else → `-`. */
-export function slugify(name: string): string {
+export function slugify(name: string, max: number = SLUG_MAX): string {
   return name
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
@@ -31,7 +31,7 @@ export function slugify(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, SLUG_MAX)
+    .slice(0, max)
     .replace(/-+$/, "");
 }
 
