@@ -2,7 +2,8 @@ import { formatVnd } from "@hayi/domain-utils";
 import { Button, Card, Field } from "@hayi/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type FormEvent, type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, type RefObject, useEffect, useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useApi } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
 import { createProduct, productKeys } from "../api/products";
@@ -49,8 +50,6 @@ export function ProductCreate() {
   const [attempt, setAttempt] = useState(0);
   // The slug follows the name until the user types a slug of their own.
   const [slugTouched, setSlugTouched] = useState(false);
-  // Where the keyboard goes after a size is added or removed.
-  const [focusAfter, setFocusAfter] = useState<{ path: string } | "add" | null>(null);
 
   const create = useMutation({
     mutationFn: (body: Parameters<typeof createProduct>[1]) => createProduct(api, body),
@@ -66,15 +65,18 @@ export function ProductCreate() {
   const unexpected = create.isError && Object.keys(server).length === 0;
   useFocusFirstError(formRef, draft, errors, attempt);
 
-  useEffect(() => {
-    if (focusAfter === null) return;
-    if (focusAfter === "add") addRef.current?.focus();
-    else {
-      const control = formRef.current?.elements.namedItem(focusAfter.path);
-      if (control instanceof HTMLElement) control.focus();
-    }
-    setFocusAfter(null);
-  }, [focusAfter]);
+  /** Adds or removes a size, then moves the keyboard: to the new SKU, or to "Thêm size" (the row is gone). */
+  function addSize() {
+    const index = draft.variants.length;
+    flushSync(() => setDraft((d) => addVariant(d, newKey())));
+    const control = formRef.current?.elements.namedItem(`variants[${index}].sku`);
+    if (control instanceof HTMLElement) control.focus();
+  }
+
+  function removeSize(key: string) {
+    flushSync(() => setDraft((d) => removeVariant(d, key)));
+    addRef.current?.focus();
+  }
 
   const set = (patch: Partial<ProductDraft>) => setDraft((d) => ({ ...d, ...patch }));
   const setVariant = (key: string, patch: Partial<VariantRow>) =>
@@ -96,7 +98,7 @@ export function ProductCreate() {
   return (
     <>
       <ProductBreadcrumb current="Tạo món" />
-      <h1 className="font-display text-heading-lg">Tạo món</h1>
+      <h1 className="font-display text-heading-lg text-balance">Tạo món</h1>
 
       <Card className="max-w-[860px] gap-6 p-6">
         <form ref={formRef} className="grid gap-6" onSubmit={submit} noValidate>
@@ -220,10 +222,7 @@ export function ProductCreate() {
                     error={error}
                     onChange={(patch) => setVariant(variant.key, patch)}
                     onDefault={() => set({ defaultKey: variant.key })}
-                    onRemove={() => {
-                      setDraft((d) => removeVariant(d, variant.key));
-                      setFocusAfter("add");
-                    }}
+                    onRemove={() => removeSize(variant.key)}
                   />
                 ))}
               </div>
@@ -234,10 +233,7 @@ export function ProductCreate() {
                 variant="ghost"
                 density="compact"
                 className="justify-self-start"
-                onClick={() => {
-                  setDraft((d) => addVariant(d, newKey()));
-                  setFocusAfter({ path: `variants[${draft.variants.length}].sku` });
-                }}
+                onClick={addSize}
               >
                 <span aria-hidden="true">+ </span>Thêm size
               </Button>
@@ -267,10 +263,13 @@ export function ProductCreate() {
 }
 
 function Section({ title, note, className, children }: { title: string; note?: string; className?: string; children: ReactNode }) {
+  const titleId = useId();
   return (
-    <section aria-label={title} className={`grid gap-3.5 ${className ?? ""}`}>
+    <section aria-labelledby={titleId} className={`grid gap-3.5 ${className ?? ""}`}>
       <div className="flex flex-wrap items-baseline gap-2.5">
-        <h2 className="text-title">{title}</h2>
+        <h2 id={titleId} className="text-title">
+          {title}
+        </h2>
         {note ? <span className="text-label font-normal text-ink-muted">{note}</span> : null}
       </div>
       {children}
