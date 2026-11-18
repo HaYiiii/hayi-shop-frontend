@@ -150,6 +150,12 @@ describe("Option library (D3d screen 27)", () => {
     expect(max).toHaveFocus();
     expect(api.calls.some((c) => c.route === "PATCH /option-groups/g-topping")).toBe(false);
 
+    // A fixed value is valid again on the next submit.
+    await user.clear(max);
+    await user.type(max, "3");
+    await user.click(form.getByRole("button", { name: "Lưu nhóm" }));
+    expect(max).not.toHaveAttribute("aria-invalid");
+
     await user.clear(max);
     await user.type(max, "2");
     await user.click(form.getByRole("button", { name: "Lưu nhóm" }));

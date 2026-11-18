@@ -378,8 +378,7 @@ export function OptionGroupForm({ group, canManage, canPrice, onCreated, onCance
             <Table.Root aria-label={`Lựa chọn của ${group?.name ?? "nhóm mới"} · ${activeItems} đang dùng`}>
               <Table.Head>
                 <Table.Row>
-                  <Table.HeaderCell>Lựa chọn</Table.HeaderCell>
-                  <Table.HeaderCell>Mã</Table.HeaderCell>
+                  <Table.HeaderCell>Lựa chọn · mã</Table.HeaderCell>
                   <Table.HeaderCell>Giá thêm mặc định</Table.HeaderCell>
                   <Table.HeaderCell>Chọn sẵn</Table.HeaderCell>
                   <Table.HeaderCell>Trạng thái</Table.HeaderCell>
@@ -489,9 +488,9 @@ function ItemRowView({ index, row, readOnly, canPrice, error, onChange, onNameCh
   if (archived || readOnly) {
     return (
       <Table.Row className={archived ? "text-ink-muted" : undefined}>
-        <Table.Cell className="break-words">{row.name}</Table.Cell>
-        <Table.Cell translate="no" className="font-mono text-label font-semibold tracking-wide">
-          {row.code}
+        <Table.Cell>
+          <span className="block break-words">{row.name}</span>
+          <ItemCode code={row.code} />
         </Table.Cell>
         <Table.Cell className="tabular-nums">{row.price}</Table.Cell>
         <Table.Cell>{row.isDefaultSelected ? "Có" : "—"}</Table.Cell>
@@ -507,44 +506,43 @@ function ItemRowView({ index, row, readOnly, canPrice, error, onChange, onNameCh
 
   return (
     <Table.Row>
-      <Table.Cell className="min-w-[180px]">
-        <Field.Root className="gap-1">
-          <Field.Label className="sr-only">{`Tên lựa chọn ${n}`}</Field.Label>
-          <Field.Input
-            name={path("name")}
-            autoComplete="off"
-            maxLength={NAME_MAX}
-            className="h-8"
-            value={row.name}
-            onChange={(e) => onNameChange(e.currentTarget.value)}
-          />
-          {error(path("name"))}
-        </Field.Root>
-      </Table.Cell>
-      <Table.Cell className="min-w-[140px]">
-        {isNewRow ? (
+      <Table.Cell className="min-w-[170px]">
+        <div className="grid gap-1.5">
           <Field.Root className="gap-1">
-            <Field.Label className="sr-only">{`Mã lựa chọn ${n}`}</Field.Label>
+            <Field.Label className="sr-only">{`Tên lựa chọn ${n}`}</Field.Label>
             <Field.Input
-              name={path("code")}
+              name={path("name")}
               autoComplete="off"
-              spellCheck={false}
-              autoCapitalize="characters"
-              translate="no"
-              maxLength={CODE_MAX}
-              className="h-8 font-mono font-semibold tracking-wide uppercase"
-              value={row.code}
-              onChange={(e) => onChange({ code: e.currentTarget.value })}
+              maxLength={NAME_MAX}
+              className="h-8"
+              value={row.name}
+              onChange={(e) => onNameChange(e.currentTarget.value)}
             />
-            {error(path("code"))}
+            {error(path("name"))}
           </Field.Root>
-        ) : (
-          <span translate="no" className="font-mono text-label font-semibold tracking-wide text-ink-muted">
-            {row.code}
-          </span>
-        )}
+          {isNewRow ? (
+            <Field.Root className="gap-1">
+              <Field.Label className="sr-only">{`Mã lựa chọn ${n}`}</Field.Label>
+              <Field.Input
+                name={path("code")}
+                autoComplete="off"
+                spellCheck={false}
+                autoCapitalize="characters"
+                translate="no"
+                maxLength={CODE_MAX}
+                placeholder="Mã, ví dụ TRAN-CHAU…"
+                className="h-8 font-mono text-label font-semibold tracking-wide uppercase"
+                value={row.code}
+                onChange={(e) => onChange({ code: e.currentTarget.value })}
+              />
+              {error(path("code"))}
+            </Field.Root>
+          ) : (
+            <ItemCode code={row.code} />
+          )}
+        </div>
       </Table.Cell>
-      <Table.Cell className="w-[140px]">
+      <Table.Cell className="w-[128px]">
         <Field.Root className="gap-1">
           <Field.Label className="sr-only">{`Giá thêm lựa chọn ${n} (đồng)`}</Field.Label>
           <Field.Input
@@ -583,7 +581,7 @@ function ItemRowView({ index, row, readOnly, canPrice, error, onChange, onNameCh
           </StatusBadge>
         )}
       </Table.Cell>
-      <Table.Cell className="text-right">
+      <Table.Cell className="text-right whitespace-nowrap">
         {isNewRow ? (
           <Button variant="ghost" density="compact" aria-label={`Bỏ lựa chọn ${n}`} onClick={onRemove}>
             Bỏ
@@ -595,6 +593,14 @@ function ItemRowView({ index, row, readOnly, canPrice, error, onChange, onNameCh
         )}
       </Table.Cell>
     </Table.Row>
+  );
+}
+
+function ItemCode({ code }: { code: string }) {
+  return (
+    <span translate="no" className="block font-mono text-caption font-semibold tracking-wide break-all text-ink-muted">
+      {code}
+    </span>
   );
 }
 
