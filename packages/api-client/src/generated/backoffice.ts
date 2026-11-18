@@ -2053,7 +2053,11 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProductActivationProblem"];
             };
         };
-        /** @description `CATALOG_CODE_TAKEN`, `CATALOG_SKU_TAKEN`, `CATALOG_SLUG_TAKEN` or `CATALOG_CATEGORY_ARCHIVED` (Decision Z) */
+        /**
+         * @description `CATALOG_CODE_TAKEN`, `CATALOG_SKU_TAKEN`, `CATALOG_SLUG_TAKEN` or `CATALOG_CATEGORY_ARCHIVED` (Decision Z).
+         *     `CATALOG_SKU_TAKEN` carries `errors[] { field: "variants[i].sku", code: "CATALOG_SKU_TAKEN" }`, one per taken SKU
+         *     (Z2).
+         */
         ProductConflict: {
             headers: {
                 [name: string]: unknown;
@@ -2073,7 +2077,8 @@ export interface components {
         };
         /**
          * @description `CATALOG_SKU_TAKEN`, `CATALOG_VARIANT_ARCHIVED`, `CATALOG_VARIANT_IS_DEFAULT`, `CATALOG_VARIANT_LIMIT_REACHED` or
-         *     `CATALOG_PRODUCT_INVALID_TRANSITION` (Decision AE)
+         *     `CATALOG_PRODUCT_INVALID_TRANSITION` (Decision AE). `CATALOG_SKU_TAKEN` carries
+         *     `errors[] { field: "sku", code: "CATALOG_SKU_TAKEN" }` (AE2).
          */
         VariantConflict: {
             headers: {
