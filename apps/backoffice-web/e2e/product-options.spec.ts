@@ -90,6 +90,7 @@ function initial(): Product {
     optionItemOverrides: [{ optionItemId: "cheese", extraPriceOverride: null, isHidden: true }],
     images: [],
     sellingSchedules: [],
+    tags: [],
   };
 }
 
