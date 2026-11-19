@@ -28,6 +28,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/branches/{branchId}/products/{productIdOrSlug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One menu Product of an ACTIVE Branch in detail
+         * @description No sign-in (Decision AI). A UUID is the Product id, anything else its slug. Not on the Branch's menu (AH1) →
+         *     `404 CATALOG_PRODUCT_NOT_FOUND`; Branch unknown or not `ACTIVE` → `404 BRANCH_NOT_FOUND`. Variant prices
+         *     include the Branch price; option prices take the first of Branch → Product override → library price; items
+         *     hidden on the Product do not appear. A default option that is out keeps `isDefaultSelected` (no silent
+         *     substitute, Decision F). `Cache-Control: public, max-age=30`.
+         */
+        get: operations["getBranchProduct"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/branches": {
         parameters: {
             query?: never;
@@ -148,6 +172,62 @@ export interface components {
             collectionId: string;
             name: string;
             productIds: string[];
+        };
+        DetailImage: {
+            url: string | null;
+            altText: string | null;
+            isPrimary: boolean;
+        };
+        DetailVariant: {
+            /** Format: uuid */
+            variantId: string;
+            name: string;
+            /**
+             * Format: int64
+             * @description VND, Branch price applied.
+             */
+            price: number;
+            isDefault: boolean;
+            availability: components["schemas"]["MenuAvailability"];
+        };
+        DetailOptionItem: {
+            /** Format: uuid */
+            optionItemId: string;
+            name: string;
+            /**
+             * Format: int64
+             * @description VND: Branch, else Product override, else library.
+             */
+            extraPrice: number;
+            isDefaultSelected: boolean;
+            availability: components["schemas"]["MenuAvailability"];
+        };
+        DetailOptionGroup: {
+            /** Format: uuid */
+            optionGroupId: string;
+            name: string;
+            /** @enum {string} */
+            selectionType: "SINGLE" | "MULTIPLE";
+            /** Format: int32 */
+            minSelect: number;
+            /** Format: int32 */
+            maxSelect: number;
+            items: components["schemas"]["DetailOptionItem"][];
+        };
+        PublicProductDetail: {
+            /** Format: uuid */
+            productId: string;
+            slug: string;
+            name: string;
+            description: string | null;
+            images: components["schemas"]["DetailImage"][];
+            availability: components["schemas"]["MenuAvailability"];
+            variants: components["schemas"]["DetailVariant"][];
+            optionGroups: components["schemas"]["DetailOptionGroup"][];
+            /** @description `null` until BE #70. */
+            sellingSchedule: {
+                summary?: string;
+            } | null;
         };
         PublicMenu: {
             /** Format: uuid */
@@ -309,6 +389,39 @@ export interface operations {
                 };
             };
             /** @description `BRANCH_NOT_FOUND` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getBranchProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                branchId: string;
+                productIdOrSlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Product. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["ThirtySecondCache"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProductDetail"];
+                };
+            };
+            /** @description `BRANCH_NOT_FOUND` or `CATALOG_PRODUCT_NOT_FOUND` */
             404: {
                 headers: {
                     [name: string]: unknown;
