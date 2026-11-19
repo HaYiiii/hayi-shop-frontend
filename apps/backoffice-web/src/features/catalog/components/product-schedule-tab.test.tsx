@@ -80,6 +80,20 @@ describe("Product selling schedule (D3d screen 26)", () => {
     expect(api.calls.some((c) => c.route.startsWith("PUT"))).toBe(false);
   });
 
+  it("clears row errors when a row is removed, so no message lands on the row that moved up", async () => {
+    const { user } = renderAdmin(PATH, server().handlers, catalogOwner);
+    await user.click(await screen.findByRole("button", { name: "Thêm đợt bán" }));
+    await user.type(screen.getByLabelText("Đợt 1 khung 1 bắt đầu"), "0700");
+    await user.type(screen.getByLabelText("Đợt 1 khung 1 kết thúc"), "1100");
+    await user.click(screen.getByRole("button", { name: "Thêm khung" }));
+    await user.click(screen.getByRole("button", { name: "Lưu lịch bán" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Đợt 1 khung 2: Nhập giờ bắt đầu và giờ kết thúc.");
+    expect(screen.getByLabelText("Đợt 1 khung 2 áp dụng")).toHaveAccessibleDescription(/Nhập giờ bắt đầu và giờ kết thúc/);
+
+    await user.click(screen.getByRole("button", { name: "Xoá khung 1 của đợt 1" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("puts 422 CATALOG_SELLING_SCHEDULE_INVALID errors[] on the right row", async () => {
     const fake = server(
       aProduct({ sellingSchedules: [{ startDate: null, endDate: null, windows: [{ dayOfWeek: null, start: "07:00", end: "11:00" }] }] }),

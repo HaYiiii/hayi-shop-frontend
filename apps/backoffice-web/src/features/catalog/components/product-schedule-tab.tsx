@@ -96,6 +96,13 @@ export function ProductScheduleTab() {
     if (fresh) setBase(fresh);
   }
 
+  /** Removing a row shifts the rows after it: errors keyed by position no longer point at the right row. */
+  function removeRows(change: (editor: ScheduleEditor) => ScheduleEditor) {
+    save.reset();
+    setLocal({});
+    setEditor(change);
+  }
+
   function addPeriodAndFocus() {
     const index = editor.length;
     flushSync(() => setEditor((e) => addPeriod(e, newKey(), newKey())));
@@ -169,7 +176,7 @@ export function ProductScheduleTab() {
                 {errors[`period-${i}.endDate`] ? <Field.Error aria-live="polite">{errors[`period-${i}.endDate`]}</Field.Error> : null}
               </Field.Root>
               {readOnly ? null : (
-                <Button variant="ghost" density="compact" className="ml-auto" onClick={() => setEditor((ed) => removePeriod(ed, period.key))}>
+                <Button variant="ghost" density="compact" className="ml-auto" onClick={() => removeRows((ed) => removePeriod(ed, period.key))}>
                   Xoá đợt
                 </Button>
               )}
@@ -187,6 +194,8 @@ export function ProductScheduleTab() {
                         <Field.Label className="sr-only">{`${n} áp dụng`}</Field.Label>
                         <Field.Select
                           data-at={at}
+                          aria-invalid={errors[at] ? true : undefined}
+                          aria-describedby={errors[at] ? `${at}-error` : undefined}
                           disabled={readOnly}
                           value={window.day}
                           onChange={(e) => {
@@ -236,7 +245,7 @@ export function ProductScheduleTab() {
                           density="compact"
                           aria-label={`Xoá khung ${j + 1} của đợt ${i + 1}`}
                           className="w-8 px-0"
-                          onClick={() => setEditor((ed) => removeWindow(ed, period.key, window.key))}
+                          onClick={() => removeRows((ed) => removeWindow(ed, period.key, window.key))}
                         >
                           <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                             <path d="m5 5 10 10M15 5 5 15" />
@@ -245,7 +254,7 @@ export function ProductScheduleTab() {
                       )}
                     </div>
                     {errors[at] ? (
-                      <p role="alert" className="text-caption font-medium text-danger">
+                      <p id={`${at}-error`} role="alert" className="text-caption font-medium text-danger">
                         {`${n}: ${errors[at]}`}
                       </p>
                     ) : null}
