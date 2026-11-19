@@ -143,10 +143,10 @@ describe("Product page (D3d screen 23)", () => {
       "/admin/products/p-new",
       {
         ...fake.handlers,
-        "POST /products/p-new/variants": (body: unknown, request: Request) =>
+        "POST /products/p-new/variants": (body: unknown) =>
           taken
             ? json({ type: "about:blank", title: "x", status: 409, code: "CATALOG_SKU_TAKEN", errors: [{ field: "sku", code: "TAKEN" }] }, 409)
-            : fake.handlers["POST /products/p-new/variants"](body, request),
+            : fake.handlers["POST /products/p-new/variants"](body),
       },
       catalogOwner,
     );
@@ -269,7 +269,7 @@ describe("Product page (D3d screen 23)", () => {
         ...fake.handlers,
         "PATCH /products/p-new": (body: unknown, request: Request) =>
           request.headers.get("If-Match") === `"v${fake.product.version}"`
-            ? fake.handlers["PATCH /products/p-new"](body, request)
+            ? fake.handlers["PATCH /products/p-new"](body)
             : problem(412, "VERSION_CONFLICT"),
       },
       catalogOwner,

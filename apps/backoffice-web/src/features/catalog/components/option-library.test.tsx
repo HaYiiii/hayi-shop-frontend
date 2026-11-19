@@ -140,8 +140,8 @@ describe("Option library (D3d screen 27)", () => {
       "/admin/options?group=g-topping",
       {
         ...fake.handlers,
-        "POST /option-groups/g-topping/items": (body: unknown, request: Request) =>
-          taken ? problem(409, "CATALOG_CODE_TAKEN") : fake.handlers["POST /option-groups/g-topping/items"](body, request),
+        "POST /option-groups/g-topping/items": (body: unknown) =>
+          taken ? problem(409, "CATALOG_CODE_TAKEN") : fake.handlers["POST /option-groups/g-topping/items"](body),
       },
       catalogOwner,
     );
