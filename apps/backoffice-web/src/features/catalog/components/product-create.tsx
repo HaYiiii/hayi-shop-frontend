@@ -262,12 +262,26 @@ export function ProductCreate() {
   );
 }
 
-function Section({ title, note, className, children }: { title: string; note?: string; className?: string; children: ReactNode }) {
-  const titleId = useId();
+/** A titled part of a Product form; `headingId` lets another part of the page move the keyboard to it. */
+export function Section({
+  title,
+  note,
+  className,
+  headingId,
+  children,
+}: {
+  title: string;
+  note?: string;
+  className?: string;
+  headingId?: string;
+  children: ReactNode;
+}) {
+  const generated = useId();
+  const titleId = headingId ?? generated;
   return (
     <section aria-labelledby={titleId} className={`grid gap-3.5 ${className ?? ""}`}>
       <div className="flex flex-wrap items-baseline gap-2.5">
-        <h2 id={titleId} className="text-title">
+        <h2 id={titleId} tabIndex={headingId ? -1 : undefined} className="text-title outline-none">
           {title}
         </h2>
         {note ? <span className="text-label font-normal text-ink-muted">{note}</span> : null}

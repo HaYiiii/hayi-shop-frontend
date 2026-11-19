@@ -186,5 +186,5 @@ describe("activationIssues", () => {
 });
 
 function problem422(issues: object[]) {
-  return new ApiError({ type: "about:blank", title: "x", status: 422, code: "PRODUCT_ACTIVATION_INVALID", issues } as never);
+  return new ApiError({ type: "about:blank", title: "x", status: 422, code: "PRODUCT_ACTIVATION_INVALID", issues });
 }

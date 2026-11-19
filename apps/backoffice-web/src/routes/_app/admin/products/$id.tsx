@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ProductDetail } from "../../../../features/catalog/components/product-detail";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { ProductPage } from "../../../../features/catalog/components/product-page";
 import { PermissionGuard } from "../../../../lib/permission-guard";
 
 interface DetailSearch {
@@ -11,22 +11,23 @@ interface DetailSearch {
 export const Route = createFileRoute("/_app/admin/products/$id")({
   validateSearch: (search: Record<string, unknown>): DetailSearch =>
     search.created === 1 || search.created === "1" ? { created: 1 } : {},
-  component: ProductDetailRoute,
+  component: ProductLayout,
 });
 
-function ProductDetailRoute() {
+function ProductLayout() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  // The confirmation stays on screen, but the flag leaves the URL so a reload does not show it again.
-  const [created] = useState(search.created === 1);
+  // The page keeps the confirmation on screen; the flag leaves the URL so a reload does not show it again.
   useEffect(() => {
     if (search.created) void navigate({ search: {}, replace: true });
   }, [search.created, navigate]);
 
   return (
     <PermissionGuard permission="CATALOG_VIEW">
-      <ProductDetail key={id} productId={id} created={created} />
+      <ProductPage key={id} productId={id} created={search.created === 1}>
+        <Outlet />
+      </ProductPage>
     </PermissionGuard>
   );
 }

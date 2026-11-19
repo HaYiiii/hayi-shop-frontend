@@ -28,6 +28,7 @@ import { Route as AppBranchesBranchIdSlotsRouteImport } from './routes/_app/bran
 import { Route as AppBranchesBranchIdSoldOutRouteImport } from './routes/_app/branches/$branchId/sold-out'
 import { Route as AppAdminBranchesIdIndexRouteImport } from './routes/_app/admin/branches/$id/index'
 import { Route as AppAdminBranchesIdHoursRouteImport } from './routes/_app/admin/branches/$id/hours'
+import { Route as AppAdminProductsIdIndexRouteImport } from './routes/_app/admin/products/$id/index'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -128,6 +129,11 @@ const AppAdminBranchesIdHoursRoute = AppAdminBranchesIdHoursRouteImport.update({
   path: '/hours',
   getParentRoute: () => AppAdminBranchesIdRoute,
 } as any)
+const AppAdminProductsIdIndexRoute = AppAdminProductsIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAdminProductsIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -137,7 +143,7 @@ export interface FileRoutesByFullPath {
   '/admin/options': typeof AppAdminOptionsRoute
   '/admin/branches/$id': typeof AppAdminBranchesIdRouteWithChildren
   '/admin/branches/new': typeof AppAdminBranchesNewRoute
-  '/admin/products/$id': typeof AppAdminProductsIdRoute
+  '/admin/products/$id': typeof AppAdminProductsIdRouteWithChildren
   '/admin/products/new': typeof AppAdminProductsNewRoute
   '/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
   '/branches/$branchId/payments': typeof AppBranchesBranchIdPaymentsRoute
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/admin/products/': typeof AppAdminProductsIndexRoute
   '/admin/branches/$id/hours': typeof AppAdminBranchesIdHoursRoute
   '/admin/branches/$id/': typeof AppAdminBranchesIdIndexRoute
+  '/admin/products/$id/': typeof AppAdminProductsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -156,7 +163,6 @@ export interface FileRoutesByTo {
   '/admin/categories': typeof AppAdminCategoriesRoute
   '/admin/options': typeof AppAdminOptionsRoute
   '/admin/branches/new': typeof AppAdminBranchesNewRoute
-  '/admin/products/$id': typeof AppAdminProductsIdRoute
   '/admin/products/new': typeof AppAdminProductsNewRoute
   '/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
   '/branches/$branchId/payments': typeof AppBranchesBranchIdPaymentsRoute
@@ -167,6 +173,7 @@ export interface FileRoutesByTo {
   '/admin/products': typeof AppAdminProductsIndexRoute
   '/admin/branches/$id/hours': typeof AppAdminBranchesIdHoursRoute
   '/admin/branches/$id': typeof AppAdminBranchesIdIndexRoute
+  '/admin/products/$id': typeof AppAdminProductsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,7 +185,7 @@ export interface FileRoutesById {
   '/_app/admin/options': typeof AppAdminOptionsRoute
   '/_app/admin/branches/$id': typeof AppAdminBranchesIdRouteWithChildren
   '/_app/admin/branches/new': typeof AppAdminBranchesNewRoute
-  '/_app/admin/products/$id': typeof AppAdminProductsIdRoute
+  '/_app/admin/products/$id': typeof AppAdminProductsIdRouteWithChildren
   '/_app/admin/products/new': typeof AppAdminProductsNewRoute
   '/_app/branches/$branchId/orders': typeof AppBranchesBranchIdOrdersRoute
   '/_app/branches/$branchId/payments': typeof AppBranchesBranchIdPaymentsRoute
@@ -189,6 +196,7 @@ export interface FileRoutesById {
   '/_app/admin/products/': typeof AppAdminProductsIndexRoute
   '/_app/admin/branches/$id/hours': typeof AppAdminBranchesIdHoursRoute
   '/_app/admin/branches/$id/': typeof AppAdminBranchesIdIndexRoute
+  '/_app/admin/products/$id/': typeof AppAdminProductsIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,6 +219,7 @@ export interface FileRouteTypes {
     | '/admin/products/'
     | '/admin/branches/$id/hours'
     | '/admin/branches/$id/'
+    | '/admin/products/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -219,7 +228,6 @@ export interface FileRouteTypes {
     | '/admin/categories'
     | '/admin/options'
     | '/admin/branches/new'
-    | '/admin/products/$id'
     | '/admin/products/new'
     | '/branches/$branchId/orders'
     | '/branches/$branchId/payments'
@@ -230,6 +238,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/branches/$id/hours'
     | '/admin/branches/$id'
+    | '/admin/products/$id'
   id:
     | '__root__'
     | '/_app'
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/_app/admin/products/'
     | '/_app/admin/branches/$id/hours'
     | '/_app/admin/branches/$id/'
+    | '/_app/admin/products/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -393,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminBranchesIdHoursRouteImport
       parentRoute: typeof AppAdminBranchesIdRoute
     }
+    '/_app/admin/products/$id/': {
+      id: '/_app/admin/products/$id/'
+      path: '/'
+      fullPath: '/admin/products/$id/'
+      preLoaderRoute: typeof AppAdminProductsIdIndexRouteImport
+      parentRoute: typeof AppAdminProductsIdRoute
+    }
   }
 }
 
@@ -409,6 +426,17 @@ const AppAdminBranchesIdRouteChildren: AppAdminBranchesIdRouteChildren = {
 const AppAdminBranchesIdRouteWithChildren =
   AppAdminBranchesIdRoute._addFileChildren(AppAdminBranchesIdRouteChildren)
 
+interface AppAdminProductsIdRouteChildren {
+  AppAdminProductsIdIndexRoute: typeof AppAdminProductsIdIndexRoute
+}
+
+const AppAdminProductsIdRouteChildren: AppAdminProductsIdRouteChildren = {
+  AppAdminProductsIdIndexRoute: AppAdminProductsIdIndexRoute,
+}
+
+const AppAdminProductsIdRouteWithChildren =
+  AppAdminProductsIdRoute._addFileChildren(AppAdminProductsIdRouteChildren)
+
 interface AppRouteChildren {
   AppStaffRoute: typeof AppStaffRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -416,7 +444,7 @@ interface AppRouteChildren {
   AppAdminOptionsRoute: typeof AppAdminOptionsRoute
   AppAdminBranchesIdRoute: typeof AppAdminBranchesIdRouteWithChildren
   AppAdminBranchesNewRoute: typeof AppAdminBranchesNewRoute
-  AppAdminProductsIdRoute: typeof AppAdminProductsIdRoute
+  AppAdminProductsIdRoute: typeof AppAdminProductsIdRouteWithChildren
   AppAdminProductsNewRoute: typeof AppAdminProductsNewRoute
   AppBranchesBranchIdOrdersRoute: typeof AppBranchesBranchIdOrdersRoute
   AppBranchesBranchIdPaymentsRoute: typeof AppBranchesBranchIdPaymentsRoute
@@ -434,7 +462,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminOptionsRoute: AppAdminOptionsRoute,
   AppAdminBranchesIdRoute: AppAdminBranchesIdRouteWithChildren,
   AppAdminBranchesNewRoute: AppAdminBranchesNewRoute,
-  AppAdminProductsIdRoute: AppAdminProductsIdRoute,
+  AppAdminProductsIdRoute: AppAdminProductsIdRouteWithChildren,
   AppAdminProductsNewRoute: AppAdminProductsNewRoute,
   AppBranchesBranchIdOrdersRoute: AppBranchesBranchIdOrdersRoute,
   AppBranchesBranchIdPaymentsRoute: AppBranchesBranchIdPaymentsRoute,
