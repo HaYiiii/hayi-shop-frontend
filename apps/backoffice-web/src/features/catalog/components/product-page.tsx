@@ -166,6 +166,9 @@ function ProductTabs({ product, onSwitch }: { product: Product; onSwitch: () => 
         Tuỳ chọn
         <span className="ml-1.5 rounded-full bg-sunken px-1.5 text-caption font-semibold tabular-nums">{product.optionGroups.length}</span>
       </Link>
+      <Link to="/admin/products/$id/schedule" params={params} className={tabClass} onClick={onSwitch}>
+        Lịch bán &amp; tag
+      </Link>
     </nav>
   );
 }
