@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { PublicBranch } from "../../branch/api/branches";
 import { pickupText } from "../../branch/pickup-text";
 import type { MenuProduct, PublicMenu } from "../api/menu";
-import { availabilityLabel, menuJumps, menuSections } from "../menu-sections";
+import { availabilityText, menuJumps, menuSections } from "../menu-sections";
 
 interface BranchMenuProps {
   branch: PublicBranch;
@@ -79,7 +79,7 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
                   <ul className="grid gap-3" aria-label={`Món ${section.name}`}>
                     {section.products.map((product) => (
                       <li key={product.productId}>
-                        <ProductCard product={product} href={`/b/${encodeURIComponent(branch.branchCode)}/p/${encodeURIComponent(product.slug)}`} />
+                        <ProductCard product={product} evaluatedAt={menu.evaluatedAt} href={`/b/${encodeURIComponent(branch.branchCode)}/p/${encodeURIComponent(product.slug)}`} />
                       </li>
                     ))}
                   </ul>
@@ -94,8 +94,8 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
 }
 
 /** One product (D3a screen 2 card), opening its page (D3a screen 3, FE #52). */
-function ProductCard({ product, href }: { product: MenuProduct; href: string }) {
-  const unavailable = availabilityLabel[product.availability];
+function ProductCard({ product, evaluatedAt, href }: { product: MenuProduct; evaluatedAt: string; href: string }) {
+  const unavailable = availabilityText(product.availability, evaluatedAt);
   return (
     <Link
       href={href}
@@ -126,7 +126,7 @@ function ProductCard({ product, href }: { product: MenuProduct; href: string }) 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-body font-semibold tabular-nums">{`Từ ${formatVnd(product.fromPrice)}`}</span>
           {unavailable ? (
-            <StatusBadge tone={product.availability === "SOLD_OUT" ? "danger" : "neutral"}>{unavailable}</StatusBadge>
+            <StatusBadge tone={product.availability === "SOLD_OUT" ? "danger" : product.availability === "OUTSIDE_SELLING_HOURS" ? "warning" : "neutral"}>{unavailable}</StatusBadge>
           ) : null}
         </div>
       </div>

@@ -31,6 +31,7 @@ import { Route as AppAdminBranchesIdIndexRouteImport } from './routes/_app/admin
 import { Route as AppAdminBranchesIdHoursRouteImport } from './routes/_app/admin/branches/$id/hours'
 import { Route as AppAdminProductsIdIndexRouteImport } from './routes/_app/admin/products/$id/index'
 import { Route as AppAdminProductsIdOptionsRouteImport } from './routes/_app/admin/products/$id/options'
+import { Route as AppAdminProductsIdScheduleRouteImport } from './routes/_app/admin/products/$id/schedule'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -148,6 +149,12 @@ const AppAdminProductsIdOptionsRoute =
     path: '/options',
     getParentRoute: () => AppAdminProductsIdRoute,
   } as any)
+const AppAdminProductsIdScheduleRoute =
+  AppAdminProductsIdScheduleRouteImport.update({
+    id: '/schedule',
+    path: '/schedule',
+    getParentRoute: () => AppAdminProductsIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/admin/products/': typeof AppAdminProductsIndexRoute
   '/admin/branches/$id/hours': typeof AppAdminBranchesIdHoursRoute
   '/admin/products/$id/options': typeof AppAdminProductsIdOptionsRoute
+  '/admin/products/$id/schedule': typeof AppAdminProductsIdScheduleRoute
   '/admin/branches/$id/': typeof AppAdminBranchesIdIndexRoute
   '/admin/products/$id/': typeof AppAdminProductsIdIndexRoute
 }
@@ -190,6 +198,7 @@ export interface FileRoutesByTo {
   '/admin/products': typeof AppAdminProductsIndexRoute
   '/admin/branches/$id/hours': typeof AppAdminBranchesIdHoursRoute
   '/admin/products/$id/options': typeof AppAdminProductsIdOptionsRoute
+  '/admin/products/$id/schedule': typeof AppAdminProductsIdScheduleRoute
   '/admin/branches/$id': typeof AppAdminBranchesIdIndexRoute
   '/admin/products/$id': typeof AppAdminProductsIdIndexRoute
 }
@@ -215,6 +224,7 @@ export interface FileRoutesById {
   '/_app/admin/products/': typeof AppAdminProductsIndexRoute
   '/_app/admin/branches/$id/hours': typeof AppAdminBranchesIdHoursRoute
   '/_app/admin/products/$id/options': typeof AppAdminProductsIdOptionsRoute
+  '/_app/admin/products/$id/schedule': typeof AppAdminProductsIdScheduleRoute
   '/_app/admin/branches/$id/': typeof AppAdminBranchesIdIndexRoute
   '/_app/admin/products/$id/': typeof AppAdminProductsIdIndexRoute
 }
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/admin/products/'
     | '/admin/branches/$id/hours'
     | '/admin/products/$id/options'
+    | '/admin/products/$id/schedule'
     | '/admin/branches/$id/'
     | '/admin/products/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/branches/$id/hours'
     | '/admin/products/$id/options'
+    | '/admin/products/$id/schedule'
     | '/admin/branches/$id'
     | '/admin/products/$id'
   id:
@@ -285,6 +297,7 @@ export interface FileRouteTypes {
     | '/_app/admin/products/'
     | '/_app/admin/branches/$id/hours'
     | '/_app/admin/products/$id/options'
+    | '/_app/admin/products/$id/schedule'
     | '/_app/admin/branches/$id/'
     | '/_app/admin/products/$id/'
   fileRoutesById: FileRoutesById
@@ -450,6 +463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminProductsIdOptionsRouteImport
       parentRoute: typeof AppAdminProductsIdRoute
     }
+    '/_app/admin/products/$id/schedule': {
+      id: '/_app/admin/products/$id/schedule'
+      path: '/schedule'
+      fullPath: '/admin/products/$id/schedule'
+      preLoaderRoute: typeof AppAdminProductsIdScheduleRouteImport
+      parentRoute: typeof AppAdminProductsIdRoute
+    }
   }
 }
 
@@ -468,11 +488,13 @@ const AppAdminBranchesIdRouteWithChildren =
 
 interface AppAdminProductsIdRouteChildren {
   AppAdminProductsIdOptionsRoute: typeof AppAdminProductsIdOptionsRoute
+  AppAdminProductsIdScheduleRoute: typeof AppAdminProductsIdScheduleRoute
   AppAdminProductsIdIndexRoute: typeof AppAdminProductsIdIndexRoute
 }
 
 const AppAdminProductsIdRouteChildren: AppAdminProductsIdRouteChildren = {
   AppAdminProductsIdOptionsRoute: AppAdminProductsIdOptionsRoute,
+  AppAdminProductsIdScheduleRoute: AppAdminProductsIdScheduleRoute,
   AppAdminProductsIdIndexRoute: AppAdminProductsIdIndexRoute,
 }
 

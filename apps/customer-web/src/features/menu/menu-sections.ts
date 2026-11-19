@@ -1,3 +1,4 @@
+import { formatBranchTime } from "@hayi/domain-utils";
 import type { MenuAvailability, MenuCategory, MenuProduct, PublicMenu } from "./api/menu";
 
 /** One heading of the menu page: a root Category, or a child Category under it. */
@@ -40,10 +41,20 @@ export function menuJumps(menu: PublicMenu): MenuJump[] {
   return menu.categories.map((root) => ({ name: root.name, anchor: anchorOf(root) }));
 }
 
-/** Words for a product that cannot be ordered now (API 02 §2); `null` when it can. */
-export const availabilityLabel: Record<MenuAvailability, string | null> = {
-  AVAILABLE: null,
-  SOLD_OUT: "Hết món",
-  PAUSED: "Tạm ngưng",
-  OUTSIDE_SELLING_HOURS: "Ngoài giờ bán",
-};
+/**
+ * Words for a product that cannot be ordered at the menu's `evaluatedAt` (API 02 §2, AK3); `null` when it can.
+ * Outside its selling schedule it names that time in Branch time (D3a screen 2b, agreed 2026-11-20: the time
+ * the menu was evaluated at, until the customer picks a pickup time in S4).
+ */
+export function availabilityText(availability: MenuAvailability, evaluatedAt: string): string | null {
+  switch (availability) {
+    case "AVAILABLE":
+      return null;
+    case "SOLD_OUT":
+      return "Hết món";
+    case "PAUSED":
+      return "Tạm ngưng";
+    case "OUTSIDE_SELLING_HOURS":
+      return `Không bán lúc ${formatBranchTime(evaluatedAt)}`;
+  }
+}

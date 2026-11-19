@@ -20,23 +20,29 @@ import {
  * D3a screen 3: size and options within each group's min/max. Prices are the server's, per choice; there is
  * no total until "Thêm vào giỏ" prices the choice with the server (S4, agreed 2026-11-19).
  */
-export function ProductOptions({ product }: { product: ProductDetail }) {
-  const [selection, setSelection] = useState<Selection>(() => initialSelection(product));
-  const stillMissing = missing(product, selection);
+/**
+ * `locked`: the product cannot be ordered now (outside its selling hours, D3a screen 3b): every choice is shown,
+ * none can be picked, and nothing is reported missing.
+ */
+export function ProductOptions({ product, locked = false }: { product: ProductDetail; locked?: boolean }) {
+  const [selection, setSelection] = useState<Selection>(() => (locked ? { variantId: null, items: {} } : initialSelection(product)));
+  const stillMissing = locked ? [] : missing(product, selection);
   const missingGroups = new Set(stillMissing.flatMap((m) => (m.kind === "group" ? [m.optionGroupId] : [])));
 
   return (
     <div className="grid gap-5">
       {product.variants.length > 0 ? (
-        <Choice legend="Size" rule="Bắt buộc · chọn 1" missingText={selection.variantId === null ? "Còn thiếu: chọn size" : null}>
+        <Choice legend="Size" rule="Bắt buộc · chọn 1" missingText={!locked && selection.variantId === null ? "Còn thiếu: chọn size" : null}>
           <div className="flex flex-wrap gap-2">
             {product.variants.map((variant) => {
-              const why = unavailableText(variant.availability);
+              const why = locked ? null : unavailableText(variant.availability);
               return (
                 <Chip
                   key={variant.variantId}
                   pressed={selection.variantId === variant.variantId}
-                  unavailable={why !== null}
+                  unavailable={locked || why !== null}
+                  // Outside selling hours the choices are only shown, not struck through (D3a screen 3b).
+                  className={locked ? "no-underline!" : undefined}
                   onClick={() => setSelection((s) => chooseVariant(s, variant))}
                 >
                   {`${variant.name} · ${formatVnd(variant.price)}${why ? ` · ${why}` : ""}`}
@@ -55,9 +61,9 @@ export function ProductOptions({ product }: { product: ProductDetail }) {
           missingText={missingGroups.has(group.optionGroupId) ? `Còn thiếu: chọn ${group.name.toLocaleLowerCase("vi")}` : null}
         >
           {group.selectionType === "SINGLE" ? (
-            <SingleChoice group={group} selection={selection} onToggle={(item) => setSelection((s) => toggleItem(s, group, item))} />
+            <SingleChoice group={group} selection={selection} locked={locked} onToggle={(item) => setSelection((s) => toggleItem(s, group, item))} />
           ) : (
-            <MultipleChoice group={group} selection={selection} onToggle={(item) => setSelection((s) => toggleItem(s, group, item))} />
+            <MultipleChoice group={group} selection={selection} locked={locked} onToggle={(item) => setSelection((s) => toggleItem(s, group, item))} />
           )}
         </Choice>
       ))}
@@ -71,9 +77,10 @@ interface GroupProps {
   group: DetailOptionGroup;
   selection: Selection;
   onToggle: (item: DetailOptionGroup["items"][number]) => void;
+  locked: boolean;
 }
 
-function SingleChoice({ group, selection, onToggle }: GroupProps) {
+function SingleChoice({ group, selection, onToggle, locked }: GroupProps) {
   const picked = selection.items[group.optionGroupId] ?? [];
   return (
     <div className="flex flex-wrap gap-2">
@@ -84,7 +91,8 @@ function SingleChoice({ group, selection, onToggle }: GroupProps) {
           <Chip
             key={item.optionItemId}
             pressed={picked.includes(item.optionItemId)}
-            unavailable={!canPick(selection, group, item)}
+            unavailable={locked || !canPick(selection, group, item)}
+            className={locked && item.availability === "AVAILABLE" ? "no-underline!" : undefined}
             onClick={() => onToggle(item)}
           >
             {[item.name, extra, why].filter(Boolean).join(" · ")}
@@ -95,7 +103,7 @@ function SingleChoice({ group, selection, onToggle }: GroupProps) {
   );
 }
 
-function MultipleChoice({ group, selection, onToggle }: GroupProps) {
+function MultipleChoice({ group, selection, onToggle, locked }: GroupProps) {
   const picked = selection.items[group.optionGroupId] ?? [];
   const full = picked.length >= group.maxSelect;
   return (
@@ -103,7 +111,7 @@ function MultipleChoice({ group, selection, onToggle }: GroupProps) {
       {group.items.map((item) => {
         const checked = picked.includes(item.optionItemId);
         const why = unavailableText(item.availability);
-        const blocked = !canPick(selection, group, item);
+        const blocked = locked || !canPick(selection, group, item);
         const extra = extraText(item.extraPrice);
         return (
           <li key={item.optionItemId}>
@@ -112,7 +120,7 @@ function MultipleChoice({ group, selection, onToggle }: GroupProps) {
                 type="checkbox"
                 checked={checked}
                 aria-disabled={blocked || undefined}
-                onChange={() => onToggle(item)}
+                onChange={() => !locked && onToggle(item)}
                 className="size-5 accent-matcha-700"
               />
               <span className="min-w-0 break-words">

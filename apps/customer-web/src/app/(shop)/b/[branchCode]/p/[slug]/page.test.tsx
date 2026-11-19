@@ -128,3 +128,31 @@ describe("Product page — /b/[branchCode]/p/[slug] (D3a screen 3)", () => {
     expect(screen.getByRole("link", { name: "Thử lại" })).toHaveAttribute("href", "/b/Q1-LELOI/p/matcha-latte-nong");
   });
 });
+
+describe("Product page — outside selling hours (D3a screen 3b, FE #54)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("explains it with the selling hours and locks every choice", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-20T08:00:00Z"));
+    const product = aProductDetail({ availability: "OUTSIDE_SELLING_HOURS", sellingSchedule: { summary: "07:00–14:00 hằng ngày" } });
+    serve(() =>
+      Response.json({ ...product, variants: product.variants.map((v) => ({ ...v, availability: "OUTSIDE_SELLING_HOURS" })) }),
+    );
+
+    render(await ProductPage(params()));
+
+    const banner = screen.getByRole("status");
+    expect(banner).toHaveTextContent("Không bán lúc 15:00 hôm nay");
+    expect(banner).toHaveTextContent("Giờ bán: 07:00–14:00 hằng ngày.");
+    const sizes = within(screen.getByRole("group", { name: "Size" }));
+    expect(sizes.getAllByRole("button").map((b) => [b.getAttribute("aria-pressed"), b.getAttribute("aria-disabled")])).toEqual([
+      ["false", "true"],
+      ["false", "true"],
+    ]);
+    expect(screen.queryByText(/Còn thiếu/)).not.toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Thêm" })).getByRole("checkbox", { name: /Thêm 1 shot matcha/ })).toHaveAttribute("aria-disabled", "true");
+  });
+});
