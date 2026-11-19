@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Me } from "../../../lib/scope";
 import { json, problem } from "../../../test/fake-api";
 import { aBranch, renderAdmin } from "../../branch/test/render-admin";
-import type { BranchListing, BranchListingRow } from "../api/listings";
+import type { BranchListing, BranchListingRow, OptionItemListing } from "../api/listings";
 import { aListing, aListingRow, listingResponse } from "../test/listings";
+import { aGroup } from "../test/option-groups";
+import { aProduct, productResponse } from "../test/products";
 
 const PATH = "/branches/b-q1/listings";
 
@@ -185,5 +187,101 @@ describe("Branch listings (D3d screen 29)", () => {
     await user.click(screen.getByRole("button", { name: "Mở rộng Matcha Latte" }));
     expect(screen.getByRole("textbox", { name: "Giá size M tại chi nhánh (đồng)" })).toHaveAttribute("readonly");
     expect(screen.queryByRole("button", { name: "Lưu giá" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Branch option prices (D3d screen 29, FE #65)", () => {
+  const product = aProduct({
+    productId: "p-latte",
+    name: "Matcha Latte",
+    optionGroups: [
+      { optionGroupId: "g-topping", code: "TOPPING", name: "Topping", selectionType: "MULTIPLE", minSelect: 0, maxSelect: 3, minSelectOverride: null, maxSelectOverride: null, sortOrder: 0 },
+    ],
+    optionItemOverrides: [
+      { optionItemId: "i-pearl", extraPriceOverride: 12000, isHidden: false },
+      { optionItemId: "i-jelly", extraPriceOverride: null, isHidden: true },
+    ],
+  });
+
+  function optionServer(listings: OptionItemListing[] = []) {
+    const fake = server();
+    let current = listings;
+    return {
+      ...fake,
+      handlers: {
+        ...fake.handlers,
+        "GET /products/p-latte": () => productResponse(product),
+        "GET /option-groups": () => json({ items: [aGroup()] }),
+        "GET /branches/b-q1/option-item-listings": () => json({ items: current }),
+        "PUT /branches/b-q1/option-item-listings/i-pearl": (body: unknown) => {
+          const old = current.find((l) => l.optionItemId === "i-pearl");
+          const saved: OptionItemListing = {
+            optionItemId: "i-pearl",
+            extraPrice: (body as { extraPrice: number | null }).extraPrice,
+            availabilityState: "AVAILABLE",
+            version: (old?.version ?? 0) + 1,
+          };
+          current = [...current.filter((l) => l.optionItemId !== "i-pearl"), saved];
+          return json(saved);
+        },
+      },
+    };
+  }
+
+  it("lists the Product's option items with their Product price and saves a Branch price with v0", async () => {
+    const fake = optionServer();
+    const { api, user } = renderAdmin(PATH, fake.handlers, manager);
+    await user.click(await screen.findByRole("button", { name: "Mở rộng Matcha Latte" }));
+
+    const options = within(await screen.findByRole("table", { name: "Tuỳ chọn của Matcha Latte" }));
+    const pearl = within(options.getByRole("row", { name: /Trân châu/ }));
+    expect(pearl.getByText("Lựa chọn của nhóm Topping")).toBeInTheDocument();
+    expect(nbsp(pearl.getByText(/^\+12\.000/).textContent)).toBe("+12.000 ₫");
+    // Hidden at the Product: not offered here.
+    expect(options.queryByRole("row", { name: /Thạch matcha/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/áp cho mọi món dùng lựa chọn này/)).toBeInTheDocument();
+
+    await user.type(pearl.getByRole("textbox", { name: "Giá thêm Trân châu tại chi nhánh (đồng)" }), "11000");
+    await user.click(screen.getByRole("button", { name: "Lưu giá" }));
+
+    expect(await screen.findByText(/Đã lưu giá của Matcha Latte/)).toBeInTheDocument();
+    expect(api.bodyOf("PUT /branches/b-q1/option-item-listings/i-pearl")).toEqual({ extraPrice: 11000 });
+    expect(ifMatchOf(api, "PUT /branches/b-q1/option-item-listings/i-pearl")).toEqual(['"v0"']);
+    expect(api.calls.some((c) => c.route.includes("/variants/"))).toBe(false);
+  });
+
+  it("clears a Branch price with null and the item's own version", async () => {
+    const fake = optionServer([{ optionItemId: "i-pearl", extraPrice: 11000, availabilityState: "AVAILABLE", version: 4 }]);
+    const { api, user } = renderAdmin(PATH, fake.handlers, manager);
+    await user.click(await screen.findByRole("button", { name: "Mở rộng Matcha Latte" }));
+    const price = await screen.findByRole("textbox", { name: "Giá thêm Trân châu tại chi nhánh (đồng)" });
+    expect(nbsp((price as HTMLInputElement).value)).toBe("11.000 ₫");
+
+    await user.clear(price);
+    await user.click(screen.getByRole("button", { name: "Lưu giá" }));
+    expect(await screen.findByText(/Đã lưu giá của Matcha Latte/)).toBeInTheDocument();
+    expect(api.bodyOf("PUT /branches/b-q1/option-item-listings/i-pearl")).toEqual({ extraPrice: null });
+    expect(ifMatchOf(api, "PUT /branches/b-q1/option-item-listings/i-pearl")).toEqual(['"v4"']);
+  });
+
+  it("offers a retry when the option data cannot be loaded", async () => {
+    const fake = optionServer();
+    let failing = true;
+    const { user } = renderAdmin(
+      PATH,
+      { ...fake.handlers, "GET /option-groups": () => (failing ? problem(503, "SERVICE_UNAVAILABLE") : json({ items: [aGroup()] })) },
+      manager,
+    );
+    await user.click(await screen.findByRole("button", { name: "Mở rộng Matcha Latte" }));
+    expect(await screen.findByText(/Chưa tải được giá tuỳ chọn/)).toBeInTheDocument();
+    failing = false;
+    await user.click(screen.getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByRole("table", { name: "Tuỳ chọn của Matcha Latte" })).toBeInTheDocument();
+  });
+
+  it("is read-only without BRANCH_LISTING_MANAGE", async () => {
+    const { user } = renderAdmin(PATH, optionServer().handlers, viewer);
+    await user.click(await screen.findByRole("button", { name: "Mở rộng Matcha Latte" }));
+    expect(await screen.findByRole("textbox", { name: "Giá thêm Trân châu tại chi nhánh (đồng)" })).toHaveAttribute("readonly");
   });
 });

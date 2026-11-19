@@ -37,6 +37,54 @@ const v = (variantId: string, name: string, basePrice: number, price: number | n
 });
 
 let rows: Row[];
+let optionListings: { optionItemId: string; extraPrice: number | null; availabilityState: string; version: number }[];
+
+const item = (optionItemId: string, name: string, defaultExtraPrice: number, sortOrder: number) => ({
+  optionItemId,
+  code: optionItemId.toUpperCase(),
+  name,
+  defaultExtraPrice,
+  isDefaultSelected: false,
+  status: "ACTIVE",
+  sortOrder,
+});
+const topping = {
+  optionGroupId: "topping",
+  code: "TOPPING",
+  name: "Topping",
+  selectionType: "MULTIPLE",
+  minSelect: 0,
+  maxSelect: 3,
+  status: "ACTIVE",
+  createdAt: "2026-11-01T03:00:00Z",
+  updatedAt: "2026-11-01T03:00:00Z",
+  version: 4,
+  items: [item("pearl", "Trân châu hoàng kim", 10000, 1), item("jelly", "Thạch matcha", 8000, 2), item("cheese", "Kem cheese", 12000, 3)],
+};
+const latteProduct = {
+  productId: "latte",
+  productCode: "MATCHA-LATTE",
+  slug: "matcha-latte",
+  name: "Matcha Latte",
+  productType: "STANDARD",
+  status: "ACTIVE",
+  primaryCategoryId: null,
+  shortDescription: null,
+  description: null,
+  sortOrder: 0,
+  archivedAt: null,
+  createdAt: "2026-11-01T03:00:00Z",
+  updatedAt: "2026-11-01T03:00:00Z",
+  version: 9,
+  variants: [],
+  optionGroups: [
+    { optionGroupId: "topping", code: "TOPPING", name: "Topping", selectionType: "MULTIPLE", minSelect: 0, maxSelect: 3, minSelectOverride: null, maxSelectOverride: null, sortOrder: 0 },
+  ],
+  optionItemOverrides: [{ optionItemId: "cheese", extraPriceOverride: null, isHidden: true }],
+  images: [],
+  sellingSchedules: [],
+  tags: [],
+};
 
 function initial(): Row[] {
   return [
@@ -61,6 +109,7 @@ function initial(): Row[] {
 
 async function mockApi(page: Page) {
   rows = initial();
+  optionListings = [{ optionItemId: "pearl", extraPrice: 12000, availabilityState: "AVAILABLE", version: 2 }];
   await page.route("**/api/backoffice/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/.*\/api\/backoffice\/v1/, "");
@@ -74,6 +123,17 @@ async function mockApi(page: Page) {
     };
     if (key === "GET /auth/me") return route.fulfill({ json: me });
     if (key === "GET /branches") return route.fulfill({ json: { items: [branch] } });
+    if (key === "GET /products/latte") return route.fulfill({ json: latteProduct });
+    if (key === "GET /option-groups") return route.fulfill({ json: { items: [topping] } });
+    if (key === "GET /branches/q1/option-item-listings") return route.fulfill({ json: { items: optionListings } });
+    const option = /^PUT \/branches\/q1\/option-item-listings\/([^/]+)$/.exec(key);
+    if (option) {
+      const extraPrice = (request.postDataJSON() as { extraPrice: number | null }).extraPrice;
+      const old = optionListings.find((l) => l.optionItemId === option[1]);
+      const saved = { optionItemId: option[1]!, extraPrice, availabilityState: "AVAILABLE", version: (old?.version ?? 0) + 1 };
+      optionListings = [...optionListings.filter((l) => l.optionItemId !== option[1]), saved];
+      return route.fulfill({ json: saved });
+    }
     if (key === "GET /branches/q1/listings") {
       return route.fulfill({ json: { items: rows, page: { number: 0, size: 20, totalItems: rows.length, totalPages: 1 } } });
     }
@@ -121,6 +181,8 @@ test("Manager sells a Product, sets a Branch price and stops selling another", a
   await page.getByRole("button", { name: "Mở rộng Matcha Latte" }).click();
   await page.getByLabel("Giá size L tại chi nhánh (đồng)").fill("57000");
   await page.getByLabel("Giá size L tại chi nhánh (đồng)").blur();
+  await page.getByLabel("Giá thêm Thạch matcha tại chi nhánh (đồng)").fill("5000");
+  await page.getByLabel("Giá thêm Thạch matcha tại chi nhánh (đồng)").blur();
   await page.getByRole("button", { name: "Lưu giá" }).click();
   await expect(page.getByText(/Đã lưu giá của Matcha Latte tại Quận 1 · Lê Lợi/)).toBeVisible();
   await shot(page, "29-listings");

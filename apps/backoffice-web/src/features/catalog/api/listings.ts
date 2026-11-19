@@ -37,6 +37,31 @@ export function listingsQuery(api: BackofficeClient, branchId: string, filters: 
   });
 }
 
+export type OptionItemListing = Schemas["BranchOptionItemListing"];
+
+export const optionItemListingKeys = {
+  all: (branchId: string) => ["option-item-listings", branchId] as const,
+};
+
+/** Branch extra prices of the option items that have a listing here (API 08 §2.2, Decision AM). */
+export function optionItemListingsQuery(api: BackofficeClient, branchId: string) {
+  return queryOptions({
+    queryKey: optionItemListingKeys.all(branchId),
+    queryFn: () =>
+      unwrap(api.GET("/branches/{branchId}/option-item-listings", { params: { path: { branchId } } })).then((list) => list.items),
+  });
+}
+
+/** Branch extra price of one item (full, `null` = Product / library price, AD4); `"v0"` creates it (AD3). */
+export function putOptionItemListing(api: BackofficeClient, branchId: string, optionItemId: string, version: number, extraPrice: number | null) {
+  return unwrap(
+    api.PUT("/branches/{branchId}/option-item-listings/{optionItemId}", {
+      params: { path: { branchId, optionItemId }, header: ifMatch(version) },
+      body: { extraPrice },
+    }),
+  );
+}
+
 /** `"v0"` creates the listing (AD2). */
 const ifMatch = (version: number) => ({ "If-Match": `"v${version}"` });
 

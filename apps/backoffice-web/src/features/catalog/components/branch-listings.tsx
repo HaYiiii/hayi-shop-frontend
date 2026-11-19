@@ -12,17 +12,28 @@ import {
   type BranchListingRow,
   type ListingFilters,
   type ListingInput,
+  type OptionItemListing,
   listingKeys,
   listingsQuery,
+  optionItemListingKeys,
+  optionItemListingsQuery,
   putListing,
+  putOptionItemListing,
   putVariantListing,
 } from "../api/listings";
+import { optionGroupsQuery } from "../api/option-groups";
+import { productQuery } from "../api/products";
 import {
+  type OptionPriceRow,
   type SizePriceRow,
   isSelling,
   listingStateLabel,
   listingStateTone,
+  optionChanges,
+  optionErrors,
+  optionRowsOf,
   priceSummary,
+  rebaseOptionRows,
   sizeChanges,
   sizeErrors,
   rebaseSizes,
@@ -59,6 +70,9 @@ function failureNotice(error: unknown): Notice {
     case "CATALOG_LISTING_NOT_FOUND":
     case "CATALOG_VARIANT_NOT_FOUND":
       return { tone: "warning", text: "Món hoặc size vừa thay đổi. Tải lại rồi thử lại.", reload: true };
+    case "CATALOG_OPTION_ARCHIVED":
+    case "CATALOG_OPTION_ITEM_NOT_FOUND":
+      return { tone: "warning", text: "Một lựa chọn vừa được lưu trữ hoặc gỡ ở thư viện tuỳ chọn. Tải lại rồi thử lại.", reload: true };
     case "BRANCH_INVALID_TRANSITION":
       return { tone: "danger", text: "Chi nhánh đã đóng nên không đổi được món bán." };
     case "CATALOG_PRICE_NEGATIVE":
@@ -79,10 +93,12 @@ function ListingsScreen({ branchId, filters, onFiltersChange }: BranchListingsPr
   const [open, setOpen] = useState<string | null>(null);
   const [reloadRound, setReloadRound] = useState(0);
 
+  const queryClient = useQueryClient();
   const reload = () => {
     setNotice(null);
     setReloadRound((n) => n + 1);
     void refetch();
+    void queryClient.invalidateQueries({ queryKey: optionItemListingKeys.all(branchId) });
   };
 
   return (
@@ -306,6 +322,18 @@ function SizePrices({ row, branchId, filters, canManage, onNotice, branchName, r
   // The listing the rows were made from; its version goes as `If-Match` with the next save (the #35 pattern).
   const [base, setBase] = useState(listing);
   const [seenReload, setSeenReload] = useState(reloadRound);
+
+  // Option items of the Product with their Branch extra price (AD3, Decision AM); loaded when the row opens.
+  const queryClient = useQueryClient();
+  const product = useQuery(productQuery(api, row.productId));
+  const library = useQuery(optionGroupsQuery(api));
+  const optionListings = useQuery(optionItemListingsQuery(api, branchId));
+  const freshOptions =
+    product.data && library.data && optionListings.data ? optionRowsOf(product.data, library.data, optionListings.data) : null;
+  const [optionRows, setOptionRows] = useState<OptionPriceRow[] | null>(null);
+  const [optionBase, setOptionBase] = useState<OptionPriceRow[] | null>(null);
+  const [seenOptionReload, setSeenOptionReload] = useState(reloadRound);
+
   const save = useMutation({
     mutationFn: async () => {
       let current = base;
@@ -317,15 +345,48 @@ function SizePrices({ row, branchId, filters, canManage, onNotice, branchName, r
         setBase(current);
         putRow(next);
       }
-      return current;
+      // Then one request per option item, each with that item's own version ("v0" creates it, AD3).
+      let options = optionBase;
+      for (const change of options && optionRows ? optionChanges(options, optionRows) : []) {
+        const saved = await putOptionItemListing(api, branchId, change.optionItemId, change.version, change.extraPrice);
+        options = options!.map((o) =>
+          o.optionItemId === saved.optionItemId
+            ? { ...o, version: saved.version, price: saved.extraPrice === null ? "" : formatVnd(saved.extraPrice) }
+            : o,
+        );
+        setOptionBase(options);
+        queryClient.setQueryData(optionItemListingKeys.all(branchId), (list: OptionItemListing[] | undefined) =>
+          list ? [...list.filter((l) => l.optionItemId !== saved.optionItemId), saved] : [saved],
+        );
+      }
+      return { current, options, sent: optionRows };
     },
     onMutate: () => onNotice(null),
-    onSuccess: (saved) => {
-      setRows((typed) => rebaseSizes(typed, saved, saved));
+    onSuccess: ({ current, options, sent }) => {
+      setRows((typed) => rebaseSizes(typed, current, current));
+      // Prices typed while the save ran stay (as for sizes); the saved ones take the server's text.
+      if (options) setOptionRows((typed) => (typed ? rebaseOptionRows(typed, sent ?? options, options) : options));
       onNotice({ tone: "success", text: `Đã lưu giá của ${row.name} tại ${branchName}. Khách thấy giá mới trên menu sau khoảng một phút.` });
     },
     onError: (error) => onNotice(failureNotice(error)),
   });
+
+  // The #35 pattern for option prices too: adopt a newer state when nothing is typed, rebase it on "Tải lại".
+  if (freshOptions && !save.isPending) {
+    if (optionBase === null || optionRows === null) {
+      setOptionBase(freshOptions);
+      setOptionRows(freshOptions);
+    } else if (JSON.stringify(freshOptions) !== JSON.stringify(optionBase)) {
+      if (reloadRound !== seenOptionReload) {
+        setSeenOptionReload(reloadRound);
+        setOptionRows(rebaseOptionRows(optionRows, optionBase, freshOptions));
+        setOptionBase(freshOptions);
+      } else if (JSON.stringify(optionRows) === JSON.stringify(optionBase)) {
+        setOptionRows(freshOptions);
+        setOptionBase(freshOptions);
+      }
+    }
+  }
   if (listing.version !== base.version && !save.isPending) {
     if (reloadRound !== seenReload) {
       // "Tải lại": the new version under what is typed; the next save uses its `If-Match`.
@@ -343,15 +404,16 @@ function SizePrices({ row, branchId, filters, canManage, onNotice, branchName, r
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const found = sizeErrors(rows);
+    const found = { ...sizeErrors(rows), ...(optionRows ? optionErrors(optionRows) : {}) };
     // Rendered first, so the keyboard can go to the first marked price.
     flushSync(() => setErrors(found));
     if (Object.keys(found).length > 0) {
       const first = Object.keys(found)[0];
-      form.querySelector<HTMLElement>(`[data-variant="${first}"]`)?.focus();
+      form.querySelector<HTMLElement>(`[data-price="${first}"]`)?.focus();
       return;
     }
-    if (sizeChanges(base, rows).length === 0) {
+    const optionCount = optionBase && optionRows ? optionChanges(optionBase, optionRows).length : 0;
+    if (sizeChanges(base, rows).length === 0 && optionCount === 0) {
       onNotice({ tone: "success", text: "Không có thay đổi nào để lưu." });
       return;
     }
@@ -383,7 +445,7 @@ function SizePrices({ row, branchId, filters, canManage, onNotice, branchName, r
                   <Field.Input
                     inputMode="numeric"
                     autoComplete="off"
-                    data-variant={size.variantId}
+                    data-price={size.variantId}
                     placeholder="Như giá gốc"
                     readOnly={!canManage}
                     className="w-36 tabular-nums"
@@ -414,17 +476,93 @@ function SizePrices({ row, branchId, filters, canManage, onNotice, branchName, r
           ))}
         </Table.Body>
       </Table.Root>
+      <p className="text-caption text-ink-muted">
+        Giá tại chi nhánh là giá đầy đủ khách trả, không phải phần cộng thêm. Để trống để dùng giá gốc.
+      </p>
+
+      {optionRows === null ? (
+        product.isError || library.isError || optionListings.isError ? (
+          <div className="grid justify-items-start gap-2">
+            <FormAlert tone="danger">Chưa tải được giá tuỳ chọn. Kiểm tra mạng rồi thử lại.</FormAlert>
+            <Button
+              variant="outline"
+              density="compact"
+              busy={product.isFetching || library.isFetching || optionListings.isFetching}
+              onClick={() => {
+                if (product.isError) void product.refetch();
+                if (library.isError) void library.refetch();
+                if (optionListings.isError) void optionListings.refetch();
+              }}
+            >
+              Thử lại
+            </Button>
+          </div>
+        ) : (
+          <Skeleton className="h-20 w-full" />
+        )
+      ) : optionRows.length > 0 ? (
+        <div className="grid gap-2">
+          <Table.Root aria-label={`Tuỳ chọn của ${row.name}`}>
+            <Table.Head>
+              <Table.Row>
+                <Table.HeaderCell>Lựa chọn</Table.HeaderCell>
+                <Table.HeaderCell numeric>Giá thêm ở món</Table.HeaderCell>
+                <Table.HeaderCell>Giá thêm tại chi nhánh</Table.HeaderCell>
+              </Table.Row>
+            </Table.Head>
+            <Table.Body>
+              {optionRows.map((option) => (
+                <Table.Row key={option.optionItemId}>
+                  <Table.Cell>
+                    <span className="block font-medium">{option.name}</span>
+                    <span className="block text-caption text-ink-muted">{`Lựa chọn của nhóm ${option.groupName}`}</span>
+                  </Table.Cell>
+                  <Table.Cell numeric>{`+${formatVnd(option.productPrice)}`}</Table.Cell>
+                  <Table.Cell>
+                    <Field.Root className="gap-1">
+                      <Field.Label className="sr-only">{`Giá thêm ${option.name} tại chi nhánh (đồng)`}</Field.Label>
+                      <Field.Input
+                        inputMode="numeric"
+                        autoComplete="off"
+                        data-price={option.optionItemId}
+                        placeholder="Như món"
+                        readOnly={!canManage}
+                        className="w-36 tabular-nums"
+                        value={option.price}
+                        onChange={(e) => {
+                          const price = e.currentTarget.value;
+                          setOptionRows((os) => os && os.map((o) => (o.optionItemId === option.optionItemId ? { ...o, price } : o)));
+                        }}
+                        onBlur={(e) => {
+                          const amount = parsePrice(e.currentTarget.value);
+                          if (amount === null) return;
+                          setOptionRows((os) =>
+                            os && os.map((o) => (o.optionItemId === option.optionItemId ? { ...o, price: formatVnd(amount) } : o)),
+                          );
+                        }}
+                      />
+                      {errors[option.optionItemId] ? <Field.Error aria-live="polite">{errors[option.optionItemId]}</Field.Error> : null}
+                    </Field.Root>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Root>
+          <p className="text-caption text-ink-muted">
+            Giá thêm tại chi nhánh đặt theo lựa chọn: áp cho mọi món dùng lựa chọn này ở chi nhánh. Để trống để như món.
+          </p>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-caption text-ink-muted">
-          Giá tại chi nhánh là giá đầy đủ khách trả, không phải phần cộng thêm. Để trống để dùng giá gốc.
-        </span>
         {canManage ? (
           <span className="ml-auto flex gap-2">
             <Button
               variant="ghost"
               density="compact"
               onClick={() => {
-                setRows(sizeRowsOf(listing));
+                setRows(sizeRowsOf(base));
+                setOptionRows(optionBase);
                 setErrors({});
               }}
             >

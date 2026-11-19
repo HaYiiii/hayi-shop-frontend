@@ -1414,6 +1414,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/branches/{branchId}/option-item-listings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The option items that have a listing at this Branch
+         * @description `CATALOG_VIEW` at that Branch, like `GET …/listings` (Decision AM1). Only items with a listing here, sorted by
+         *     `optionItemId`; an item without one uses the library price and is created with `If-Match: "v0"` (AD3).
+         *     Unknown Branch → `404 BRANCH_NOT_FOUND`.
+         */
+        get: operations["listBranchOptionItemListings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/branches/{branchId}/option-item-listings/{optionItemId}": {
         parameters: {
             query?: never;
@@ -2064,6 +2089,9 @@ export interface components {
             availabilityState: components["schemas"]["AvailabilityState"];
             /** Format: int64 */
             version: number;
+        };
+        BranchOptionItemListingList: {
+            items: components["schemas"]["BranchOptionItemListing"][];
         };
         BranchVariantListing: {
             /** Format: uuid */
@@ -5302,6 +5330,32 @@ export interface operations {
             412: components["responses"]["VersionConflict"];
             422: components["responses"]["ListingRuleViolated"];
             428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    listBranchOptionItemListings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The listings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchOptionItemListingList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     putBranchOptionItemListing: {
