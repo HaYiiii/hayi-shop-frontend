@@ -16,12 +16,37 @@ export interface paths {
          * @description No sign-in. Unknown or not `ACTIVE` Branch → `404 BRANCH_NOT_FOUND` (Decision W6). Only `ACTIVE` Products with
          *     a listing other than `NOT_AVAILABLE` and at least one Variant still listed (W3, AH1), under their primary
          *     Category; only `ACTIVE` Categories that hold such a Product (themselves or a child). `fromPrice` and
-         *     `availability` follow Decision AH2–AH3. `at` (ISO instant, default now) is echoed as `evaluatedAt`; selling
-         *     hours come with BE #70, tags and collections with BE #71. `Cache-Control: public, max-age=30`.
+         *     `availability` follow Decision AH2–AH3; outside the selling schedule at `at` (ISO instant, default now,
+         *     `Asia/Ho_Chi_Minh`) a Product is `OUTSIDE_SELLING_HOURS`, after `PAUSED` and `SOLD_OUT` (AK2–AK3). `at` is echoed
+         *     as `evaluatedAt`; tags and collections come with BE #71. `Cache-Control: public, max-age=30`.
          */
         get: operations["getBranchMenu"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}/catalog/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Price and check a local cart at an ACTIVE Branch
+         * @description No sign-in; writes nothing (Catalog §5.8, Decision AJ). At most 50 lines, 20 options each, quantity 1..99 →
+         *     else `400`. Every issue of a line is listed (`valid: false` when any); nothing is added or swapped. Prices are
+         *     the server's: Variant (Branch → base) plus each chosen option (Branch → Product → library), `null` when the
+         *     Product or Variant is unknown there. `fingerprint` changes when a price, state or issue changes. Branch
+         *     unknown or not `ACTIVE` → `404 BRANCH_NOT_FOUND`. `Cache-Control: no-store`.
+         */
+        post: operations["resolveCatalog"];
         delete?: never;
         options?: never;
         head?: never;
@@ -139,7 +164,7 @@ export interface components {
             }[];
         };
         /**
-         * @description Customer-facing, derived (API 02 §2, Decision F, AH3); `OUTSIDE_SELLING_HOURS` from BE
+         * @description Customer-facing, derived (API 02 §2, Decision F, AH3, AK3).
          * @enum {string}
          */
         MenuAvailability: "AVAILABLE" | "SOLD_OUT" | "PAUSED" | "OUTSIDE_SELLING_HOURS";
@@ -172,6 +197,53 @@ export interface components {
             collectionId: string;
             name: string;
             productIds: string[];
+        };
+        ResolveRequest: {
+            /**
+             * Format: date-time
+             * @description Fulfilment time for the selling hours (AK4).
+             */
+            at?: string | null;
+            lines: components["schemas"]["ResolveLineRequest"][];
+        };
+        ResolveLineRequest: {
+            /** @description The client's own line id, echoed back. */
+            ref: string;
+            /** Format: uuid */
+            productId: string;
+            /** Format: uuid */
+            variantId: string;
+            optionItemIds: string[];
+            /** Format: int32 */
+            quantity: number;
+        };
+        /**
+         * @description Catalog §5.8 (Decision AJ2, AK4).
+         * @enum {string}
+         */
+        ResolveIssueCode: "PRODUCT_NOT_FOUND" | "PRODUCT_SOLD_OUT" | "PRODUCT_PAUSED" | "OUTSIDE_SELLING_HOURS" | "VARIANT_SOLD_OUT" | "VARIANT_NOT_AVAILABLE" | "OPTION_ITEM_SOLD_OUT" | "OPTION_SELECTION_INVALID" | "REQUIRED_OPTION_GROUP_UNSATISFIABLE";
+        ResolveIssue: {
+            code: components["schemas"]["ResolveIssueCode"];
+            /** Format: uuid */
+            optionItemId?: string | null;
+            /** Format: uuid */
+            optionGroupId?: string | null;
+        };
+        ResolveLine: {
+            ref: string;
+            valid: boolean;
+            /** @description Known chosen items without repeats, by group then item order. */
+            normalizedOptionItemIds: string[];
+            /** Format: int64 */
+            unitPrice: number | null;
+            /** Format: int64 */
+            lineTotal: number | null;
+            issues: components["schemas"]["ResolveIssue"][];
+        };
+        ResolveResponse: {
+            lines: components["schemas"]["ResolveLine"][];
+            /** @description Opaque change marker (Decision AJ4). */
+            fingerprint: string;
         };
         DetailImage: {
             url: string | null;
@@ -224,7 +296,7 @@ export interface components {
             availability: components["schemas"]["MenuAvailability"];
             variants: components["schemas"]["DetailVariant"][];
             optionGroups: components["schemas"]["DetailOptionGroup"][];
-            /** @description `null` until BE #70. */
+            /** @description A Vietnamese summary of the selling schedules (Decision AK3); `null` when there is none. */
             sellingSchedule: {
                 summary?: string;
             } | null;
@@ -377,6 +449,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicMenu"];
+                };
+            };
+            /** @description `VALIDATION_FAILED` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `BRANCH_NOT_FOUND` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    resolveCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                branchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Each line resolved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveResponse"];
                 };
             };
             /** @description `VALIDATION_FAILED` */

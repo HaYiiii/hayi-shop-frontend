@@ -1080,6 +1080,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/products/{productId}/selling-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set when a Product may be sold
+         * @description `CATALOG_MANAGE` (Decision AK1). Replaces every schedule (≤ 10, ≤ 20 windows each). `dayOfWeek` 1..7 (ISO),
+         *     `null` = every day; a schedule without windows sells all day in its date range; no schedule sells at any time.
+         *     A reversed date range, a window that does not end after it starts (never over midnight) or windows of one
+         *     schedule overlapping on a day → `422 CATALOG_SELLING_SCHEDULE_INVALID` with `errors[]`. Archived Product →
+         *     `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Requires `If-Match`; no change keeps the version. Audited. Requires
+         *     `X-CSRF-Token`.
+         */
+        put: operations["replaceProductSellingSchedules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products/{productId}/option-item-overrides": {
         parameters: {
             query?: never;
@@ -1648,6 +1675,29 @@ export interface components {
             optionItemOverrides: components["schemas"]["ProductOptionItemOverride"][];
             /** @description In order; one is the primary when there are any (Decision AG5). */
             images: components["schemas"]["ProductImage"][];
+            /** @description Empty = sold at any time (Decision AK1). */
+            sellingSchedules: components["schemas"]["SellingSchedule"][];
+        };
+        SellingWindow: {
+            /**
+             * Format: int32
+             * @description ISO; `null` = every day.
+             */
+            dayOfWeek: number | null;
+            /** @description HH:mm, Asia/Ho_Chi_Minh. */
+            start: string;
+            end: string;
+        };
+        SellingSchedule: {
+            /** Format: date */
+            startDate: string | null;
+            /** Format: date */
+            endDate: string | null;
+            /** @description Empty = the whole day within the date range. */
+            windows: components["schemas"]["SellingWindow"][];
+        };
+        SellingSchedulesReplaceRequest: {
+            schedules: components["schemas"]["SellingSchedule"][];
         };
         ProductImage: {
             /** Format: uuid */
@@ -2513,6 +2563,15 @@ export interface components {
          *     (Decision AF2)
          */
         UploadRejected: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CATALOG_SELLING_SCHEDULE_INVALID` with `errors[]` (Decision AK1) */
+        SellingScheduleInvalid: {
             headers: {
                 [name: string]: unknown;
             };
@@ -4408,6 +4467,49 @@ export interface operations {
             409: components["responses"]["ProductOptionConflict"];
             412: components["responses"]["VersionConflict"];
             422: components["responses"]["ProductOptionRuleViolated"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    replaceProductSellingSchedules: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SellingSchedulesReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description The Product after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductInvalidTransition"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["SellingScheduleInvalid"];
             428: components["responses"]["PreconditionRequired"];
         };
     };
