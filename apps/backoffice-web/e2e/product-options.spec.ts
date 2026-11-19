@@ -88,6 +88,7 @@ function initial(): Product {
     variants: [{ variantId: "v-m", sku: "MATCHA-DX-KM-M", name: "M", basePrice: 55000, isDefault: true, status: "ACTIVE", sortOrder: 0 }],
     optionGroups: [attached(library[0]!, 0), attached(library[1]!, 1), attached(library[2]!, 2, 3)],
     optionItemOverrides: [{ optionItemId: "cheese", extraPriceOverride: null, isHidden: true }],
+    images: [],
   };
 }
 

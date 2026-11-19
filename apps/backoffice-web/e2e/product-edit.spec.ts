@@ -60,6 +60,7 @@ function initial(): Product {
     ],
     optionGroups: [],
     optionItemOverrides: [],
+    images: [],
   };
 }
 
