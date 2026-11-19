@@ -86,6 +86,9 @@ describe("Product options tab (D3d screen 24)", () => {
     expect(tab).toHaveAttribute("aria-current", "page");
     await waitFor(() => expect(groupNames()).toEqual(["Mức đường", "Topping"]));
     expect(card("Mức đường").getByText("Bắt buộc chọn 1 · theo nhóm")).toBeInTheDocument();
+    // Nothing set here and no extra price: one line, the table opens on demand (screen 24).
+    expect(card("Mức đường").getByText("100% · 50% — không thêm tiền.")).toBeInTheDocument();
+    expect(card("Mức đường").queryByRole("table")).not.toBeInTheDocument();
     const topping = card("Topping");
     expect(topping.getByText("Theo nhóm: 0–3")).toBeInTheDocument();
     expect(topping.getByRole("textbox", { name: "Chọn tối đa Topping ở món này" })).toHaveValue("2");
@@ -109,6 +112,7 @@ describe("Product options tab (D3d screen 24)", () => {
     expect(screen.getByRole("button", { name: "Chuyển Topping lên" })).toHaveFocus();
     await user.clear(card("Topping").getByRole("textbox", { name: "Chọn tối đa Topping ở món này" }));
     await user.click(card("Topping").getByRole("checkbox", { name: "Hiện Thạch matcha ở món này" }));
+    await user.click(card("Mức đường").getByRole("button", { name: "Chỉnh giá hoặc ẩn lựa chọn" }));
     await user.type(card("Mức đường").getByRole("textbox", { name: "Giá thêm 50% ở món này (đồng)" }), "2000");
     await user.click(screen.getByRole("button", { name: "Lưu tuỳ chọn" }));
 

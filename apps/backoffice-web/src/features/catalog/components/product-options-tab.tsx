@@ -338,6 +338,14 @@ function GroupCard(props: GroupCardProps) {
   const path = (field: "min" | "max" | "group") => `groups[${index}].${field}` as const;
   const groupError = errors[path("group")];
   const limitError = errors[path("min")] ?? errors[path("max")];
+  // As in screen 24, a group with nothing set here and no extra prices shows one line; the table opens on demand.
+  const customised =
+    warning !== null ||
+    items.some((item) => item.defaultExtraPrice !== 0 || editor.items[item.optionItemId] !== undefined) ||
+    items.some((item) => errors[`items.${item.optionItemId}.price`]);
+  const [opened, setOpened] = useState(false);
+  const open = opened || customised;
+  const tableId = `${headingId}-items`;
 
   return (
     <Card
@@ -378,8 +386,17 @@ function GroupCard(props: GroupCardProps) {
 
       {items.length === 0 ? (
         <p className="text-label text-ink-muted">Nhóm chưa có lựa chọn đang dùng.</p>
+      ) : !open ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="text-label font-normal text-ink-muted">{`${items.map((item) => item.name).join(" · ")} — không thêm tiền.`}</p>
+          {readOnly ? null : (
+            <Button variant="link" aria-expanded={false} aria-controls={tableId} onClick={() => setOpened(true)}>
+              Chỉnh giá hoặc ẩn lựa chọn
+            </Button>
+          )}
+        </div>
       ) : (
-        <Table.Root aria-label={`Lựa chọn của ${group.name} ở món này`}>
+        <Table.Root id={tableId} aria-label={`Lựa chọn của ${group.name} ở món này`}>
           <Table.Head>
             <Table.Row>
               <Table.HeaderCell>Lựa chọn</Table.HeaderCell>
@@ -450,7 +467,7 @@ function LimitInput(props: {
   onChange: (value: string) => void;
 }) {
   return (
-    <Field.Root className="w-36 gap-1">
+    <Field.Root className="gap-1">
       <Field.Label className="sr-only">{`Chọn ${props.label} ${props.groupName} ở món này`}</Field.Label>
       <div className="flex items-center gap-2">
         <span aria-hidden="true" className="text-label text-ink-muted">
@@ -462,7 +479,7 @@ function LimitInput(props: {
           autoComplete="off"
           placeholder="Như nhóm"
           readOnly={props.readOnly}
-          className="w-20 tabular-nums"
+          className="w-28 tabular-nums"
           value={props.value}
           onChange={(e) => props.onChange(e.currentTarget.value)}
         />
