@@ -22,13 +22,27 @@ test("Customer: chooses a Branch and reaches its menu", async ({ page, context }
   const href = await first.getAttribute("href");
   await first.click();
 
-  // The menu placeholder is titled with the chosen Branch's name, the first line of its card.
+  // #51 (D3a screen 2): the menu is titled "Menu <Branch>", the Branch's name being the first line of its card.
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  const title = (await page.getByRole("heading", { level: 1 }).innerText()).trim();
-  expect(card.startsWith(title)).toBe(true);
+  const title = (await page.getByRole("heading", { level: 1 }).textContent())?.trim() ?? "";
+  expect(title.startsWith("Menu ")).toBe(true);
+  expect(card.startsWith(title.slice("Menu ".length))).toBe(true);
   const code = decodeURIComponent(href?.split("/")[2] ?? "");
   expect((await context.cookies()).find((c) => c.name === "hayi.branch")?.value).toBe(encodeURIComponent(code));
 
-  await page.getByRole("link", { name: "Chọn chi nhánh khác" }).click();
+  // Products by Category with a bar to jump to each, or the empty state when the Branch sells nothing yet.
+  const bar = page.getByRole("navigation", { name: "Danh mục" });
+  const empty = page.getByText(/Chi nhánh chưa có món nào đang bán/);
+  await expect(bar.or(empty)).toBeVisible();
+  if (await bar.isVisible()) {
+    const jump = bar.getByRole("link").first();
+    const anchor = (await jump.getAttribute("href")) ?? "";
+    await jump.click();
+    await expect(page).toHaveURL(new RegExp(`${anchor}$`));
+    await expect(page.locator(anchor)).toBeInViewport();
+  }
+  await snap(page, "2-menu");
+
+  await page.getByRole("link", { name: /^Lấy tại .*Đổi chi nhánh$/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Bạn lấy nước ở đâu?" })).toBeVisible();
 });
