@@ -19,7 +19,7 @@ export interface paths {
          *     `availability` follow Decision AH2–AH3; outside the selling schedule at `at` (ISO instant, default now,
          *     `Asia/Ho_Chi_Minh`) a Product is `OUTSIDE_SELLING_HOURS`, after `PAUSED` and `SOLD_OUT` (AK2–AK3). `at` is echoed
          *     as `evaluatedAt`. `collections` holds only `ACTIVE` Collections (by `sortOrder` then name) with the Products shown in
-         *     this menu in Collection order, and drops one with none; `tags` are slugs, sorted (Decision AL3).
+         *     this menu in Collection order, and drops one with none; `tags` are `{ slug, name }` sorted by slug (Decision AL3).
          *     `Cache-Control: public, max-age=30`.
          */
         get: operations["getBranchMenu"];
@@ -182,7 +182,12 @@ export interface components {
              */
             fromPrice: number;
             availability: components["schemas"]["MenuAvailability"];
-            tags: string[];
+            /** @description Sorted by slug (Decision AL3, amended 2026-11-20). */
+            tags: components["schemas"]["MenuTag"][];
+        };
+        MenuTag: {
+            slug: string;
+            name: string;
         };
         MenuCategory: {
             /** Format: uuid */
