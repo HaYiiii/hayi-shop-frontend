@@ -344,7 +344,7 @@ function ActivationIssues({ product, issues }: { product: Product; issues: Activ
                 <Link
                   to="/admin/products/$id"
                   params={{ id: product.productId }}
-                  className={cn("font-medium", focusRing)}
+                  className={cn("font-semibold text-matcha-700 underline underline-offset-2", focusRing)}
                   onClick={() => requestAnimationFrame(() => document.querySelector<HTMLElement>(target)?.focus())}
                 >
                   Sửa ngay

@@ -52,7 +52,7 @@ const sourceOf = (step: SaveStep): ErrorSource => (step.kind === "product" ? { k
 const staleCodes = new Set(["VERSION_CONFLICT", "CATALOG_VARIANT_ARCHIVED", "CATALOG_VARIANT_NOT_FOUND", "CATALOG_PRODUCT_INVALID_TRANSITION"]);
 
 /** Columns of a size row (screen 23): SKU · name · base price · default · status · action. */
-const rowColumns = "grid grid-cols-[190px_120px_130px_110px_96px_minmax(120px,auto)] items-start gap-2.5";
+const rowColumns = "grid grid-cols-[170px_100px_124px_110px_96px_minmax(112px,1fr)] items-start gap-2.5";
 
 const sizeStatus = {
   ACTIVE: { label: "Đang bán", tone: "success" },
