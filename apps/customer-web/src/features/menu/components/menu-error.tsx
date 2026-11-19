@@ -2,9 +2,9 @@ import { cn, focusRing } from "@hayi/ui";
 import Link from "next/link";
 
 /** The menu could not be loaded: what to do, by Problem `code` (API 02 §4); "Thử lại" reloads `retryHref`. */
-export function MenuError({ code, retryHref }: { code: string; retryHref: string }) {
+export function MenuError({ code, retryHref, subject = "menu" }: { code: string; retryHref: string; subject?: string }) {
   const text =
-    code === "RATE_LIMITED" ? "Bạn tải lại hơi nhanh. Chờ một chút rồi thử lại." : "Chưa tải được menu. Kiểm tra mạng rồi thử lại.";
+    code === "RATE_LIMITED" ? "Bạn tải lại hơi nhanh. Chờ một chút rồi thử lại." : `Chưa tải được ${subject}. Kiểm tra mạng rồi thử lại.`;
   return (
     <div className="grid justify-items-start gap-3">
       <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">

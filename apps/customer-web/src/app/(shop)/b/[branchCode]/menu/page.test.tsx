@@ -56,9 +56,10 @@ describe("Menu — /b/[branchCode]/menu (D3a screen 2)", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Matcha" })).toHaveAttribute("id", "c-matcha");
     expect(screen.getByRole("heading", { level: 3, name: "Matcha latte" })).toBeInTheDocument();
 
-    const latte = within(screen.getByRole("article", { name: "Matcha latte đá" }));
+    const latte = within(screen.getByRole("link", { name: /^Matcha latte đá/ }));
     expect(latte.getByText("Từ 45.000 ₫", { normalizer: (t) => t.replace(/\s+/g, " ") })).toBeInTheDocument();
     expect(latte.queryByText("Hết món")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Matcha latte đá/ })).toHaveAttribute("href", "/b/Q1-LELOI/p/matcha-latte");
   });
 
   it("marks products that cannot be ordered now", async () => {
@@ -66,8 +67,8 @@ describe("Menu — /b/[branchCode]/menu (D3a screen 2)", () => {
 
     render(await MenuPage(params("Q1-LELOI")));
 
-    expect(within(screen.getByRole("article", { name: "Matcha đá xay" })).getByText("Hết món")).toBeInTheDocument();
-    expect(within(screen.getByRole("article", { name: "Bánh bông lan matcha" })).getByText("Tạm ngưng")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: /^Matcha đá xay/ })).getByText("Hết món")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: /^Bánh bông lan matcha/ })).getByText("Tạm ngưng")).toBeInTheDocument();
   });
 
   it("says so when the Branch has nothing on sale", async () => {
