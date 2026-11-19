@@ -76,6 +76,7 @@ const created = {
   optionGroups: [],
   optionItemOverrides: [],
   images: [],
+  sellingSchedules: [],
 };
 
 async function mockApi(page: Page) {
