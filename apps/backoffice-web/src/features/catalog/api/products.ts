@@ -110,6 +110,30 @@ export function archiveVariant(api: BackofficeClient, product: Product, variantI
   );
 }
 
+/** Replaces the attached option groups, in order (Decision AC2); `If-Match` required. */
+export function replaceOptionGroups(api: BackofficeClient, product: Product, body: Schemas["ProductOptionGroupsReplaceRequest"]) {
+  return unwrap(
+    api.PUT("/products/{productId}/option-groups", {
+      params: { path: { productId: product.productId }, header: ifMatch(product.version) },
+      body,
+    }),
+  );
+}
+
+/** Replaces the item overrides (Decision AC3); `If-Match` required. */
+export function replaceOptionItemOverrides(
+  api: BackofficeClient,
+  product: Product,
+  body: Schemas["ProductOptionItemOverridesReplaceRequest"],
+) {
+  return unwrap(
+    api.PUT("/products/{productId}/option-item-overrides", {
+      params: { path: { productId: product.productId }, header: ifMatch(product.version) },
+      body,
+    }),
+  );
+}
+
 /**
  * Lifecycle (API 08 §1.4, Decision AA). `If-Match` is optional and left out: the server checks the
  * transition, and an edit of the name meanwhile should not stop an activation.

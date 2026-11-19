@@ -119,8 +119,8 @@ export function ProductInfoTab() {
       }
       return current;
     },
-    onSuccess: (result) => {
-      setEditor(editorOf(result));
+    // Each step already merged its answer under what is typed (accept → rebase), so text typed during the save stays.
+    onSuccess: () => {
       setNotice({ tone: "success", text: "Đã lưu thông tin món." });
       void queryClient.invalidateQueries({ queryKey: [...productKeys.all, "list"] });
     },

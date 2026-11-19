@@ -4,6 +4,30 @@
  */
 
 export interface paths {
+    "/branches/{branchId}/menu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The menu of one ACTIVE Branch
+         * @description No sign-in. Unknown or not `ACTIVE` Branch → `404 BRANCH_NOT_FOUND` (Decision W6). Only `ACTIVE` Products with
+         *     a listing other than `NOT_AVAILABLE` and at least one Variant still listed (W3, AH1), under their primary
+         *     Category; only `ACTIVE` Categories that hold such a Product (themselves or a child). `fromPrice` and
+         *     `availability` follow Decision AH2–AH3. `at` (ISO instant, default now) is echoed as `evaluatedAt`; selling
+         *     hours come with BE #70, tags and collections with BE #71. `Cache-Control: public, max-age=30`.
+         */
+        get: operations["getBranchMenu"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/branches": {
         parameters: {
             query?: never;
@@ -89,6 +113,50 @@ export interface components {
                 code: string;
                 message?: string;
             }[];
+        };
+        /**
+         * @description Customer-facing, derived (API 02 §2, Decision F, AH3); `OUTSIDE_SELLING_HOURS` from BE
+         * @enum {string}
+         */
+        MenuAvailability: "AVAILABLE" | "SOLD_OUT" | "PAUSED" | "OUTSIDE_SELLING_HOURS";
+        MenuProduct: {
+            /** Format: uuid */
+            productId: string;
+            slug: string;
+            name: string;
+            primaryImageUrl: string | null;
+            /**
+             * Format: int64
+             * @description VND, Branch price applied (Decision AH2).
+             */
+            fromPrice: number;
+            availability: components["schemas"]["MenuAvailability"];
+            tags: string[];
+        };
+        MenuCategory: {
+            /** Format: uuid */
+            categoryId: string;
+            name: string;
+            slug: string;
+            imageUrl: string | null;
+            products: components["schemas"]["MenuProduct"][];
+            /** @description Child Categories (no deeper level). */
+            children: components["schemas"]["MenuCategory"][];
+        };
+        MenuCollection: {
+            /** Format: uuid */
+            collectionId: string;
+            name: string;
+            productIds: string[];
+        };
+        PublicMenu: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: date-time */
+            evaluatedAt: string;
+            categories: components["schemas"]["MenuCategory"][];
+            /** @description Empty until BE */
+            collections: components["schemas"]["MenuCollection"][];
         };
         /** @enum {string} */
         PublicFulfillmentType: "PICKUP";
@@ -200,11 +268,57 @@ export interface components {
     headers: {
         /** @description `public, max-age=300` (API 02, Decision U1). */
         FiveMinuteCache: string;
+        /** @description `public, max-age=30` (API 02, Decision AH4). */
+        ThirtySecondCache: string;
     };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getBranchMenu: {
+        parameters: {
+            query?: {
+                /** @description When the order would be fulfilled; malformed → `400`. */
+                at?: string;
+            };
+            header?: never;
+            path: {
+                branchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The menu. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["ThirtySecondCache"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicMenu"];
+                };
+            };
+            /** @description `VALIDATION_FAILED` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `BRANCH_NOT_FOUND` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listPublicBranches: {
         parameters: {
             query?: never;

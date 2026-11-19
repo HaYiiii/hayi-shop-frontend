@@ -901,6 +901,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/products/{productId}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link an uploaded image to a Product, last in its order
+         * @description `CATALOG_MANAGE` (Decision AG1). The stored file must be `ACTIVE`, `PUBLIC` and a `PRODUCT_IMAGE`, else
+         *     `422 CATALOG_IMAGE_INVALID`; linked anywhere already → `409 CATALOG_IMAGE_IN_USE`; at most 10 images →
+         *     `409 CATALOG_IMAGE_LIMIT_REACHED`. The first image, or one sent with `isPrimary: true`, becomes the primary.
+         *     Archived Product → `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Bumps the Product version. Optional `If-Match`.
+         *     Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["addProductImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{productId}/images/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put a Product's images in a new order
+         * @description `CATALOG_MANAGE` (Decision AG3). `imageIds` must be exactly the current images (duplicates → `400`, a
+         *     different set → `409 CATALOG_IMAGE_ORDER_STALE`). Requires `If-Match`; the same order keeps the version.
+         *     Audited. Requires `X-CSRF-Token`.
+         */
+        put: operations["reorderProductImages"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{productId}/images/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Unlink an image; its stored file is archived
+         * @description `CATALOG_MANAGE` (Decision AG2, W7). The stored file becomes `ARCHIVED` in the same transaction; when it was
+         *     the primary, the first image left takes over. Unknown image → `404 CATALOG_IMAGE_NOT_FOUND`. Optional
+         *     `If-Match`. Audited. Requires `X-CSRF-Token`.
+         */
+        delete: operations["removeProductImage"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit an image's alt text or make it the primary
+         * @description `CATALOG_MANAGE` (Decision AG2). JSON Merge Patch on `altText` (`null` clears) and `isPrimary` (only `true`);
+         *     any other key → `400`. Unknown image → `404 CATALOG_IMAGE_NOT_FOUND`. Requires `If-Match`; no change keeps
+         *     the version. Audited. Requires `X-CSRF-Token`.
+         */
+        patch: operations["updateProductImage"];
+        trace?: never;
+    };
     "/products/{productId}/activate": {
         parameters: {
             query?: never;
@@ -1565,6 +1646,37 @@ export interface components {
             variants: components["schemas"]["ProductVariant"][];
             optionGroups: components["schemas"]["ProductOptionGroup"][];
             optionItemOverrides: components["schemas"]["ProductOptionItemOverride"][];
+            /** @description In order; one is the primary when there are any (Decision AG5). */
+            images: components["schemas"]["ProductImage"][];
+        };
+        ProductImage: {
+            /** Format: uuid */
+            imageId: string;
+            /** Format: uuid */
+            storedObjectId: string;
+            /** @description Public URL of the stored file. */
+            url: string | null;
+            altText: string | null;
+            /** Format: int32 */
+            sortOrder: number;
+            isPrimary: boolean;
+        };
+        ProductImageInput: {
+            /** Format: uuid */
+            storedObjectId: string;
+            altText?: string | null;
+            /** @description `true` makes it the primary; the first image is anyway. */
+            isPrimary?: boolean | null;
+        };
+        /** @description JSON Merge Patch of an image (Decision AG2); `null` clears `altText`; `isPrimary` takes only `true`. */
+        ProductImagePatch: {
+            altText?: string | null;
+            /** @enum {boolean} */
+            isPrimary?: true;
+        };
+        ProductImageOrderRequest: {
+            /** @description Every image of the Product in the new order; no duplicates (→ `400`). */
+            imageIds: string[];
         };
         /** @description An attached option group with its effective min/max (override over group, Decision AC5). */
         ProductOptionGroup: {
@@ -1794,6 +1906,10 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** Format: uuid */
+            imageObjectId: string | null;
+            /** @description Public URL of the image (Decision AG5). */
+            imageUrl: string | null;
         };
         /** @description A root Category with the fields of `Category` plus its children (which have none). */
         CategoryNode: {
@@ -1816,6 +1932,9 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** Format: uuid */
+            imageObjectId: string | null;
+            imageUrl: string | null;
             children: components["schemas"]["Category"][];
         };
         CategoryTree: {
@@ -1839,6 +1958,12 @@ export interface components {
             description?: string | null;
             /** Format: uuid */
             parentId?: string | null;
+            /**
+             * Format: uuid
+             * @description An `ACTIVE` `PUBLIC` `CATEGORY_IMAGE` linked nowhere else (`422 CATALOG_IMAGE_INVALID`,
+             *     `409 CATALOG_IMAGE_IN_USE`); `null` clears it. The replaced image is archived (Decision AG4).
+             */
+            imageObjectId?: string | null;
         };
         CategoryReorderRequest: {
             /**
@@ -2287,7 +2412,7 @@ export interface components {
         };
         /**
          * @description `BRANCH_NOT_FOUND`, `BRANCH_HOURS_OVERRIDE_NOT_FOUND`, `FULFILLMENT_OVERRIDE_NOT_FOUND`,
-         *     `CATALOG_CATEGORY_NOT_FOUND`, `CATALOG_PRODUCT_NOT_FOUND`, `CATALOG_VARIANT_NOT_FOUND`, `CATALOG_LISTING_NOT_FOUND`, `UPLOAD_NOT_FOUND`,
+         *     `CATALOG_CATEGORY_NOT_FOUND`, `CATALOG_PRODUCT_NOT_FOUND`, `CATALOG_VARIANT_NOT_FOUND`, `CATALOG_LISTING_NOT_FOUND`, `CATALOG_IMAGE_NOT_FOUND`, `UPLOAD_NOT_FOUND`,
          *     `CATALOG_OPTION_GROUP_NOT_FOUND`, `CATALOG_OPTION_ITEM_NOT_FOUND`
          */
         NotFound: {
@@ -2396,6 +2521,27 @@ export interface components {
             };
         };
         /**
+         * @description `CATALOG_IMAGE_IN_USE`, `CATALOG_IMAGE_LIMIT_REACHED`, `CATALOG_IMAGE_ORDER_STALE` or
+         *     `CATALOG_PRODUCT_INVALID_TRANSITION` (Decision AG)
+         */
+        ImageConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CATALOG_IMAGE_INVALID` — the stored file is not a usable image of that purpose (Decision AG1) */
+        ImageInvalid: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
          * @description `CATALOG_PRODUCT_ARCHIVED`, `CATALOG_OPTION_ARCHIVED` or `BRANCH_INVALID_TRANSITION` (a `CLOSED` Branch)
          *     (Decision AD)
          */
@@ -2457,8 +2603,8 @@ export interface components {
             };
         };
         /**
-         * @description `CATALOG_SLUG_TAKEN`, `CATALOG_CATEGORY_ARCHIVED`, `CATALOG_CATEGORY_IN_USE` or `CATALOG_CATEGORY_ORDER_STALE`
-         *     (Decision Y)
+         * @description `CATALOG_SLUG_TAKEN`, `CATALOG_CATEGORY_ARCHIVED`, `CATALOG_CATEGORY_IN_USE`, `CATALOG_CATEGORY_ORDER_STALE`
+         *     (Decision Y) or `CATALOG_IMAGE_IN_USE` (AG4)
          */
         CategoryConflict: {
             headers: {
@@ -2468,7 +2614,10 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `CATALOG_CATEGORY_DEPTH_EXCEEDED` — the tree would get more than 2 levels (Decision Y2, Y3) */
+        /**
+         * @description `CATALOG_CATEGORY_DEPTH_EXCEEDED` — the tree would get more than 2 levels (Decision Y2, Y3); or
+         *     `CATALOG_IMAGE_INVALID` for the image of a PATCH (AG4)
+         */
         CategoryDepthExceeded: {
             headers: {
                 [name: string]: unknown;
@@ -3959,6 +4108,164 @@ export interface operations {
             409: components["responses"]["VariantConflict"];
             412: components["responses"]["VersionConflict"];
             422: components["responses"]["ProductActivationInvalid"];
+        };
+    };
+    addProductImage: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductImageInput"];
+            };
+        };
+        responses: {
+            /** @description The Product with the new image. */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ImageConflict"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["ImageInvalid"];
+        };
+    };
+    reorderProductImages: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductImageOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description The Product after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ImageConflict"];
+            412: components["responses"]["VersionConflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    removeProductImage: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Product after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductInvalidTransition"];
+            412: components["responses"]["VersionConflict"];
+        };
+    };
+    updateProductImage: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["ProductImagePatch"];
+            };
+        };
+        responses: {
+            /** @description The Product after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductInvalidTransition"];
+            412: components["responses"]["VersionConflict"];
+            428: components["responses"]["PreconditionRequired"];
         };
     };
     activateProduct: {

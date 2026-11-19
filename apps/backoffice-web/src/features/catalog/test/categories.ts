@@ -15,6 +15,8 @@ export function aCategory(overrides: Partial<Category> = {}): Category {
     version: 2,
     createdAt: "2026-11-01T03:00:00Z",
     updatedAt: "2026-11-01T03:00:00Z",
+    imageObjectId: null,
+    imageUrl: null,
     ...overrides,
   };
 }
