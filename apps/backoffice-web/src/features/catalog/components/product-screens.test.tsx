@@ -243,9 +243,10 @@ describe("Product create (D3d screen 22)", () => {
     // Shown once: the flag leaves the URL, so a reload does not repeat it.
     await waitFor(() => expect(router.state.location.search).toEqual({}));
     expect(screen.getByText("Đã tạo món ở trạng thái Nháp.")).toBeInTheDocument();
-    const sizes = within(screen.getByRole("table", { name: "Size và giá gốc" }));
-    expect(sizes.getByRole("row", { name: /MATCHA-DX-L/ })).toHaveTextContent("65.000 ₫");
-    expect(sizes.getByRole("row", { name: /MATCHA-DX-L/ })).toHaveTextContent("Mặc định");
+    const large = within(screen.getByRole("group", { name: "Size L" }));
+    expect(large.getByText("MATCHA-DX-L")).toBeInTheDocument();
+    expect(large.getByRole<HTMLInputElement>("textbox", { name: "Giá gốc size L (đồng)" }).value.replace(/\s/g, " ")).toBe("65.000 ₫");
+    expect(large.getByRole("radio", { name: "Mặc định" })).toBeChecked();
   });
 
   it("checks the form before sending and puts the keyboard on the first error", async () => {

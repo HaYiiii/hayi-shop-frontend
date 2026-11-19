@@ -1025,6 +1025,189 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/branches/{branchId}/listings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Every non-archived Product with its listing at this Branch
+         * @description `CATALOG_VIEW` at that Branch. Offset page sorted by `name` (Decision AD6, like Z6); `q` matches name, code or
+         *     SKU. `listing` is `null` while the Product is not sold here. Unknown Branch → `404 BRANCH_NOT_FOUND`.
+         */
+        get: operations["listBranchListings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}/listings/{productId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put a Product on sale at this Branch, or take it off
+         * @description `BRANCH_LISTING_MANAGE` at that Branch. Only `AVAILABLE | NOT_AVAILABLE`; `SOLD_OUT`/`PAUSED` → `400` (Decision
+         *     W2). Taking off a `SOLD_OUT`/`PAUSED` listing keeps that state, putting it back on sale restores it (AD5).
+         *     Requires `If-Match` of the listing; `"v0"` creates it (AD2). `DRAFT`/`ACTIVE`/`INACTIVE` Products may be
+         *     listed; `ARCHIVED` → `409 CATALOG_PRODUCT_ARCHIVED` (W3). Unknown Branch → `404`, `CLOSED` → `409`. Unchanged
+         *     keeps the version; changes are audited. Requires `X-CSRF-Token`.
+         */
+        put: operations["putBranchListing"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}/listings/{productId}/unlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take a Product off sale at this Branch
+         * @description `BRANCH_LISTING_MANAGE` at that Branch. Same as `PUT` with `NOT_AVAILABLE` (Decision AD2, AD5). No listing →
+         *     `404 CATALOG_LISTING_NOT_FOUND`. Optional `If-Match`. Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["unlistBranchListing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}/listings/{productId}/variants/{variantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                productId: components["parameters"]["ProductId"];
+                variantId: components["parameters"]["VariantId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a Variant's Branch price and whether it is sold here
+         * @description `BRANCH_LISTING_MANAGE` at that Branch, which covers the Branch price (Decision AD1). `price` is the full price
+         *     (`null` = `basePrice`, Catalog §5.5); negative → `422 CATALOG_PRICE_NEGATIVE`. `availabilityState` as for the
+         *     listing (W2, AD5); a price change never touches the state. Requires `If-Match` of the listing; no listing →
+         *     `404 CATALOG_LISTING_NOT_FOUND`; a Variant of another Product or archived → `404 CATALOG_VARIANT_NOT_FOUND`
+         *     (AD2). Unchanged keeps the version; changes are audited. Requires `X-CSRF-Token`.
+         */
+        put: operations["putBranchVariantListing"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/branches/{branchId}/option-item-listings/{optionItemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                optionItemId: components["parameters"]["OptionItemId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set an option's Branch price
+         * @description `BRANCH_LISTING_MANAGE` at that Branch (Decision AD3). `extraPrice` is the full extra price (`null` = Product
+         *     override / library price, AD4); negative → `422 CATALOG_PRICE_NEGATIVE`. Its availability changes only in the
+         *     Sold-out workspace. Requires `If-Match`; `"v0"` creates it. Unknown item → `404 CATALOG_OPTION_ITEM_NOT_FOUND`,
+         *     archived → `409 CATALOG_OPTION_ARCHIVED`. Unchanged keeps the version; changes are audited. Requires
+         *     `X-CSRF-Token`.
+         */
+        put: operations["putBranchOptionItemListing"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask for a pre-signed URL to upload one image
+         * @description `CATALOG_MANAGE`. Only `PRODUCT_IMAGE` / `CATEGORY_IMAGE` in S2; a declared type outside jpeg/png/webp, more
+         *     than 5 MB or a malformed checksum → `400` (Decision AF1). Returns the `PUT` to send the bytes to, valid 10
+         *     minutes, with the headers it was signed with, then call `finalize`. Requires `X-CSRF-Token`.
+         */
+        post: operations["createUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{storedObjectId}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storedObjectId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the uploaded bytes and make the image usable
+         * @description `CATALOG_MANAGE`; only the user who asked for the upload (else `403`). The server reads the object (Decision
+         *     AF2): missing → `422 UPLOAD_NOT_FOUND_IN_STORAGE` (upload, then finalize again); over 5 MB →
+         *     `422 UPLOAD_TOO_LARGE`; real type not jpeg/png/webp or not the declared one → `422 UPLOAD_MIME_MISMATCH`;
+         *     SHA-256 differs → `422 UPLOAD_CHECKSUM_MISMATCH` (these three end the intent). Readable size → `ACTIVE` with
+         *     `publicUrl`; unreadable → `QUARANTINED`. Already finalized → `409 UPLOAD_ALREADY_FINALIZED`; unknown →
+         *     `404 UPLOAD_NOT_FOUND`. Requires `X-CSRF-Token`.
+         */
+        post: operations["finalizeUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/option-groups": {
         parameters: {
             query?: never;
@@ -1455,8 +1638,133 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        /**
+         * @description What the file is for; S2 takes only these two (Decision AF1).
+         * @enum {string}
+         */
+        UploadPurpose: "PRODUCT_IMAGE" | "CATEGORY_IMAGE";
+        /** @enum {string} */
+        ImageMimeType: "image/jpeg" | "image/png" | "image/webp";
+        UploadIntentRequest: {
+            purpose: components["schemas"]["UploadPurpose"];
+            fileName: string;
+            contentType: components["schemas"]["ImageMimeType"];
+            /** Format: int64 */
+            sizeBytes: number;
+            /** @description Hex SHA-256 of the bytes. */
+            checksumSha256: string;
+        };
+        UploadIntent: {
+            /** Format: uuid */
+            storedObjectId: string;
+            upload: {
+                /** @enum {string} */
+                method: "PUT";
+                url: string;
+                /** @description Send exactly these headers with the `PUT`. */
+                headers: {
+                    [key: string]: string;
+                };
+                /** Format: date-time */
+                expiresAt: string;
+            };
+            constraints: {
+                /** Format: int64 */
+                maxSizeBytes: number;
+                allowedMimeTypes: string[];
+            };
+        };
+        UploadFinalized: {
+            /** Format: uuid */
+            storedObjectId: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "QUARANTINED";
+            detectedMimeType: string;
+            /** Format: int64 */
+            sizeBytes: number;
+            /** Format: int32 */
+            width: number | null;
+            /** Format: int32 */
+            height: number | null;
+            /** @description Only for an `ACTIVE` public object. */
+            publicUrl: string | null;
+        };
+        /**
+         * @description Branch availability (Catalog §5.6, Decision F).
+         * @enum {string}
+         */
+        AvailabilityState: "NOT_AVAILABLE" | "AVAILABLE" | "SOLD_OUT" | "PAUSED";
+        /**
+         * @description The only states a listing command sets; `SOLD_OUT`/`PAUSED` → `400` (Decision W2).
+         * @enum {string}
+         */
+        ListingAvailabilityInput: "AVAILABLE" | "NOT_AVAILABLE";
+        BranchListingInput: {
+            availabilityState: components["schemas"]["ListingAvailabilityInput"];
+        };
+        BranchVariantListingInput: {
+            /**
+             * Format: int64
+             * @description Full Branch price in VND; `null` = `basePrice` (Decision AD4).
+             */
+            price: number | null;
+            availabilityState: components["schemas"]["ListingAvailabilityInput"];
+        };
+        BranchOptionItemListingInput: {
+            /**
+             * Format: int64
+             * @description Full Branch extra price in VND; `null` = Product override / library price (Decision AD4).
+             */
+            extraPrice: number | null;
+        };
+        BranchOptionItemListing: {
+            /** Format: uuid */
+            optionItemId: string;
+            /** Format: int64 */
+            extraPrice: number | null;
+            availabilityState: components["schemas"]["AvailabilityState"];
+            /** Format: int64 */
+            version: number;
+        };
+        BranchVariantListing: {
+            /** Format: uuid */
+            variantId: string;
+            name: string;
+            /** Format: int64 */
+            basePrice: number;
+            /**
+             * Format: int64
+             * @description `null` = no Branch price.
+             */
+            price: number | null;
+            /**
+             * Format: int64
+             * @description `price`, or `basePrice` when `null`.
+             */
+            effectivePrice: number;
+            availabilityState: components["schemas"]["AvailabilityState"];
+        };
+        BranchListing: {
+            availabilityState: components["schemas"]["AvailabilityState"];
+            /** Format: int64 */
+            version: number;
+            /** @description Every non-archived Variant; one without its own row inherits (`AVAILABLE`, no Branch price). */
+            variants: components["schemas"]["BranchVariantListing"][];
+        };
+        BranchListingRow: {
+            /** Format: uuid */
+            productId: string;
+            productCode: string;
+            name: string;
+            status: components["schemas"]["ProductStatus"];
+            listing: components["schemas"]["BranchListing"] | null;
+        };
         ProductPage: {
             items: components["schemas"]["ProductSummary"][];
+            page: components["schemas"]["OffsetPage"];
+        };
+        BranchListingPage: {
+            items: components["schemas"]["BranchListingRow"][];
             page: components["schemas"]["OffsetPage"];
         };
         /**
@@ -1979,7 +2287,7 @@ export interface components {
         };
         /**
          * @description `BRANCH_NOT_FOUND`, `BRANCH_HOURS_OVERRIDE_NOT_FOUND`, `FULFILLMENT_OVERRIDE_NOT_FOUND`,
-         *     `CATALOG_CATEGORY_NOT_FOUND`, `CATALOG_PRODUCT_NOT_FOUND`, `CATALOG_VARIANT_NOT_FOUND`,
+         *     `CATALOG_CATEGORY_NOT_FOUND`, `CATALOG_PRODUCT_NOT_FOUND`, `CATALOG_VARIANT_NOT_FOUND`, `CATALOG_LISTING_NOT_FOUND`, `UPLOAD_NOT_FOUND`,
          *     `CATALOG_OPTION_GROUP_NOT_FOUND`, `CATALOG_OPTION_ITEM_NOT_FOUND`
          */
         NotFound: {
@@ -2059,6 +2367,48 @@ export interface components {
          *     (Z2).
          */
         ProductConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `UPLOAD_ALREADY_FINALIZED` (Decision AF2) */
+        UploadConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `UPLOAD_NOT_FOUND_IN_STORAGE`, `UPLOAD_TOO_LARGE`, `UPLOAD_MIME_MISMATCH` or `UPLOAD_CHECKSUM_MISMATCH`
+         *     (Decision AF2)
+         */
+        UploadRejected: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `CATALOG_PRODUCT_ARCHIVED`, `CATALOG_OPTION_ARCHIVED` or `BRANCH_INVALID_TRANSITION` (a `CLOSED` Branch)
+         *     (Decision AD)
+         */
+        ListingConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CATALOG_PRICE_NEGATIVE` with `errors[]` (Decision AD4) */
+        ListingRuleViolated: {
             headers: {
                 [name: string]: unknown;
             };
@@ -3795,6 +4145,267 @@ export interface operations {
             412: components["responses"]["VersionConflict"];
             422: components["responses"]["ProductOptionRuleViolated"];
             428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    listBranchListings: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                q?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchListingPage"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    putBranchListing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchListingInput"];
+            };
+        };
+        responses: {
+            /** @description The Product with its listing. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchListingRow"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ListingConflict"];
+            412: components["responses"]["VersionConflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    unlistBranchListing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Product with its listing. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchListingRow"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ListingConflict"];
+            412: components["responses"]["VersionConflict"];
+        };
+    };
+    putBranchVariantListing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                productId: components["parameters"]["ProductId"];
+                variantId: components["parameters"]["VariantId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchVariantListingInput"];
+            };
+        };
+        responses: {
+            /** @description The Product with its listing. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchListingRow"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ListingConflict"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["ListingRuleViolated"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    putBranchOptionItemListing: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                /** @description A malformed id is outside every scope → `403 BRANCH_SCOPE_DENIED` (Decision M1). */
+                branchId: components["parameters"]["BranchId"];
+                optionItemId: components["parameters"]["OptionItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchOptionItemListingInput"];
+            };
+        };
+        responses: {
+            /** @description The option's listing at this Branch. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchOptionItemListing"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ListingConflict"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["ListingRuleViolated"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    createUpload: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadIntentRequest"];
+            };
+        };
+        responses: {
+            /** @description The upload intent. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadIntent"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    finalizeUpload: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                storedObjectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The checked object. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadFinalized"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["UploadConflict"];
+            422: components["responses"]["UploadRejected"];
         };
     };
     listOptionGroups: {

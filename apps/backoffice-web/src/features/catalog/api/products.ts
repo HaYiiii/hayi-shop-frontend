@@ -59,3 +59,69 @@ export function productQuery(api: BackofficeClient, productId: string) {
 export function createProduct(api: BackofficeClient, body: ProductCreateRequest) {
   return unwrap(api.POST("/products", { body }));
 }
+
+type ProductPatch = Schemas["ProductPatch"];
+type VariantPatch = Schemas["ProductVariantPatch"];
+type VariantInput = Schemas["ProductVariantInput"];
+export type ProductCommand = "activate" | "deactivate" | "archive";
+
+/** Every write answers the Product with its new version (Decision AE); stale screens get `412`. */
+const ifMatch = (version: number) => ({ "If-Match": `"v${version}"` });
+const mergePatch = { "Content-Type": "application/merge-patch+json" };
+
+/** Merge Patch of name, slug, category and descriptions; `If-Match` required (API 08 §1.7). */
+export function updateProduct(api: BackofficeClient, product: Product, body: ProductPatch, version = product.version) {
+  return unwrap(
+    api.PATCH("/products/{productId}", {
+      params: { path: { productId: product.productId }, header: ifMatch(version) },
+      body,
+      headers: mergePatch,
+    }),
+  );
+}
+
+/** Adds a size last; needs `CATALOG_PRICE_MANAGE` too. */
+export function addVariant(api: BackofficeClient, product: Product, body: VariantInput, version = product.version) {
+  return unwrap(
+    api.POST("/products/{productId}/variants", {
+      params: { path: { productId: product.productId }, header: ifMatch(version) },
+      body,
+    }),
+  );
+}
+
+/** Merge Patch of a size; `If-Match` = the Product's version. */
+export function updateVariant(api: BackofficeClient, product: Product, variantId: string, body: VariantPatch, version = product.version) {
+  return unwrap(
+    api.PATCH("/products/{productId}/variants/{variantId}", {
+      params: { path: { productId: product.productId, variantId }, header: ifMatch(version) },
+      body,
+      headers: mergePatch,
+    }),
+  );
+}
+
+/** Final; the default size cannot be archived while another one is left (`409 CATALOG_VARIANT_IS_DEFAULT`). */
+export function archiveVariant(api: BackofficeClient, product: Product, variantId: string) {
+  return unwrap(
+    api.POST("/products/{productId}/variants/{variantId}/archive", {
+      params: { path: { productId: product.productId, variantId }, header: ifMatch(product.version) },
+    }),
+  );
+}
+
+/**
+ * Lifecycle (API 08 §1.4, Decision AA). `If-Match` is optional and left out: the server checks the
+ * transition, and an edit of the name meanwhile should not stop an activation.
+ */
+export function runProductCommand(api: BackofficeClient, product: Product, command: ProductCommand) {
+  const params = { path: { productId: product.productId } };
+  switch (command) {
+    case "activate":
+      return unwrap(api.POST("/products/{productId}/activate", { params }));
+    case "deactivate":
+      return unwrap(api.POST("/products/{productId}/deactivate", { params }));
+    case "archive":
+      return unwrap(api.POST("/products/{productId}/archive", { params }));
+  }
+}

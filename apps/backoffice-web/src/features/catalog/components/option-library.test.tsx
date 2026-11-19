@@ -133,6 +133,44 @@ describe("Option library (D3d screen 27)", () => {
     );
   });
 
+  it("stops a save at the failed request, keeps what went through and sends only the rest next time", async () => {
+    const fake = server();
+    let taken = true;
+    const { api, user } = renderAdmin(
+      "/admin/options?group=g-topping",
+      {
+        ...fake.handlers,
+        "POST /option-groups/g-topping/items": (body: unknown) =>
+          taken ? problem(409, "CATALOG_CODE_TAKEN") : fake.handlers["POST /option-groups/g-topping/items"](body),
+      },
+      catalogOwner,
+    );
+    const form = within(await screen.findByRole("form", { name: "Topping" }));
+
+    await user.clear(form.getByRole("textbox", { name: "Tên nhóm (khách thấy)" }));
+    await user.type(form.getByRole("textbox", { name: "Tên nhóm (khách thấy)" }), "Topping mới");
+    await user.click(form.getByRole("button", { name: "Thêm lựa chọn" }));
+    await user.type(form.getByRole("textbox", { name: "Tên lựa chọn 4" }), "Trân châu đen");
+    await user.type(form.getByRole("textbox", { name: "Giá thêm lựa chọn 4 (đồng)" }), "5000");
+    await user.click(form.getByRole("button", { name: "Lưu nhóm" }));
+
+    const renamed = within(await screen.findByRole("form", { name: "Topping mới" }));
+    const code = renamed.getByRole("textbox", { name: "Mã lựa chọn 4" });
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/Mã này đã có trong nhóm/));
+    expect(code).toHaveFocus();
+    expect(renamed.getByRole("textbox", { name: "Tên nhóm (khách thấy)" })).toHaveValue("Topping mới");
+
+    taken = false;
+    await user.clear(code);
+    await user.type(code, "TRAN-CHAU-2");
+    await user.click(renamed.getByRole("button", { name: "Lưu nhóm" }));
+    expect(await screen.findByText("Đã lưu nhóm.")).toBeInTheDocument();
+    // The group patch went through the first time; the second save only adds the item, on the new version.
+    expect(api.calls.filter((c) => c.route === "PATCH /option-groups/g-topping")).toHaveLength(1);
+    expect(ifMatchOf(api, "POST /option-groups/g-topping/items")).toEqual(['"v8"', '"v8"']);
+    expect(api.bodyOf("POST /option-groups/g-topping/items")).toMatchObject({ code: "TRAN-CHAU-2" });
+  });
+
   it("shows OPTION_GROUP_MINMAX_INVALID at min/max and checks min/max before sending", async () => {
     const fake = server();
     const { api, user } = renderAdmin(
