@@ -194,7 +194,8 @@ function OptionsForm({ library }: { library: OptionGroup[] }) {
   }
 
   function detach(row: AttachedGroup) {
-    flushSync(() => setEditor((e) => detachGroup(e, row.optionGroupId)));
+    const itemIds = byId.get(row.optionGroupId)?.items.map((item) => item.optionItemId) ?? [];
+    flushSync(() => setEditor((e) => detachGroup(e, row.optionGroupId, itemIds)));
     attachRef.current?.focus();
   }
 
@@ -235,9 +236,19 @@ function OptionsForm({ library }: { library: OptionGroup[] }) {
           </Button>
         </div>
       ) : libraryChanged ? (
-        <FormAlert tone="danger">
-          Chưa lưu được: một nhóm vừa đổi ở thư viện tuỳ chọn. Kiểm tra nhóm được đánh dấu bên dưới rồi lưu lại.
-        </FormAlert>
+        Object.keys(errors).length > 0 ? (
+          <FormAlert tone="danger">
+            Chưa lưu được: một nhóm vừa đổi ở thư viện tuỳ chọn. Kiểm tra nhóm được đánh dấu bên dưới rồi lưu lại.
+          </FormAlert>
+        ) : (
+          // The reloaded library does not show which group (yet): offer a full reload.
+          <div className="grid justify-items-start gap-2">
+            <FormAlert tone="danger">Chưa lưu được: thư viện tuỳ chọn vừa thay đổi. Tải lại để lấy bản mới rồi lưu lại.</FormAlert>
+            <Button variant="outline" density="compact" onClick={() => void reloadLatest()}>
+              Tải lại
+            </Button>
+          </div>
+        )
       ) : unexpected ? (
         <FormAlert tone="danger">Chưa lưu được tuỳ chọn. Bạn thử lại sau ít phút nhé.</FormAlert>
       ) : null}
@@ -390,7 +401,16 @@ function GroupCard(props: GroupCardProps) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p className="text-label font-normal text-ink-muted">{`${items.map((item) => item.name).join(" · ")} — không thêm tiền.`}</p>
           {readOnly ? null : (
-            <Button variant="link" aria-expanded={false} aria-controls={tableId} onClick={() => setOpened(true)}>
+            <Button
+              variant="link"
+              aria-expanded={false}
+              aria-controls={tableId}
+              onClick={() => {
+                // The button goes when the table opens: the keyboard moves to the table's first price.
+                flushSync(() => setOpened(true));
+                document.getElementById(tableId)?.querySelector<HTMLElement>("input")?.focus();
+              }}
+            >
               Chỉnh giá hoặc ẩn lựa chọn
             </Button>
           )}

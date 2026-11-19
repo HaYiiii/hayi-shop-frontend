@@ -62,6 +62,21 @@ describe("attach / detach / move / limits", () => {
     expect(editor.groups.map((g) => g.optionGroupId)).toEqual(["g-topping"]);
   });
 
+  it("detaching a group drops its item settings, as the server does (AC2)", () => {
+    const before = attached();
+    const editor = detachGroup(optionsEditorOf(before), "g-topping", aGroup().items.map((i) => i.optionItemId));
+    expect(editor.items).toEqual({});
+    // The answer of the save (group and its overrides gone) matches the editor: nothing left to save.
+    const after = attached({
+      version: 1,
+      optionGroups: [before.optionGroups[0]!],
+      optionItemOverrides: [],
+    });
+    expect(isOptionsEdited(editor, after)).toBe(false);
+    // Attached again, the group starts from the library.
+    expect(attachGroup(editor, "g-topping").items).toEqual({});
+  });
+
   it("an item setting back to the default counts as unchanged", () => {
     let editor = setItem(optionsEditorOf(attached()), "i-jelly", { hidden: true });
     expect(isOptionsEdited(editor, attached())).toBe(true);

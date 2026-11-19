@@ -90,8 +90,16 @@ export function attachGroup(editor: OptionsEditor, optionGroupId: string): Optio
   return { ...editor, groups: [...editor.groups, { optionGroupId, min: "", max: "" }] };
 }
 
-export function detachGroup(editor: OptionsEditor, optionGroupId: string): OptionsEditor {
-  return { ...editor, groups: editor.groups.filter((g) => g.optionGroupId !== optionGroupId) };
+/**
+ * Removes a group with the settings of its items (`itemIds`): the server drops those overrides too (AC2),
+ * so the editor matches the next version, and attaching the group again starts from the library.
+ */
+export function detachGroup(editor: OptionsEditor, optionGroupId: string, itemIds: readonly string[] = []): OptionsEditor {
+  const drop = new Set(itemIds);
+  return {
+    groups: editor.groups.filter((g) => g.optionGroupId !== optionGroupId),
+    items: Object.fromEntries(Object.entries(editor.items).filter(([id]) => !drop.has(id))),
+  };
 }
 
 /** Moves a group one place up (`-1`) or down (`1`) in the order customers see. */

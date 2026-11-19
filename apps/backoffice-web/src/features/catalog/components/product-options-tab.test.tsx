@@ -113,6 +113,7 @@ describe("Product options tab (D3d screen 24)", () => {
     await user.clear(card("Topping").getByRole("textbox", { name: "Chọn tối đa Topping ở món này" }));
     await user.click(card("Topping").getByRole("checkbox", { name: "Hiện Thạch matcha ở món này" }));
     await user.click(card("Mức đường").getByRole("button", { name: "Chỉnh giá hoặc ẩn lựa chọn" }));
+    expect(card("Mức đường").getByRole("textbox", { name: "Giá thêm 100% ở món này (đồng)" })).toHaveFocus();
     await user.type(card("Mức đường").getByRole("textbox", { name: "Giá thêm 50% ở món này (đồng)" }), "2000");
     await user.click(screen.getByRole("button", { name: "Lưu tuỳ chọn" }));
 
@@ -158,6 +159,11 @@ describe("Product options tab (D3d screen 24)", () => {
     });
     expect(api.calls.some((c) => c.route === "PUT /products/p-new/option-item-overrides")).toBe(false);
     expect(screen.getByRole("link", { name: "Tuỳ chọn 2 nhóm" })).toBeInTheDocument();
+
+    // Attached again, Topping starts from the library: its old price for this Product went with it (AC2).
+    await user.selectOptions(select, "Topping");
+    await user.click(screen.getByRole("button", { name: "Gắn" }));
+    expect(card("Topping").getByRole("textbox", { name: "Giá thêm Trân châu ở món này (đồng)" })).toHaveValue("");
   });
 
   it("checks min/max at the right group before sending", async () => {
