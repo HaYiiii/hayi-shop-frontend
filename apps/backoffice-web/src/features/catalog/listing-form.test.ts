@@ -1,7 +1,21 @@
 import { formatVnd } from "@hayi/domain-utils";
 import { describe, expect, it } from "vitest";
-import { isSelling, priceSummary, rebaseSizes, sizeChanges, sizeErrors, sizeRowsOf, sizesEdited } from "./listing-form";
+import {
+  isSelling,
+  optionChanges,
+  optionErrors,
+  optionRowsOf,
+  priceSummary,
+  rebaseOptionRows,
+  rebaseSizes,
+  sizeChanges,
+  sizeErrors,
+  sizeRowsOf,
+  sizesEdited,
+} from "./listing-form";
 import { aListing } from "./test/listings";
+import { aGroup } from "./test/option-groups";
+import { aProduct } from "./test/products";
 
 const nbsp = (text: string) => text.replace(/\s/g, " ");
 
@@ -60,5 +74,47 @@ describe("size rows", () => {
     expect(sizeErrors([{ ...rows[0]!, price: "-5" }, rows[1]!])).toEqual({
       "v-m": "Nhập giá đầy đủ, ví dụ 48.000, hoặc để trống để dùng giá gốc.",
     });
+  });
+});
+
+describe("option price rows", () => {
+  const product = aProduct({
+    optionGroups: [
+      { optionGroupId: "g-topping", code: "TOPPING", name: "Topping", selectionType: "MULTIPLE", minSelect: 0, maxSelect: 3, minSelectOverride: null, maxSelectOverride: null, sortOrder: 0 },
+    ],
+    optionItemOverrides: [
+      { optionItemId: "i-pearl", extraPriceOverride: 12000, isHidden: false },
+      { optionItemId: "i-jelly", extraPriceOverride: null, isHidden: true },
+    ],
+  });
+  const library = [aGroup({ items: [...aGroup().items, { optionItemId: "i-cheese", code: "CHEESE", name: "Kem cheese", defaultExtraPrice: 12000, isDefaultSelected: false, status: "ACTIVE", sortOrder: 4 }] })];
+  const listings = [{ optionItemId: "i-cheese", extraPrice: 15000, availabilityState: "AVAILABLE" as const, version: 2 }];
+
+  it("lists the items customers can pick here with the Product price and the Branch price", () => {
+    expect(optionRowsOf(product, library, listings).map((r) => [r.optionItemId, r.groupName, r.productPrice, nbsp(r.price), r.version])).toEqual([
+      ["i-pearl", "Topping", 12000, "", 0],
+      ["i-cheese", "Topping", 12000, "15.000 ₫", 2],
+    ]);
+  });
+
+  it("sends one change per item with the item's version, v0 when it has no listing yet", () => {
+    const before = optionRowsOf(product, library, listings);
+    const rows = [{ ...before[0]!, price: "11000" }, { ...before[1]!, price: "" }];
+    expect(optionChanges(before, rows)).toEqual([
+      { optionItemId: "i-pearl", version: 0, extraPrice: 11000 },
+      { optionItemId: "i-cheese", version: 2, extraPrice: null },
+    ]);
+    expect(optionChanges(before, before)).toEqual([]);
+    expect(optionErrors([{ ...before[0]!, price: "x" }])).toEqual({ "i-pearl": "Nhập giá thêm, ví dụ 5.000, hoặc để trống để như món." });
+  });
+
+  it("rebases typed prices on newer listings", () => {
+    const before = optionRowsOf(product, library, listings);
+    const typed = [{ ...before[0]!, price: "11.000" }, before[1]!];
+    const after = optionRowsOf(product, library, [{ ...listings[0]!, extraPrice: 16000, version: 3 }]);
+    expect(rebaseOptionRows(typed, before, after).map((r) => [nbsp(r.price), r.version])).toEqual([
+      ["11.000", 0],
+      ["16.000 ₫", 3],
+    ]);
   });
 });

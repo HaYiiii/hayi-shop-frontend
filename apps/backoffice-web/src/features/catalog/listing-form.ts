@@ -1,7 +1,9 @@
 import { formatVnd } from "@hayi/domain-utils";
 import type { StatusBadgeTone } from "@hayi/ui";
 import type { BackofficeComponents } from "@hayi/api-client";
-import type { BranchListing, ListingState } from "./api/listings";
+import type { OptionGroup } from "./api/option-groups";
+import type { BranchListing, ListingState, OptionItemListing } from "./api/listings";
+import type { Product } from "./api/products";
 import { parsePrice } from "./product-form";
 
 type VariantInput = BackofficeComponents["schemas"]["BranchVariantListingInput"];
@@ -74,6 +76,81 @@ export function rebaseSizes(rows: readonly SizePriceRow[], before: BranchListing
       price: mine.price === was.price ? fresh.price : mine.price,
       selling: mine.selling === was.selling ? fresh.selling : mine.selling,
     };
+  });
+}
+
+/**
+ * One option item of the Product as typed (D3d screen 29). The Branch price belongs to the item, so it applies
+ * to every Product using it at this Branch (AD3). `price` `""` = as the Product (AD4).
+ */
+export interface OptionPriceRow {
+  optionItemId: string;
+  name: string;
+  groupName: string;
+  /** Extra price at the Product: its override, else the library price. */
+  productPrice: number;
+  price: string;
+  /** Version of the item's Branch listing; `0` = none yet (sent as `"v0"`). */
+  version: number;
+}
+
+/** The items customers can pick in this Product (attached groups, active, not hidden here), in group order. */
+export function optionRowsOf(product: Product, library: readonly OptionGroup[], listings: readonly OptionItemListing[]): OptionPriceRow[] {
+  const groups = new Map(library.map((g) => [g.optionGroupId, g]));
+  const overrides = new Map(product.optionItemOverrides.map((o) => [o.optionItemId, o]));
+  const listed = new Map(listings.map((l) => [l.optionItemId, l]));
+  return [...product.optionGroups]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .flatMap((attached) => {
+      const group = groups.get(attached.optionGroupId);
+      if (!group || group.status !== "ACTIVE") return [];
+      return [...group.items]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .filter((item) => item.status === "ACTIVE" && !overrides.get(item.optionItemId)?.isHidden)
+        .map((item) => {
+          const listing = listed.get(item.optionItemId);
+          return {
+            optionItemId: item.optionItemId,
+            name: item.name,
+            groupName: group.name,
+            productPrice: overrides.get(item.optionItemId)?.extraPriceOverride ?? item.defaultExtraPrice,
+            price: listing?.extraPrice == null ? "" : formatVnd(listing.extraPrice),
+            version: listing?.version ?? 0,
+          };
+        });
+    });
+}
+
+const priceOf = (text: string) => (text.trim() === "" ? null : parsePrice(text));
+
+/** One `PUT /option-item-listings/{id}` per item whose Branch price changed, with the item's own version. */
+export function optionChanges(before: readonly OptionPriceRow[], rows: readonly OptionPriceRow[]) {
+  const was = new Map(before.map((r) => [r.optionItemId, r]));
+  return rows.flatMap((row) => {
+    const old = was.get(row.optionItemId);
+    if (!old || priceOf(row.price) === priceOf(old.price)) return [];
+    return [{ optionItemId: row.optionItemId, version: old.version, extraPrice: priceOf(row.price) }];
+  });
+}
+
+export function optionErrors(rows: readonly OptionPriceRow[]): SizeErrors {
+  const errors: SizeErrors = {};
+  for (const row of rows) {
+    if (row.price.trim() !== "" && parsePrice(row.price) === null) {
+      errors[row.optionItemId] = "Nhập giá thêm, ví dụ 5.000, hoặc để trống để như món.";
+    }
+  }
+  return errors;
+}
+
+/** After "Tải lại": an item the user did not change takes the new price and version; a typed one keeps its text. */
+export function rebaseOptionRows(rows: readonly OptionPriceRow[], before: readonly OptionPriceRow[], after: readonly OptionPriceRow[]): OptionPriceRow[] {
+  const typed = new Map(rows.map((r) => [r.optionItemId, r]));
+  const old = new Map(before.map((r) => [r.optionItemId, r]));
+  return after.map((fresh) => {
+    const mine = typed.get(fresh.optionItemId);
+    const was = old.get(fresh.optionItemId);
+    return mine && was && mine.price !== was.price ? { ...fresh, price: mine.price } : fresh;
   });
 }
 
