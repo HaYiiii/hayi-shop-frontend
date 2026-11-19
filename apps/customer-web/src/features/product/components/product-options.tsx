@@ -41,6 +41,8 @@ export function ProductOptions({ product, locked = false }: { product: ProductDe
                   key={variant.variantId}
                   pressed={selection.variantId === variant.variantId}
                   unavailable={locked || why !== null}
+                  // Outside selling hours the choices are only shown, not struck through (D3a screen 3b).
+                  className={locked ? "no-underline!" : undefined}
                   onClick={() => setSelection((s) => chooseVariant(s, variant))}
                 >
                   {`${variant.name} · ${formatVnd(variant.price)}${why ? ` · ${why}` : ""}`}
@@ -90,6 +92,7 @@ function SingleChoice({ group, selection, onToggle, locked }: GroupProps) {
             key={item.optionItemId}
             pressed={picked.includes(item.optionItemId)}
             unavailable={locked || !canPick(selection, group, item)}
+            className={locked && item.availability === "AVAILABLE" ? "no-underline!" : undefined}
             onClick={() => onToggle(item)}
           >
             {[item.name, extra, why].filter(Boolean).join(" · ")}
