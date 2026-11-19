@@ -359,12 +359,13 @@ function SizePrices({ row, branchId, filters, canManage, onNotice, branchName, r
           list ? [...list.filter((l) => l.optionItemId !== saved.optionItemId), saved] : [saved],
         );
       }
-      return { current, options };
+      return { current, options, sent: optionRows };
     },
     onMutate: () => onNotice(null),
-    onSuccess: ({ current, options }) => {
+    onSuccess: ({ current, options, sent }) => {
       setRows((typed) => rebaseSizes(typed, current, current));
-      if (options) setOptionRows(options);
+      // Prices typed while the save ran stay (as for sizes); the saved ones take the server's text.
+      if (options) setOptionRows((typed) => (typed ? rebaseOptionRows(typed, sent ?? options, options) : options));
       onNotice({ tone: "success", text: `Đã lưu giá của ${row.name} tại ${branchName}. Khách thấy giá mới trên menu sau khoảng một phút.` });
     },
     onError: (error) => onNotice(failureNotice(error)),
@@ -481,7 +482,21 @@ function SizePrices({ row, branchId, filters, canManage, onNotice, branchName, r
 
       {optionRows === null ? (
         product.isError || library.isError || optionListings.isError ? (
-          <FormAlert tone="danger">Chưa tải được giá tuỳ chọn. Bấm Tải lại để thử lại.</FormAlert>
+          <div className="grid justify-items-start gap-2">
+            <FormAlert tone="danger">Chưa tải được giá tuỳ chọn. Kiểm tra mạng rồi thử lại.</FormAlert>
+            <Button
+              variant="outline"
+              density="compact"
+              busy={product.isFetching || library.isFetching || optionListings.isFetching}
+              onClick={() => {
+                if (product.isError) void product.refetch();
+                if (library.isError) void library.refetch();
+                if (optionListings.isError) void optionListings.refetch();
+              }}
+            >
+              Thử lại
+            </Button>
+          </div>
         ) : (
           <Skeleton className="h-20 w-full" />
         )

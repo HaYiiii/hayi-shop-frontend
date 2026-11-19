@@ -264,6 +264,21 @@ describe("Branch option prices (D3d screen 29, FE #65)", () => {
     expect(ifMatchOf(api, "PUT /branches/b-q1/option-item-listings/i-pearl")).toEqual(['"v4"']);
   });
 
+  it("offers a retry when the option data cannot be loaded", async () => {
+    const fake = optionServer();
+    let failing = true;
+    const { user } = renderAdmin(
+      PATH,
+      { ...fake.handlers, "GET /option-groups": () => (failing ? problem(503, "SERVICE_UNAVAILABLE") : json({ items: [aGroup()] })) },
+      manager,
+    );
+    await user.click(await screen.findByRole("button", { name: "Mở rộng Matcha Latte" }));
+    expect(await screen.findByText(/Chưa tải được giá tuỳ chọn/)).toBeInTheDocument();
+    failing = false;
+    await user.click(screen.getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByRole("table", { name: "Tuỳ chọn của Matcha Latte" })).toBeInTheDocument();
+  });
+
   it("is read-only without BRANCH_LISTING_MANAGE", async () => {
     const { user } = renderAdmin(PATH, optionServer().handlers, viewer);
     await user.click(await screen.findByRole("button", { name: "Mở rộng Matcha Latte" }));
