@@ -14,6 +14,7 @@ import {
   optionsEditorOf,
   overridesBody,
   overridesChanged,
+  rebaseOptions,
   serverErrors,
   setItem,
   setLimits,
@@ -133,6 +134,21 @@ describe("request bodies", () => {
     expect(overridesBody(detachGroup(editor, "g-topping"), library)).toEqual({
       overrides: [{ optionItemId: "i-s50", extraPriceOverride: 2000, isHidden: false }],
     });
+  });
+});
+
+describe("rebaseOptions", () => {
+  it("keeps what the user changed and takes the rest from the new version", () => {
+    const before = attached();
+    const editor = setItem(optionsEditorOf(before), "i-jelly", { hidden: true });
+    const after = attached({
+      version: 9,
+      optionGroups: [{ ...pog("g-sugar", "SUGAR", "Mức đường", "SINGLE", 1, 1), sortOrder: 0 }],
+      optionItemOverrides: [{ optionItemId: "i-pearl", extraPriceOverride: 15000, isHidden: false }],
+    });
+    const next = rebaseOptions(editor, before, after);
+    expect(next.groups).toEqual([{ optionGroupId: "g-sugar", min: "", max: "" }]);
+    expect(next.items).toEqual({ "i-pearl": { price: formatVnd(15000), hidden: false }, "i-jelly": { price: "", hidden: true } });
   });
 });
 

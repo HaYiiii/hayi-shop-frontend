@@ -13,6 +13,7 @@ import { useCategoryTree } from "../hooks/use-categories";
 import { type ActivationIssue, activationIssues } from "../product-editor";
 import { productStatusLabel, productStatusTone } from "../product-status";
 import { ProductBreadcrumb } from "./product-breadcrumb";
+import { groupHeadingId } from "../product-options";
 
 export type Notice = { tone: "success" | "danger" | "warning"; text: string; reload?: boolean };
 
@@ -154,6 +155,16 @@ function ProductTabs({ product, onSwitch }: { product: Product; onSwitch: () => 
     <nav aria-label="Phần của món" className="flex gap-1 border-b border-line">
       <Link to="/admin/products/$id" params={params} activeOptions={{ exact: true }} className={tabClass} onClick={onSwitch}>
         Thông tin &amp; size
+      </Link>
+      <Link
+        to="/admin/products/$id/options"
+        params={params}
+        aria-label={`Tuỳ chọn ${product.optionGroups.length} nhóm`}
+        className={tabClass}
+        onClick={onSwitch}
+      >
+        Tuỳ chọn
+        <span className="ml-1.5 rounded-full bg-sunken px-1.5 text-caption font-semibold tabular-nums">{product.optionGroups.length}</span>
       </Link>
     </nav>
   );
@@ -302,12 +313,33 @@ function ConfirmCommand({ command }: { command: "deactivate" | "archive" }) {
   );
 }
 
-/** Where each issue is fixed: a control of tab "Thông tin & size" gets the keyboard (a selector). */
-const issueTarget: Partial<Record<ActivationIssue["code"], string>> = {
-  NO_ACTIVE_VARIANT: "#product-sizes",
-  PRIMARY_CATEGORY_MISSING: '[name="primaryCategoryId"]',
-  PRIMARY_CATEGORY_INACTIVE: '[name="primaryCategoryId"]',
-};
+type IssueTab = "/admin/products/$id" | "/admin/products/$id/options";
+
+/** Where each issue is fixed: the tab, and the control there that gets the keyboard (a selector). */
+function issueTarget(issue: ActivationIssue): { to: IssueTab; selector: string } | null {
+  switch (issue.code) {
+    case "NO_ACTIVE_VARIANT":
+      return { to: "/admin/products/$id", selector: "#product-sizes" };
+    case "PRIMARY_CATEGORY_MISSING":
+    case "PRIMARY_CATEGORY_INACTIVE":
+      return { to: "/admin/products/$id", selector: '[name="primaryCategoryId"]' };
+    case "OPTION_CONFIG_INVALID":
+      return issue.optionGroupId ? { to: "/admin/products/$id/options", selector: `#${groupHeadingId(issue.optionGroupId)}` } : null;
+  }
+}
+
+/** Focuses `selector` once the tab has rendered it (another tab may still be loading its data). */
+function focusWhenShown(selector: string, framesLeft = 60) {
+  requestAnimationFrame(() => {
+    const element = document.querySelector<HTMLElement>(selector);
+    if (element) {
+      element.scrollIntoView?.({ block: "center" });
+      element.focus();
+    } else if (framesLeft > 0) {
+      focusWhenShown(selector, framesLeft - 1);
+    }
+  });
+}
 
 function issueText(issue: ActivationIssue, product: Product, tree: readonly CategoryNode[]): string {
   switch (issue.code) {
@@ -322,8 +354,8 @@ function issueText(issue: ActivationIssue, product: Product, tree: readonly Cate
     case "OPTION_CONFIG_INVALID": {
       const group = product.optionGroups.find((g) => g.optionGroupId === issue.optionGroupId);
       return group
-        ? `Nhóm tuỳ chọn “${group.name}” chưa hợp lệ với món này (đã lưu trữ hoặc min/max không khớp).`
-        : "Một nhóm tuỳ chọn của món chưa hợp lệ (đã lưu trữ hoặc min/max không khớp).";
+        ? `Nhóm tuỳ chọn “${group.name}” chưa hợp lệ với món này (đã lưu trữ, hoặc tối thiểu/tối đa không khớp số lựa chọn đang hiện). Sửa ở tab Tuỳ chọn.`
+        : "Một nhóm tuỳ chọn của món chưa hợp lệ (đã lưu trữ, hoặc tối thiểu/tối đa không khớp số lựa chọn đang hiện). Sửa ở tab Tuỳ chọn.";
     }
   }
 }
@@ -336,16 +368,16 @@ function ActivationIssues({ product, issues }: { product: Product; issues: Activ
       <p className="font-semibold text-danger">Chưa kích hoạt được món này. Sửa các mục sau rồi kích hoạt lại:</p>
       <ul className="grid list-disc gap-1 pl-5">
         {issues.map((issue, i) => {
-          const target = issueTarget[issue.code];
+          const target = issueTarget(issue);
           return (
             <li key={`${issue.code}-${issue.optionGroupId ?? i}`}>
               {issueText(issue, product, tree ?? [])}{" "}
               {target ? (
                 <Link
-                  to="/admin/products/$id"
+                  to={target.to}
                   params={{ id: product.productId }}
                   className={cn("font-semibold text-matcha-700 underline underline-offset-2", focusRing)}
-                  onClick={() => requestAnimationFrame(() => document.querySelector<HTMLElement>(target)?.focus())}
+                  onClick={() => focusWhenShown(target.selector)}
                 >
                   Sửa ngay
                 </Link>

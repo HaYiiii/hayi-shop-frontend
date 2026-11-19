@@ -67,6 +67,24 @@ function normalise(editor: OptionsEditor): OptionsEditor {
   return { groups: editor.groups, items };
 }
 
+/**
+ * The editor on top of a newer version (after "Tải lại"): the group list takes the new one unless the
+ * user changed it; each item setting takes the new one unless the user changed that item.
+ */
+export function rebaseOptions(editor: OptionsEditor, before: Product, after: Product): OptionsEditor {
+  const old = optionsEditorOf(before);
+  const fresh = optionsEditorOf(after);
+  const groups = JSON.stringify(editor.groups) === JSON.stringify(old.groups) ? fresh.groups : editor.groups;
+  const none: ItemSetting = { price: "", hidden: false };
+  const same = (a: ItemSetting | undefined, b: ItemSetting | undefined) => JSON.stringify(a ?? none) === JSON.stringify(b ?? none);
+  const items: Record<string, ItemSetting> = {};
+  for (const id of new Set([...Object.keys(editor.items), ...Object.keys(old.items), ...Object.keys(fresh.items)])) {
+    const pick = same(editor.items[id], old.items[id]) ? fresh.items[id] : editor.items[id];
+    if (pick) items[id] = pick;
+  }
+  return { groups, items };
+}
+
 export function attachGroup(editor: OptionsEditor, optionGroupId: string): OptionsEditor {
   if (editor.groups.length >= GROUPS_MAX || editor.groups.some((g) => g.optionGroupId === optionGroupId)) return editor;
   return { ...editor, groups: [...editor.groups, { optionGroupId, min: "", max: "" }] };
@@ -229,3 +247,6 @@ export function serverErrors(error: unknown, sent: OverridesBody | null): Option
   }
   return result;
 }
+
+/** The id of a group's heading in tab "Tuỳ chọn", for "Sửa ngay" of `OPTION_CONFIG_INVALID` (screen 23). */
+export const groupHeadingId = (optionGroupId: string) => `option-group-${optionGroupId}`;
