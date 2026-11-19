@@ -1,6 +1,6 @@
 import { formatVnd } from "@hayi/domain-utils";
 import { describe, expect, it } from "vitest";
-import { isSelling, priceSummary, sizeChanges, sizeErrors, sizeRowsOf } from "./listing-form";
+import { isSelling, priceSummary, rebaseSizes, sizeChanges, sizeErrors, sizeRowsOf, sizesEdited } from "./listing-form";
 import { aListing } from "./test/listings";
 
 const nbsp = (text: string) => text.replace(/\s/g, " ");
@@ -37,6 +37,22 @@ describe("size rows", () => {
       { variantId: "v-m", body: { price: null, availabilityState: "AVAILABLE" } },
       { variantId: "v-l", body: { price: 57000, availabilityState: "NOT_AVAILABLE" } },
     ]);
+  });
+
+  it("rebases typed sizes on a newer listing: typed values stay, untouched ones take the new values", () => {
+    const before = aListing();
+    const rows = sizeRowsOf(before);
+    const typed = [{ ...rows[0]!, price: "50.000" }, rows[1]!];
+    expect(sizesEdited(typed, before)).toBe(true);
+    const after = aListing({
+      version: 7,
+      variants: [
+        { ...before.variants[0]!, price: 49000, effectivePrice: 49000 },
+        { ...before.variants[1]!, price: 58000, effectivePrice: 58000 },
+      ],
+    });
+    expect(rebaseSizes(typed, before, after).map((r) => r.price)).toEqual(["50.000", formatVnd(58000)]);
+    expect(sizesEdited(sizeRowsOf(after), after)).toBe(false);
   });
 
   it("checks typed prices", () => {

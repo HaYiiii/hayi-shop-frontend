@@ -115,7 +115,7 @@ test("Manager sells a Product, sets a Branch price and stops selling another", a
   await expect(page.getByRole("heading", { level: 1, name: "Món bán tại chi nhánh" })).toBeVisible();
   await expect(page.getByRole("row", { name: /Hojicha/ })).toContainText("Hết hàng");
 
-  await page.getByRole("row", { name: /Matcha Đá Xay Kem Muối/ }).getByRole("button", { name: "Bật bán" }).click();
+  await page.getByRole("row", { name: /Matcha Đá Xay Kem Muối/ }).getByRole("button", { name: /^Bật bán/ }).click();
   await expect(page.getByText("Đã bật bán Matcha Đá Xay Kem Muối tại Quận 1 · Lê Lợi.")).toBeVisible();
 
   await page.getByRole("button", { name: "Mở rộng Matcha Latte" }).click();
@@ -125,8 +125,8 @@ test("Manager sells a Product, sets a Branch price and stops selling another", a
   await expect(page.getByText(/Đã lưu giá của Matcha Latte tại Quận 1 · Lê Lợi/)).toBeVisible();
   await shot(page, "29-listings");
 
-  await page.getByRole("row", { name: /Bạc Xỉu/ }).getByRole("button", { name: "Bật bán" }).click();
+  await page.getByRole("row", { name: /Bạc Xỉu/ }).getByRole("button", { name: /^Bật bán/ }).click();
   await expect(page.getByRole("row", { name: /Bạc Xỉu/ })).toContainText("Đang bán");
-  await page.getByRole("row", { name: /Bạc Xỉu/ }).getByRole("button", { name: "Gỡ bán" }).click();
+  await page.getByRole("row", { name: /Bạc Xỉu/ }).getByRole("button", { name: /^Gỡ bán/ }).click();
   await expect(page.getByRole("row", { name: /Bạc Xỉu/ })).toContainText("Chưa bán");
 });

@@ -31,7 +31,9 @@ function server(initial: BranchListingRow[] = [aListingRow(), draft]) {
     rows = rows.map((r) => (r.productId === productId ? next : r));
     return listingResponse(next);
   };
-  const variantPut = (productId: string, variantId: string) => (body: unknown) => {
+  const variantPut = (productId: string, variantId: string) => (body: unknown, request: Request) => {
+    const current = rows.find((r) => r.productId === productId)!.listing!;
+    if (request.headers.get("If-Match") !== `"v${current.version}"`) return problem(412, "VERSION_CONFLICT");
     const input = body as { price: number | null; availabilityState: "AVAILABLE" | "NOT_AVAILABLE" };
     return put(productId, (listing) => ({
       ...listing!,
@@ -85,7 +87,7 @@ describe("Branch listings (D3d screen 29)", () => {
     const dx = row(/Matcha Đá Xay/);
     expect(dx.getByText("Món nháp")).toBeInTheDocument();
     expect(dx.getByText("Chưa bán")).toBeInTheDocument();
-    expect(dx.getByRole("button", { name: "Bật bán" })).toBeInTheDocument();
+    expect(dx.getByRole("button", { name: /^Bật bán/ })).toBeInTheDocument();
   });
 
   it("sells a Product with If-Match v0 and stops selling one with its version", async () => {
@@ -93,16 +95,16 @@ describe("Branch listings (D3d screen 29)", () => {
     const { api, user } = renderAdmin(PATH, fake.handlers, manager);
     await screen.findByRole("row", { name: /Matcha Đá Xay/ });
 
-    await user.click(row(/Matcha Đá Xay/).getByRole("button", { name: "Bật bán" }));
+    await user.click(row(/Matcha Đá Xay/).getByRole("button", { name: /^Bật bán/ }));
     expect(await screen.findByText(/Đã bật bán Matcha Đá Xay tại/)).toBeInTheDocument();
     expect(api.bodyOf("PUT /branches/b-q1/listings/p-dx")).toEqual({ availabilityState: "AVAILABLE" });
     expect(ifMatchOf(api, "PUT /branches/b-q1/listings/p-dx")).toEqual(['"v0"']);
     expect(row(/Matcha Đá Xay/).getByText("Đang bán")).toBeInTheDocument();
 
-    await user.click(row(/Matcha Latte/).getByRole("button", { name: "Gỡ bán" }));
+    await user.click(row(/Matcha Latte/).getByRole("button", { name: /^Gỡ bán/ }));
     expect(await screen.findByText(/Đã gỡ bán Matcha Latte tại/)).toBeInTheDocument();
     expect(ifMatchOf(api, "PUT /branches/b-q1/listings/p-latte")).toEqual(['"v3"']);
-    expect(row(/Matcha Latte/).getByRole("button", { name: "Bật bán" })).toBeInTheDocument();
+    expect(row(/Matcha Latte/).getByRole("button", { name: /^Bật bán/ })).toBeInTheDocument();
   });
 
   it("saves Branch prices per size, one request per changed size with the latest version", async () => {
@@ -134,10 +136,34 @@ describe("Branch listings (D3d screen 29)", () => {
     expect(api.calls.some((c) => c.route.includes("/variants/"))).toBe(false);
   });
 
+  it("keeps typed prices over a newer version; the save gets 412, and after Tải lại it saves on the new version", async () => {
+    const fake = server();
+    const { api, user } = renderAdmin(PATH, fake.handlers, manager);
+    await user.click(await screen.findByRole("button", { name: "Mở rộng Matcha Latte" }));
+    const large = screen.getByRole("textbox", { name: "Giá size L tại chi nhánh (đồng)" });
+    await user.type(large, "57000");
+
+    // The listing moves on meanwhile (here: the row's own Gỡ bán, v3 → v4); what is typed stays.
+    await user.click(screen.getByRole("button", { name: "Gỡ bán Matcha Latte" }));
+    expect(await screen.findByText(/Đã gỡ bán Matcha Latte/)).toBeInTheDocument();
+    expect(nbsp((large as HTMLInputElement).value)).toBe("57.000 ₫");
+
+    await user.click(screen.getByRole("button", { name: "Lưu giá" }));
+    expect(await screen.findByText(/Món vừa được người khác cập nhật/)).toBeInTheDocument();
+    expect(ifMatchOf(api, "PUT /branches/b-q1/listings/p-latte/variants/v-l")).toEqual(['"v3"']);
+
+    await user.click(screen.getByRole("button", { name: "Tải lại" }));
+    await waitFor(() => expect(fake.queries.length).toBeGreaterThan(1));
+    expect(nbsp(screen.getByRole<HTMLInputElement>("textbox", { name: "Giá size L tại chi nhánh (đồng)" }).value)).toBe("57.000 ₫");
+    await user.click(screen.getByRole("button", { name: "Lưu giá" }));
+    expect(await screen.findByText(/Đã lưu giá của Matcha Latte/)).toBeInTheDocument();
+    expect(ifMatchOf(api, "PUT /branches/b-q1/listings/p-latte/variants/v-l")).toEqual(['"v3"', '"v4"']);
+  });
+
   it("on 412 VERSION_CONFLICT offers to reload", async () => {
     const fake = server();
     const { user } = renderAdmin(PATH, { ...fake.handlers, "PUT /branches/b-q1/listings/p-latte": () => problem(412, "VERSION_CONFLICT") }, manager);
-    await user.click(await screen.findByRole("button", { name: "Gỡ bán" }));
+    await user.click(await screen.findByRole("button", { name: "Gỡ bán Matcha Latte" }));
     expect(await screen.findByText(/Món vừa được người khác cập nhật/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Tải lại" }));
     await waitFor(() => expect(fake.queries.length).toBeGreaterThan(1));
@@ -154,8 +180,8 @@ describe("Branch listings (D3d screen 29)", () => {
   it("is read-only without BRANCH_LISTING_MANAGE", async () => {
     const { user } = renderAdmin(PATH, server([aListingRow({ listing: aListing() }), draft]).handlers, viewer);
     await screen.findByRole("row", { name: /Matcha Latte/ });
-    expect(screen.queryByRole("button", { name: "Bật bán" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Gỡ bán" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Bật bán/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Gỡ bán/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Mở rộng Matcha Latte" }));
     expect(screen.getByRole("textbox", { name: "Giá size M tại chi nhánh (đồng)" })).toHaveAttribute("readonly");
     expect(screen.queryByRole("button", { name: "Lưu giá" })).not.toBeInTheDocument();

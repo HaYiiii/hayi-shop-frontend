@@ -25,7 +25,9 @@ import {
   priceSummary,
   sizeChanges,
   sizeErrors,
+  rebaseSizes,
   sizeRowsOf,
+  sizesEdited,
 } from "../listing-form";
 import { parsePrice } from "../product-form";
 import { Pager, SearchFilter } from "./product-list";
@@ -75,9 +77,11 @@ function ListingsScreen({ branchId, filters, onFiltersChange }: BranchListingsPr
   const { data, error, refetch, isFetching, isPlaceholderData } = useQuery(listingsQuery(api, branchId, filters));
   const [notice, setNotice] = useState<Notice | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [reloadRound, setReloadRound] = useState(0);
 
   const reload = () => {
     setNotice(null);
+    setReloadRound((n) => n + 1);
     void refetch();
   };
 
@@ -157,6 +161,7 @@ function ListingsScreen({ branchId, filters, onFiltersChange }: BranchListingsPr
                           canManage={canManage}
                           onNotice={setNotice}
                           branchName={branchName}
+                          reloadRound={reloadRound}
                         />
                       </Table.Cell>
                     </Table.Row>
@@ -187,10 +192,18 @@ function ListingsScreen({ branchId, filters, onFiltersChange }: BranchListingsPr
 /** The answer of a command, put into the cached page. */
 function usePutRow(branchId: string, filters: ListingFilters) {
   const queryClient = useQueryClient();
-  return (next: BranchListingRow) =>
-    queryClient.setQueryData(listingKeys.list(branchId, filters), (page: { items: BranchListingRow[] } | undefined) =>
+  const current = listingKeys.list(branchId, filters);
+  return (next: BranchListingRow) => {
+    queryClient.setQueryData(current, (page: { items: BranchListingRow[] } | undefined) =>
       page ? { ...page, items: page.items.map((r) => (r.productId === next.productId ? next : r)) } : page,
     );
+    // Other pages and searches may hold the same Product: they load again when next shown.
+    void queryClient.invalidateQueries({
+      queryKey: listingKeys.all(branchId),
+      predicate: (query) => JSON.stringify(query.queryKey) !== JSON.stringify(current),
+      refetchType: "none",
+    });
+  };
 }
 
 interface LineProps {
@@ -258,11 +271,11 @@ function ListingLine({ row, branchId, filters, expanded, canManage, onToggle, on
       <Table.Cell className="text-right">
         {canManage ? (
           selling ? (
-            <Button variant="ghost" density="compact" busy={command.isPending} onClick={() => command.mutate("NOT_AVAILABLE")}>
+            <Button variant="ghost" density="compact" aria-label={`Gỡ bán ${row.name}`} busy={command.isPending} onClick={() => command.mutate("NOT_AVAILABLE")}>
               Gỡ bán
             </Button>
           ) : (
-            <Button variant="outline" density="compact" busy={command.isPending} onClick={() => command.mutate("AVAILABLE")}>
+            <Button variant="outline" density="compact" aria-label={`Bật bán ${row.name}`} busy={command.isPending} onClick={() => command.mutate("AVAILABLE")}>
               Bật bán
             </Button>
           )
@@ -279,36 +292,52 @@ interface SizePricesProps {
   canManage: boolean;
   onNotice: (notice: Notice | null) => void;
   branchName: string;
+  /** Counts "Tải lại" clicks: the next newer version is merged under what is typed. */
+  reloadRound: number;
 }
 
 /** Branch price per size (full price, empty = base) and whether the size is sold here (AD2, AD4). */
-function SizePrices({ row, branchId, filters, canManage, onNotice, branchName }: SizePricesProps) {
+function SizePrices({ row, branchId, filters, canManage, onNotice, branchName, reloadRound }: SizePricesProps) {
   const api = useApi();
   const putRow = usePutRow(branchId, filters);
   const listing = row.listing!;
   const [rows, setRows] = useState<SizePriceRow[]>(() => sizeRowsOf(listing));
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
-  // The version the rows were made from. A newer one (this save's answers, a reload) replaces the rows,
-  // except while a save is running: its own answers arrive one size at a time.
-  const [base, setBase] = useState(listing.version);
+  // The listing the rows were made from; its version goes as `If-Match` with the next save (the #35 pattern).
+  const [base, setBase] = useState(listing);
+  const [seenReload, setSeenReload] = useState(reloadRound);
   const save = useMutation({
     mutationFn: async () => {
-      let current = row;
-      // One request per size; each answers the listing with its next version (AD2).
-      for (const change of sizeChanges(listing, rows)) {
-        current = await putVariantListing(api, branchId, row.productId, change.variantId, current.listing!.version, change.body);
-        putRow(current);
+      let current = base;
+      // One request per size; each answers the listing with its next version (AD2). What went through
+      // becomes the base, so after a failure the next save sends only the rest.
+      for (const change of sizeChanges(base, rows)) {
+        const next = await putVariantListing(api, branchId, row.productId, change.variantId, current.version, change.body);
+        current = next.listing!;
+        setBase(current);
+        putRow(next);
       }
       return current;
     },
     onMutate: () => onNotice(null),
-    onSuccess: () =>
-      onNotice({ tone: "success", text: `Đã lưu giá của ${row.name} tại ${branchName}. Khách thấy giá mới trên menu sau khoảng một phút.` }),
+    onSuccess: (saved) => {
+      setRows((typed) => rebaseSizes(typed, saved, saved));
+      onNotice({ tone: "success", text: `Đã lưu giá của ${row.name} tại ${branchName}. Khách thấy giá mới trên menu sau khoảng một phút.` });
+    },
     onError: (error) => onNotice(failureNotice(error)),
   });
-  if (listing.version !== base && !save.isPending) {
-    setBase(listing.version);
-    setRows(sizeRowsOf(listing));
+  if (listing.version !== base.version && !save.isPending) {
+    if (reloadRound !== seenReload) {
+      // "Tải lại": the new version under what is typed; the next save uses its `If-Match`.
+      setSeenReload(reloadRound);
+      setRows(rebaseSizes(rows, base, listing));
+      setBase(listing);
+    } else if (!sizesEdited(rows, base)) {
+      // Nothing typed: take the newer version as it is.
+      setRows(sizeRowsOf(listing));
+      setBase(listing);
+    }
+    // Over typed prices, the old version stays: the save gets 412 and offers "Tải lại".
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -322,7 +351,7 @@ function SizePrices({ row, branchId, filters, canManage, onNotice, branchName }:
       form.querySelector<HTMLElement>(`[data-variant="${first}"]`)?.focus();
       return;
     }
-    if (sizeChanges(listing, rows).length === 0) {
+    if (sizeChanges(base, rows).length === 0) {
       onNotice({ tone: "success", text: "Không có thay đổi nào để lưu." });
       return;
     }

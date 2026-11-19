@@ -53,6 +53,30 @@ export function sizeRowsOf(listing: BranchListing): SizePriceRow[] {
   }));
 }
 
+/** Something typed is not on the server yet. */
+export function sizesEdited(rows: readonly SizePriceRow[], listing: BranchListing): boolean {
+  return JSON.stringify(rows) !== JSON.stringify(sizeRowsOf(listing));
+}
+
+/**
+ * The rows on top of a newer listing (after "Tải lại", the #35 pattern): a size the user has not changed since
+ * `before` takes the new values, a typed one stays; sizes gone from the listing go, new ones appear.
+ */
+export function rebaseSizes(rows: readonly SizePriceRow[], before: BranchListing, after: BranchListing): SizePriceRow[] {
+  const old = new Map(sizeRowsOf(before).map((r) => [r.variantId, r]));
+  const typed = new Map(rows.map((r) => [r.variantId, r]));
+  return sizeRowsOf(after).map((fresh) => {
+    const mine = typed.get(fresh.variantId);
+    const was = old.get(fresh.variantId);
+    if (!mine || !was) return fresh;
+    return {
+      ...fresh,
+      price: mine.price === was.price ? fresh.price : mine.price,
+      selling: mine.selling === was.selling ? fresh.selling : mine.selling,
+    };
+  });
+}
+
 export type SizeErrors = Partial<Record<string, string>>;
 
 /** Prices must be whole VND or empty (base price); negatives are not typed (no minus sign accepted). */
