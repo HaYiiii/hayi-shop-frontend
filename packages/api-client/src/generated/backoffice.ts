@@ -808,6 +808,96 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /**
+         * Edit a Product's name, slug, primary Category or descriptions
+         * @description `CATALOG_MANAGE`. JSON Merge Patch on `name`, `slug`, `primaryCategoryId`, `shortDescription`, `description`
+         *     (`null` clears the last three); any other key → `400` (Decision AE1). Slug taken → `409 CATALOG_SLUG_TAKEN`. A new
+         *     primary Category must exist (`404`) and be `ACTIVE` (`409 CATALOG_CATEGORY_ARCHIVED`); clearing it on an
+         *     `ACTIVE` Product → `422 PRODUCT_ACTIVATION_INVALID` (AE4). Archived Product →
+         *     `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Requires `If-Match` (missing → `428`, stale → `412`). Changed fields
+         *     are audited; a patch that changes nothing keeps the version. Requires `X-CSRF-Token`.
+         */
+        patch: operations["updateProduct"];
+        trace?: never;
+    };
+    "/products/{productId}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a Variant to a Product, last in its order
+         * @description `CATALOG_MANAGE` and `CATALOG_PRICE_MANAGE` (Decision AE2). The Variant is `ACTIVE`; `isDefault: true` moves the
+         *     default to it, and it is the default anyway when the Product has no other non-archived Variant. At most 20
+         *     non-archived Variants → `409 CATALOG_VARIANT_LIMIT_REACHED`; SKU taken → `409 CATALOG_SKU_TAKEN`; negative price
+         *     → `422 CATALOG_PRICE_NEGATIVE`. Archived Product → `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Bumps the Product
+         *     version. Optional `If-Match`. Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["addProductVariant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{productId}/variants/{variantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+                variantId: components["parameters"]["VariantId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a Variant's name or base price, or make it the default
+         * @description `CATALOG_MANAGE`, plus `CATALOG_PRICE_MANAGE` when `basePrice` really changes (checked first, Decision AE3).
+         *     JSON Merge Patch on `name`, `basePrice` and `isDefault` (only `true`, which moves the default here); any other key
+         *     → `400`. Unknown Variant → `404 CATALOG_VARIANT_NOT_FOUND`; archived → `409 CATALOG_VARIANT_ARCHIVED`; negative
+         *     price → `422 CATALOG_PRICE_NEGATIVE`. Archived Product → `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Requires
+         *     `If-Match` of the Product (missing → `428`, stale → `412`); bumps the Product version unless nothing changes.
+         *     Audited. Requires `X-CSRF-Token`.
+         */
+        patch: operations["updateProductVariant"];
+        trace?: never;
+    };
+    "/products/{productId}/variants/{variantId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+                variantId: components["parameters"]["VariantId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive a Variant for good
+         * @description `CATALOG_MANAGE`. Final (Decision AE4). The default Variant while other non-archived Variants exist →
+         *     `409 CATALOG_VARIANT_IS_DEFAULT` (move the default first); already archived → `409 CATALOG_VARIANT_ARCHIVED`;
+         *     the last Variant of an `ACTIVE` Product → `422 PRODUCT_ACTIVATION_INVALID` (`NO_ACTIVE_VARIANT`). Archived
+         *     Product → `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Bumps the Product version. Optional `If-Match`. Audited.
+         *     Requires `X-CSRF-Token`.
+         */
+        post: operations["archiveProductVariant"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -1233,6 +1323,28 @@ export interface components {
             shortDescription?: string | null;
             description?: string | null;
             variants: components["schemas"]["ProductVariantInput"][];
+        };
+        /**
+         * @description JSON Merge Patch of a Product (Decision AE1). Missing key = unchanged; `null` clears `primaryCategoryId`,
+         *     `shortDescription`, `description`; `name` and `slug` cannot be `null` or blank.
+         */
+        ProductPatch: {
+            name?: string;
+            slug?: string;
+            /** Format: uuid */
+            primaryCategoryId?: string | null;
+            shortDescription?: string | null;
+            description?: string | null;
+        };
+        /**
+         * @description JSON Merge Patch of a Variant (Decision AE3); every key is required when sent (no `null`). `isDefault` accepts
+         *     only `true`.
+         */
+        ProductVariantPatch: {
+            name?: string;
+            basePrice?: components["schemas"]["PriceInput"];
+            /** @enum {boolean} */
+            isDefault?: true;
         };
         ProductVariant: {
             /** Format: uuid */
@@ -1867,8 +1979,8 @@ export interface components {
         };
         /**
          * @description `BRANCH_NOT_FOUND`, `BRANCH_HOURS_OVERRIDE_NOT_FOUND`, `FULFILLMENT_OVERRIDE_NOT_FOUND`,
-         *     `CATALOG_CATEGORY_NOT_FOUND`, `CATALOG_PRODUCT_NOT_FOUND`, `CATALOG_OPTION_GROUP_NOT_FOUND`,
-         *     `CATALOG_OPTION_ITEM_NOT_FOUND`
+         *     `CATALOG_CATEGORY_NOT_FOUND`, `CATALOG_PRODUCT_NOT_FOUND`, `CATALOG_VARIANT_NOT_FOUND`,
+         *     `CATALOG_OPTION_GROUP_NOT_FOUND`, `CATALOG_OPTION_ITEM_NOT_FOUND`
          */
         NotFound: {
             headers: {
@@ -1941,8 +2053,43 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProductActivationProblem"];
             };
         };
-        /** @description `CATALOG_CODE_TAKEN`, `CATALOG_SKU_TAKEN`, `CATALOG_SLUG_TAKEN` or `CATALOG_CATEGORY_ARCHIVED` (Decision Z) */
+        /**
+         * @description `CATALOG_CODE_TAKEN`, `CATALOG_SKU_TAKEN`, `CATALOG_SLUG_TAKEN` or `CATALOG_CATEGORY_ARCHIVED` (Decision Z).
+         *     `CATALOG_SKU_TAKEN` carries `errors[] { field: "variants[i].sku", code: "CATALOG_SKU_TAKEN" }`, one per taken SKU
+         *     (Z2).
+         */
         ProductConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CATALOG_SLUG_TAKEN`, `CATALOG_CATEGORY_ARCHIVED` or `CATALOG_PRODUCT_INVALID_TRANSITION` (Decision AE1) */
+        ProductEditConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `CATALOG_SKU_TAKEN`, `CATALOG_VARIANT_ARCHIVED`, `CATALOG_VARIANT_IS_DEFAULT`, `CATALOG_VARIANT_LIMIT_REACHED` or
+         *     `CATALOG_PRODUCT_INVALID_TRANSITION` (Decision AE). `CATALOG_SKU_TAKEN` carries
+         *     `errors[] { field: "sku", code: "CATALOG_SKU_TAKEN" }` (AE2).
+         */
+        VariantConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CATALOG_PRICE_NEGATIVE` with `errors[]` (Decision AE2, AE3) */
+        VariantRuleViolated: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2083,6 +2230,7 @@ export interface components {
         BranchId: string;
         CategoryId: string;
         ProductId: string;
+        VariantId: string;
         OptionGroupId: string;
         OptionItemId: string;
     };
@@ -3300,6 +3448,167 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    updateProduct: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["ProductPatch"];
+            };
+        };
+        responses: {
+            /** @description The Product after the edit. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductEditConflict"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["ProductActivationInvalid"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    addProductVariant: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductVariantInput"];
+            };
+        };
+        responses: {
+            /** @description The Product with the new Variant. */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VariantConflict"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["VariantRuleViolated"];
+        };
+    };
+    updateProductVariant: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+                variantId: components["parameters"]["VariantId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["ProductVariantPatch"];
+            };
+        };
+        responses: {
+            /** @description The Product after the edit. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VariantConflict"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["VariantRuleViolated"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    archiveProductVariant: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+                variantId: components["parameters"]["VariantId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Product after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VariantConflict"];
+            412: components["responses"]["VersionConflict"];
+            422: components["responses"]["ProductActivationInvalid"];
         };
     };
     activateProduct: {

@@ -54,7 +54,7 @@ describe("Product list (D3d screen 21)", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Món" })).toBeInTheDocument();
     const nav = within(screen.getByRole("region", { name: "Quản trị" }));
-    expect(nav.getAllByRole("link").map((a) => a.textContent)).toEqual(["Chi nhánh", "Món", "Danh mục"]);
+    expect(nav.getAllByRole("link").map((a) => a.textContent)).toEqual(["Chi nhánh", "Món", "Danh mục", "Tuỳ chọn"]);
     expect(nav.getByRole("link", { name: "Món" })).toHaveAttribute("aria-current", "page");
     expect(await screen.findByText("3 món")).toBeInTheDocument();
 

@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppStaffRouteImport } from './routes/_app/staff'
 import { Route as AppAdminCategoriesRouteImport } from './routes/_app/admin/categories'
+import { Route as AppAdminOptionsRouteImport } from './routes/_app/admin/options'
 import { Route as AppAdminBranchesIndexRouteImport } from './routes/_app/admin/branches/index'
 import { Route as AppAdminBranchesIdRouteImport } from './routes/_app/admin/branches/$id'
 import { Route as AppAdminBranchesNewRouteImport } from './routes/_app/admin/branches/new'
@@ -50,6 +51,11 @@ const AppStaffRoute = AppStaffRouteImport.update({
 const AppAdminCategoriesRoute = AppAdminCategoriesRouteImport.update({
   id: '/admin/categories',
   path: '/admin/categories',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminOptionsRoute = AppAdminOptionsRouteImport.update({
+  id: '/admin/options',
+  path: '/admin/options',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminBranchesIndexRoute = AppAdminBranchesIndexRouteImport.update({
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/staff': typeof AppStaffRoute
   '/admin/categories': typeof AppAdminCategoriesRoute
+  '/admin/options': typeof AppAdminOptionsRoute
   '/admin/branches/$id': typeof AppAdminBranchesIdRouteWithChildren
   '/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/admin/products/$id': typeof AppAdminProductsIdRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/staff': typeof AppStaffRoute
   '/': typeof AppIndexRoute
   '/admin/categories': typeof AppAdminCategoriesRoute
+  '/admin/options': typeof AppAdminOptionsRoute
   '/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/admin/products/$id': typeof AppAdminProductsIdRoute
   '/admin/products/new': typeof AppAdminProductsNewRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/_app/staff': typeof AppStaffRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/categories': typeof AppAdminCategoriesRoute
+  '/_app/admin/options': typeof AppAdminOptionsRoute
   '/_app/admin/branches/$id': typeof AppAdminBranchesIdRouteWithChildren
   '/_app/admin/branches/new': typeof AppAdminBranchesNewRoute
   '/_app/admin/products/$id': typeof AppAdminProductsIdRoute
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/staff'
     | '/admin/categories'
+    | '/admin/options'
     | '/admin/branches/$id'
     | '/admin/branches/new'
     | '/admin/products/$id'
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/'
     | '/admin/categories'
+    | '/admin/options'
     | '/admin/branches/new'
     | '/admin/products/$id'
     | '/admin/products/new'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/_app/staff'
     | '/_app/'
     | '/_app/admin/categories'
+    | '/_app/admin/options'
     | '/_app/admin/branches/$id'
     | '/_app/admin/branches/new'
     | '/_app/admin/products/$id'
@@ -281,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/categories'
       fullPath: '/admin/categories'
       preLoaderRoute: typeof AppAdminCategoriesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/options': {
+      id: '/_app/admin/options'
+      path: '/admin/options'
+      fullPath: '/admin/options'
+      preLoaderRoute: typeof AppAdminOptionsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/branches/': {
@@ -394,6 +413,7 @@ interface AppRouteChildren {
   AppStaffRoute: typeof AppStaffRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminCategoriesRoute: typeof AppAdminCategoriesRoute
+  AppAdminOptionsRoute: typeof AppAdminOptionsRoute
   AppAdminBranchesIdRoute: typeof AppAdminBranchesIdRouteWithChildren
   AppAdminBranchesNewRoute: typeof AppAdminBranchesNewRoute
   AppAdminProductsIdRoute: typeof AppAdminProductsIdRoute
@@ -411,6 +431,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppStaffRoute: AppStaffRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminCategoriesRoute: AppAdminCategoriesRoute,
+  AppAdminOptionsRoute: AppAdminOptionsRoute,
   AppAdminBranchesIdRoute: AppAdminBranchesIdRouteWithChildren,
   AppAdminBranchesNewRoute: AppAdminBranchesNewRoute,
   AppAdminProductsIdRoute: AppAdminProductsIdRoute,
