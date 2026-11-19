@@ -416,7 +416,19 @@ export interface components {
             days: components["schemas"]["SlotDay"][];
         };
     };
-    responses: never;
+    responses: {
+        /** @description `RATE_LIMITED`: over the per-IP limit (Decision W9: `GET` 120/min, resolve 30/min). */
+        RateLimited: {
+            headers: {
+                /** @description Seconds until the window resets. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: {
@@ -471,6 +483,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
         };
     };
     resolveCatalog: {
@@ -515,6 +528,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
         };
     };
     getBranchProduct: {
@@ -548,6 +562,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
         };
     };
     listPublicBranches: {
@@ -569,6 +584,7 @@ export interface operations {
                     "application/json": components["schemas"]["PublicBranchList"];
                 };
             };
+            429: components["responses"]["RateLimited"];
         };
     };
     getPublicBranch: {
@@ -601,6 +617,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
         };
     };
     listPickupSlots: {
@@ -653,6 +670,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
         };
     };
 }
