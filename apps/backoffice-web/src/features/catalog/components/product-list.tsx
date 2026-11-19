@@ -137,7 +137,7 @@ function CategoryFilter({
 }
 
 /** Typed text goes to the URL after a short pause, so each key does not load a page. */
-function SearchFilter({ value, onChange }: { value: string | undefined; onChange: (q: string | undefined) => void }) {
+export function SearchFilter({ value, onChange }: { value: string | undefined; onChange: (q: string | undefined) => void }) {
   const [text, setText] = useState(value ?? "");
   // `q` changed outside the box (the Món link, back/forward): show it, or the old text would come back.
   // Our own update arrives as the trimmed text, which must not eat a trailing space being typed.
@@ -250,7 +250,7 @@ function ProductThumb() {
   );
 }
 
-function Pager({
+export function Pager({
   page,
   totalItems,
   totalPages,

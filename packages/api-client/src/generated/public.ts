@@ -16,8 +16,11 @@ export interface paths {
          * @description No sign-in. Unknown or not `ACTIVE` Branch → `404 BRANCH_NOT_FOUND` (Decision W6). Only `ACTIVE` Products with
          *     a listing other than `NOT_AVAILABLE` and at least one Variant still listed (W3, AH1), under their primary
          *     Category; only `ACTIVE` Categories that hold such a Product (themselves or a child). `fromPrice` and
-         *     `availability` follow Decision AH2–AH3. `at` (ISO instant, default now) is echoed as `evaluatedAt`; selling
-         *     hours come with BE #70, tags and collections with BE #71. `Cache-Control: public, max-age=30`.
+         *     `availability` follow Decision AH2–AH3; outside the selling schedule at `at` (ISO instant, default now,
+         *     `Asia/Ho_Chi_Minh`) a Product is `OUTSIDE_SELLING_HOURS`, after `PAUSED` and `SOLD_OUT` (AK2–AK3). `at` is echoed
+         *     as `evaluatedAt`. `collections` holds only `ACTIVE` Collections (by `sortOrder` then name) with the Products shown in
+         *     this menu in Collection order, and drops one with none; `tags` are slugs, sorted (Decision AL3).
+         *     `Cache-Control: public, max-age=30`.
          */
         get: operations["getBranchMenu"];
         put?: never;
@@ -163,7 +166,7 @@ export interface components {
             }[];
         };
         /**
-         * @description Customer-facing, derived (API 02 §2, Decision F, AH3); `OUTSIDE_SELLING_HOURS` from BE
+         * @description Customer-facing, derived (API 02 §2, Decision F, AH3, AK3).
          * @enum {string}
          */
         MenuAvailability: "AVAILABLE" | "SOLD_OUT" | "PAUSED" | "OUTSIDE_SELLING_HOURS";
@@ -200,7 +203,7 @@ export interface components {
         ResolveRequest: {
             /**
              * Format: date-time
-             * @description Fulfilment time; selling hours from BE #70.
+             * @description Fulfilment time for the selling hours (AK4).
              */
             at?: string | null;
             lines: components["schemas"]["ResolveLineRequest"][];
@@ -217,7 +220,7 @@ export interface components {
             quantity: number;
         };
         /**
-         * @description Catalog §5.8 (Decision AJ2); `OUTSIDE_SELLING_HOURS` from BE
+         * @description Catalog §5.8 (Decision AJ2, AK4).
          * @enum {string}
          */
         ResolveIssueCode: "PRODUCT_NOT_FOUND" | "PRODUCT_SOLD_OUT" | "PRODUCT_PAUSED" | "OUTSIDE_SELLING_HOURS" | "VARIANT_SOLD_OUT" | "VARIANT_NOT_AVAILABLE" | "OPTION_ITEM_SOLD_OUT" | "OPTION_SELECTION_INVALID" | "REQUIRED_OPTION_GROUP_UNSATISFIABLE";
@@ -295,7 +298,7 @@ export interface components {
             availability: components["schemas"]["MenuAvailability"];
             variants: components["schemas"]["DetailVariant"][];
             optionGroups: components["schemas"]["DetailOptionGroup"][];
-            /** @description `null` until BE #70. */
+            /** @description A Vietnamese summary of the selling schedules (Decision AK3); `null` when there is none. */
             sellingSchedule: {
                 summary?: string;
             } | null;

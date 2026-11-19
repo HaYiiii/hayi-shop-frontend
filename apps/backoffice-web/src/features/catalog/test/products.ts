@@ -48,6 +48,8 @@ export function aProduct(overrides: Partial<Product> = {}): Product {
     optionGroups: [],
     optionItemOverrides: [],
     images: [],
+    sellingSchedules: [],
+    tags: [],
     ...overrides,
   };
 }

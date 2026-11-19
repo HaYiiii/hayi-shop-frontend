@@ -17,7 +17,8 @@ export interface BranchNavItem extends NavItemBase {
     | "/branches/$branchId/preparation"
     | "/branches/$branchId/payments"
     | "/branches/$branchId/sold-out"
-    | "/branches/$branchId/slots";
+    | "/branches/$branchId/slots"
+    | "/branches/$branchId/listings";
 }
 
 /** A screen outside any one Branch. */
@@ -122,6 +123,20 @@ export const navGroups: NavGroup[] = [
           <Icon>
             <circle cx="10" cy="10" r="7" />
             <path d="M10 6v4l2.5 2" />
+          </Icon>
+        ),
+      },
+      {
+        id: "listings",
+        level: "branch",
+        to: "/branches/$branchId/listings",
+        label: "Món bán tại chi nhánh",
+        // Writes need BRANCH_LISTING_MANAGE (AD1); the screen is a manager's (D3d screen 29).
+        permission: "BRANCH_LISTING_MANAGE",
+        icon: (
+          <Icon>
+            <path d="M4 5h12M4 10h12M4 15h7" />
+            <path d="m13.5 14.5 1.5 1.5 3-3" />
           </Icon>
         ),
       },

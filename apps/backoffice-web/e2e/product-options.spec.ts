@@ -89,6 +89,8 @@ function initial(): Product {
     optionGroups: [attached(library[0]!, 0), attached(library[1]!, 1), attached(library[2]!, 2, 3)],
     optionItemOverrides: [{ optionItemId: "cheese", extraPriceOverride: null, isHidden: true }],
     images: [],
+    sellingSchedules: [],
+    tags: [],
   };
 }
 

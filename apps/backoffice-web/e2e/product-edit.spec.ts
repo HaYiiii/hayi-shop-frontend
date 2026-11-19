@@ -61,6 +61,8 @@ function initial(): Product {
     optionGroups: [],
     optionItemOverrides: [],
     images: [],
+    sellingSchedules: [],
+    tags: [],
   };
 }
 
