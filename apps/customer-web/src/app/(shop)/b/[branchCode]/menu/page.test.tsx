@@ -115,3 +115,16 @@ describe("Menu — /b/[branchCode]/menu (D3a screen 2)", () => {
     await expect(MenuPage(params("%E0%A4%A"))).rejects.toThrow("NOT_FOUND");
   });
 });
+
+describe("Menu — outside selling hours (D3a screen 2b, FE #54)", () => {
+  it("dims the product and names the time it is not sold at, in Branch time", async () => {
+    const menu = aMenu();
+    menu.categories[1]!.products[0] = { ...menu.categories[1]!.products[0]!, availability: "OUTSIDE_SELLING_HOURS" };
+    serve(() => Response.json(menu));
+
+    render(await MenuPage(params("Q1-LELOI")));
+
+    // evaluatedAt 2026-11-19T03:00:00Z = 10:00 in Asia/Ho_Chi_Minh.
+    expect(within(screen.getByRole("link", { name: /^Bánh bông lan matcha/ })).getByText("Không bán lúc 10:00")).toBeInTheDocument();
+  });
+});
