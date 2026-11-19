@@ -759,6 +759,157 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Collections
+         * @description `CATALOG_VIEW` (brand-level). Sorted by `sortOrder` then name; without `ARCHIVED` unless
+         *     `includeArchived=true` (Decision AL1).
+         */
+        get: operations["listCollections"];
+        put?: never;
+        /**
+         * Create an ACTIVE Collection, last in order
+         * @description `CATALOG_MANAGE`. `slug` is unique among every Collection, archived ones included → `409 CATALOG_SLUG_TAKEN`
+         *     (Decision AL1). Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["createCollection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/{collectionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collectionId: components["parameters"]["CollectionId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * One Collection
+         * @description `CATALOG_VIEW`. Archived ones too. Unknown → `404 CATALOG_COLLECTION_NOT_FOUND`.
+         */
+        get: operations["getCollection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a Collection
+         * @description `CATALOG_MANAGE`. JSON Merge Patch on `name`, `slug`, `description` (`null` clears), `sortOrder` (≥ 0) and
+         *     `status` (`ACTIVE` or `INACTIVE`); any other key → `400` (Decision AL1). An archived Collection →
+         *     `409 CATALOG_COLLECTION_ARCHIVED`. Requires `If-Match` (missing → `428`, stale → `412`). Changed fields are
+         *     audited; a patch that changes nothing keeps the version. Requires `X-CSRF-Token`.
+         */
+        patch: operations["updateCollection"];
+        trace?: never;
+    };
+    "/collections/{collectionId}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collectionId: components["parameters"]["CollectionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the Products of a Collection, in order
+         * @description `CATALOG_MANAGE`. Replaces every Product (≤ 200, a repeat → `400`) in the given order (Decision AL1). Unknown
+         *     Product → `404 CATALOG_PRODUCT_NOT_FOUND`, archived → `409 CATALOG_PRODUCT_ARCHIVED`; archived Collection →
+         *     `409 CATALOG_COLLECTION_ARCHIVED`. Requires `If-Match`; no change keeps the version. Audited. Requires
+         *     `X-CSRF-Token`.
+         */
+        put: operations["replaceCollectionProducts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/{collectionId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collectionId: components["parameters"]["CollectionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive a Collection for good
+         * @description `CATALOG_MANAGE`. `ACTIVE`/`INACTIVE → ARCHIVED`, no way back (Decision AL1). Already archived →
+         *     `409 CATALOG_COLLECTION_ARCHIVED`. Optional `If-Match`. Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["archiveCollection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every Tag, by slug
+         * @description `CATALOG_VIEW` (brand-level, Decision AL2).
+         */
+        get: operations["listTags"];
+        put?: never;
+        /**
+         * Create a Tag
+         * @description `CATALOG_MANAGE`. `slug` unique → `409 CATALOG_SLUG_TAKEN` (Decision AL2). Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["createTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tags/{tagId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tagId: components["parameters"]["TagId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename a Tag or change its slug
+         * @description `CATALOG_MANAGE`. JSON Merge Patch on `name` and `slug`; any other key → `400`. No `If-Match`: a Tag has no
+         *     version, last write wins (Decision AL2). Unknown → `404 CATALOG_TAG_NOT_FOUND`; slug taken →
+         *     `409 CATALOG_SLUG_TAKEN`. Audited when something changes. Requires `X-CSRF-Token`.
+         */
+        patch: operations["updateTag"];
+        trace?: never;
+    };
     "/products": {
         parameters: {
             query?: never;
@@ -1073,6 +1224,30 @@ export interface paths {
          *     `X-CSRF-Token`.
          */
         put: operations["replaceProductOptionGroups"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{productId}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the Tags of a Product
+         * @description `CATALOG_MANAGE` (Decision AL2). Replaces every Tag (≤ 20, a repeat → `400`). Unknown Tag →
+         *     `404 CATALOG_TAG_NOT_FOUND`; archived Product → `409 CATALOG_PRODUCT_INVALID_TRANSITION`. Requires `If-Match`;
+         *     a change bumps the Product version, no change keeps it. Audited. Requires `X-CSRF-Token`.
+         */
+        put: operations["replaceProductTags"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1677,6 +1852,8 @@ export interface components {
             images: components["schemas"]["ProductImage"][];
             /** @description Empty = sold at any time (Decision AK1). */
             sellingSchedules: components["schemas"]["SellingSchedule"][];
+            /** @description By slug (Decision AL2). */
+            tags: components["schemas"]["Tag"][];
         };
         SellingWindow: {
             /**
@@ -2014,6 +2191,77 @@ export interface components {
              *     `409 CATALOG_IMAGE_IN_USE`); `null` clears it. The replaced image is archived (Decision AG4).
              */
             imageObjectId?: string | null;
+        };
+        /**
+         * @description `ACTIVE ↔ INACTIVE`; `ARCHIVED` is final (Decision AL1).
+         * @enum {string}
+         */
+        CollectionStatus: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+        Collection: {
+            /** Format: uuid */
+            collectionId: string;
+            slug: string;
+            name: string;
+            description: string | null;
+            status: components["schemas"]["CollectionStatus"];
+            /** Format: int32 */
+            sortOrder: number;
+            /** @description In order. */
+            productIds: string[];
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CollectionList: {
+            items: components["schemas"]["Collection"][];
+        };
+        CollectionCreateRequest: {
+            slug: components["schemas"]["CategorySlug"];
+            /** @description Not blank. */
+            name: string;
+            description?: string | null;
+        };
+        /** @description JSON Merge Patch of a Collection (Decision AL1). `null` clears `description` only. */
+        CollectionPatch: {
+            name?: string;
+            slug?: components["schemas"]["CategorySlug"];
+            description?: string | null;
+            /** Format: int32 */
+            sortOrder?: number;
+            /** @enum {string} */
+            status?: "ACTIVE" | "INACTIVE";
+        };
+        CollectionProductsRequest: {
+            productIds: string[];
+        };
+        /** @description Lower-case kebab-case, unique (Decision AL2). */
+        TagSlug: string;
+        Tag: {
+            /** Format: uuid */
+            tagId: string;
+            slug: string;
+            name: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TagList: {
+            items: components["schemas"]["Tag"][];
+        };
+        TagCreateRequest: {
+            slug: components["schemas"]["TagSlug"];
+            /** @description Not blank. */
+            name: string;
+        };
+        /** @description JSON Merge Patch of a Tag (Decision AL2); neither field can be `null`. */
+        TagPatch: {
+            name?: string;
+            slug?: components["schemas"]["TagSlug"];
+        };
+        ProductTagsRequest: {
+            tagIds: string[];
         };
         CategoryReorderRequest: {
             /**
@@ -2661,6 +2909,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description `CATALOG_SLUG_TAKEN`, `CATALOG_COLLECTION_ARCHIVED` or `CATALOG_PRODUCT_ARCHIVED` (Decision AL) */
+        CollectionConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /**
          * @description `CATALOG_SLUG_TAKEN`, `CATALOG_CATEGORY_ARCHIVED`, `CATALOG_CATEGORY_IN_USE`, `CATALOG_CATEGORY_ORDER_STALE`
          *     (Decision Y) or `CATALOG_IMAGE_IN_USE` (AG4)
@@ -2788,6 +3045,8 @@ export interface components {
         BranchId: string;
         CategoryId: string;
         ProductId: string;
+        CollectionId: string;
+        TagId: string;
         VariantId: string;
         OptionGroupId: string;
         OptionItemId: string;
@@ -3915,6 +4174,297 @@ export interface operations {
             412: components["responses"]["VersionConflict"];
         };
     };
+    listCollections: {
+        parameters: {
+            query?: {
+                includeArchived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Collections. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionList"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createCollection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The created Collection. */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    /** @description URL of the new Collection. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Collection"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["CollectionConflict"];
+        };
+    };
+    getCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collectionId: components["parameters"]["CollectionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Collection. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Collection"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateCollection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                collectionId: components["parameters"]["CollectionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["CollectionPatch"];
+            };
+        };
+        responses: {
+            /** @description The Collection after the edit. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Collection"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["CollectionConflict"];
+            412: components["responses"]["VersionConflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    replaceCollectionProducts: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                collectionId: components["parameters"]["CollectionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionProductsRequest"];
+            };
+        };
+        responses: {
+            /** @description The Collection after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Collection"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["CollectionConflict"];
+            412: components["responses"]["VersionConflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    archiveCollection: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
+                "If-Match"?: components["parameters"]["IfMatchOptional"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                collectionId: components["parameters"]["CollectionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archived Collection. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Collection"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["CollectionConflict"];
+            412: components["responses"]["VersionConflict"];
+        };
+    };
+    listTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Tags. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTag: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The created Tag. */
+            201: {
+                headers: {
+                    /** @description URL of the new Tag. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tag"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["CollectionConflict"];
+        };
+    };
+    updateTag: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                tagId: components["parameters"]["TagId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["TagPatch"];
+            };
+        };
+        responses: {
+            /** @description The Tag after the edit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tag"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["CollectionConflict"];
+        };
+    };
     listProducts: {
         parameters: {
             query?: {
@@ -4467,6 +5017,48 @@ export interface operations {
             409: components["responses"]["ProductOptionConflict"];
             412: components["responses"]["VersionConflict"];
             422: components["responses"]["ProductOptionRuleViolated"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    replaceProductTags: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
+                 *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
+                 */
+                "If-Match"?: components["parameters"]["IfMatch"];
+                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                productId: components["parameters"]["ProductId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductTagsRequest"];
+            };
+        };
+        responses: {
+            /** @description The Product after the change. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ProductInvalidTransition"];
+            412: components["responses"]["VersionConflict"];
             428: components["responses"]["PreconditionRequired"];
         };
     };

@@ -79,7 +79,7 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
                   <ul className="grid gap-3" aria-label={`Món ${section.name}`}>
                     {section.products.map((product) => (
                       <li key={product.productId}>
-                        <ProductCard product={product} />
+                        <ProductCard product={product} href={`/b/${encodeURIComponent(branch.branchCode)}/p/${encodeURIComponent(product.slug)}`} />
                       </li>
                     ))}
                   </ul>
@@ -93,13 +93,17 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
   );
 }
 
-/** One product (D3a screen 2 card); opening it comes with the product page (FE #52). */
-function ProductCard({ product }: { product: MenuProduct }) {
+/** One product (D3a screen 2 card), opening its page (D3a screen 3, FE #52). */
+function ProductCard({ product, href }: { product: MenuProduct; href: string }) {
   const unavailable = availabilityLabel[product.availability];
   return (
-    <article
-      aria-label={product.name}
-      className={cn("grid grid-cols-[88px_minmax(0,1fr)] gap-3 rounded-lg border border-line bg-paper p-3", unavailable && "bg-sunken")}
+    <Link
+      href={href}
+      className={cn(
+        "grid grid-cols-[88px_minmax(0,1fr)] gap-3 rounded-lg border border-line bg-paper p-3 text-ink no-underline transition-colors hover:border-ink-muted",
+        unavailable && "bg-sunken",
+        focusRing,
+      )}
     >
       {product.primaryImageUrl ? (
         // Image hosts differ per environment (storage `publicUrl`, Decision AG); `next/image` would need them
@@ -126,6 +130,6 @@ function ProductCard({ product }: { product: MenuProduct }) {
           ) : null}
         </div>
       </div>
-    </article>
+    </Link>
   );
 }

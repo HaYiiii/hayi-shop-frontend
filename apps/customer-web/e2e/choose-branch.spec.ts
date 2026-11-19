@@ -43,6 +43,25 @@ test("Customer: chooses a Branch and reaches its menu", async ({ page, context }
   }
   await snap(page, "2-menu");
 
+  // #52 (D3a screen 3): a product opens its page with sizes and options; back leads to the menu.
+  const products = page.locator("main a[href*='/p/']");
+  if ((await products.count()) > 0) {
+    const name = (await products.first().locator("p").first().innerText()).trim();
+    await products.first().click();
+    await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+    const sizes = page.getByRole("group", { name: "Size" });
+    if (await sizes.isVisible()) {
+      const orderable = sizes.locator("button:not([aria-disabled])").first();
+      if ((await orderable.count()) > 0) {
+        await orderable.click();
+        await expect(orderable).toHaveAttribute("aria-pressed", "true");
+      }
+    }
+    await snap(page, "3-product");
+    await page.getByRole("link", { name: "Quay lại menu" }).click();
+    await expect(page.getByRole("navigation", { name: "Danh mục" })).toBeVisible();
+  }
+
   await page.getByRole("link", { name: /^Lấy tại .*Đổi chi nhánh$/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Bạn lấy nước ở đâu?" })).toBeVisible();
 });
