@@ -42,13 +42,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # Matched by workflow file name, which is stable; the display name may change.
+      # The newest runs come first; the green one is picked here rather than with `--status success`,
+      # whose server-side filter was seen lagging minutes behind a finished run.
       - name: Find latest green backend CI run on main
         id: backend
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run_id=$(gh run list --repo "$BACKEND_REPO" --workflow ci.yml --branch main --status success \
-            --limit 1 --json databaseId --jq '.[0].databaseId')
+          run_id=$(gh run list --repo "$BACKEND_REPO" --workflow ci.yml --branch main \
+            --limit 20 --json databaseId,conclusion \
+            --jq 'map(select(.conclusion == "success"))[0].databaseId // empty')
           if [ -z "$run_id" ]; then
             echo "::error::No successful backend CI run on main to take api-spec from"
             exit 1
