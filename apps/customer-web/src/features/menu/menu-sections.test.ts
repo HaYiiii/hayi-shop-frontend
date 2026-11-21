@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { menuJumps, menuSections } from "./menu-sections";
+import { menuCollections, menuJumps, menuSections } from "./menu-sections";
 import { aMenu } from "./test/menu";
 
 describe("menuSections", () => {
@@ -17,6 +17,20 @@ describe("menuSections", () => {
     expect(menuJumps(aMenu())).toEqual([
       { name: "Matcha", anchor: "c-matcha" },
       { name: "Bánh", anchor: "c-banh" },
+    ]);
+  });
+});
+
+describe("menuCollections (D3a screen 2b)", () => {
+  it("resolves each Collection's productIds to the menu's products, in Collection order", () => {
+    const menu = aMenu({
+      collections: [
+        { collectionId: "col-thu", name: "Mùa thu", productIds: ["p-ice", "p-latte", "p-gone"] },
+        { collectionId: "col-empty", name: "Trống", productIds: ["p-gone"] },
+      ],
+    });
+    expect(menuCollections(menu).map((c) => [c.name, c.anchor, c.products.map((p) => p.productId)])).toEqual([
+      ["Mùa thu", "bst-col-thu", ["p-ice", "p-latte"]],
     ]);
   });
 });

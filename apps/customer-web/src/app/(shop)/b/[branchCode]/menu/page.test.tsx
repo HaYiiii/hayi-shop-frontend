@@ -128,3 +128,30 @@ describe("Menu — outside selling hours (D3a screen 2b, FE #54)", () => {
     expect(within(screen.getByRole("link", { name: /^Bánh bông lan matcha/ })).getByText("Không bán lúc 10:00")).toBeInTheDocument();
   });
 });
+
+describe("Menu — collections and tags (D3a screen 2b, FE #53)", () => {
+  it("shows each Collection above the Categories, its products in Collection order, linking to the product", async () => {
+    serve(() =>
+      Response.json(aMenu({ collections: [{ collectionId: "col-thu", name: "Mùa thu", productIds: ["p-ice", "p-latte"] }] })),
+    );
+
+    render(await MenuPage(params("Q1-LELOI")));
+
+    const collection = within(screen.getByRole("region", { name: "Mùa thu" }));
+    expect(collection.getByText("Bộ sưu tập · 2 món")).toBeInTheDocument();
+    const tiles = within(collection.getByRole("list", { name: "Món Mùa thu" })).getAllByRole("link");
+    expect(tiles.map((a) => a.getAttribute("href"))).toEqual(["/b/Q1-LELOI/p/matcha-da-xay", "/b/Q1-LELOI/p/matcha-latte"]);
+    expect(within(tiles[0]!).getByText("Hết món")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Mùa thu", "Matcha", "Bánh"]);
+  });
+
+  it("shows a product's tags on its card", async () => {
+    const menu = aMenu();
+    menu.categories[1]!.products[0] = { ...menu.categories[1]!.products[0]!, tags: [{ slug: "it-ngot", name: "Ít ngọt" }] };
+    serve(() => Response.json(menu));
+
+    render(await MenuPage(params("Q1-LELOI")));
+
+    expect(within(screen.getByRole("link", { name: /^Bánh bông lan matcha/ })).getByText("Ít ngọt")).toBeInTheDocument();
+  });
+});
