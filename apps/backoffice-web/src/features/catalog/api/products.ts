@@ -110,6 +110,16 @@ export function archiveVariant(api: BackofficeClient, product: Product, variantI
   );
 }
 
+/** Replaces the Product's tags (Decision AL2); `If-Match` required. */
+export function replaceProductTags(api: BackofficeClient, product: Product, tagIds: string[]) {
+  return unwrap(
+    api.PUT("/products/{productId}/tags", {
+      params: { path: { productId: product.productId }, header: ifMatch(product.version) },
+      body: { tagIds },
+    }),
+  );
+}
+
 /** Replaces the selling schedules (Decision AK1); `If-Match` required. */
 export function replaceSellingSchedules(api: BackofficeClient, product: Product, body: Schemas["SellingSchedulesReplaceRequest"]) {
   return unwrap(

@@ -24,7 +24,7 @@ export interface BranchNavItem extends NavItemBase {
 /** A screen outside any one Branch. */
 export interface StoreNavItem extends NavItemBase {
   level: "store";
-  to: "/staff" | "/admin/branches" | "/admin/products" | "/admin/categories" | "/admin/options";
+  to: "/staff" | "/admin/branches" | "/admin/products" | "/admin/categories" | "/admin/options" | "/admin/collections";
 }
 
 export type NavItem = BranchNavItem | StoreNavItem;
@@ -211,6 +211,20 @@ export const navGroups: NavGroup[] = [
             <path d="M4 6h12M4 14h12" />
             <circle cx="8" cy="6" r="2" />
             <circle cx="13" cy="14" r="2" />
+          </Icon>
+        ),
+      },
+      {
+        // D3d screen 28: after Tuỳ chọn.
+        id: "collections",
+        level: "store",
+        to: "/admin/collections",
+        label: "Bộ sưu tập & tag",
+        permission: "CATALOG_VIEW",
+        icon: (
+          <Icon>
+            <path d="M3.5 5.5h7l6 6-5 5-6-6v-5Z" />
+            <circle cx="7" cy="9" r="1" />
           </Icon>
         ),
       },
