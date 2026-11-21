@@ -21,6 +21,7 @@ import {
   slugify,
 } from "../category-form";
 import { useCreateCategory, useUpdateCategory } from "../hooks/use-categories";
+import { CategoryImage } from "./category-image";
 
 interface CategoryFormProps {
   /** The whole tree, archived ones included: parents to choose and the children of the edited Category. */
@@ -253,6 +254,7 @@ export function CategoryForm({ tree, editing, onDone, onReload }: CategoryFormPr
           </>
         )}
       </form>
+      {editing ? <CategoryImage category={editing} /> : null}
     </Card>
   );
 }
