@@ -3,15 +3,272 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/auth/otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a one-time code to a phone
+         * @description No sign-in. Always `202`, whether or not the phone has an account (Decision AN1). The phone is Vietnamese
+         *     (`0…`, `84…`, `+84…`), stored as E.164; anything else → `400` (AN2). A new code ends the open one for the same
+         *     phone and purpose. 6 digits, valid 5 minutes. Limits: 1 per 60 s and 5 per hour per phone, 20 per hour per IP
+         *     → `429 RATE_LIMITED` with `Retry-After` (AN5). Only `REGISTRATION` in this release.
+         */
+        post: operations["requestOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer a one-time code
+         * @description No sign-in (Decision AN3). Right code → a `verificationToken` valid 10 minutes, usable once. Wrong code →
+         *     `401 OTP_CODE_INVALID`; the 5th wrong code locks the challenge → `401 OTP_CHALLENGE_LOCKED`; unknown, expired,
+         *     used or locked challenge → `401 OTP_CHALLENGE_INVALID`.
+         */
+        post: operations["verifyOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a Customer account with a verified phone
+         * @description No sign-in and no session afterwards: the Customer logs in next (Decision AN4). A new phone needs `password`
+         *     (8–128 characters, not a common one → else `422 AUTH_PASSWORD_POLICY_VIOLATION`). A phone that already has an
+         *     account (a Staff member) needs `currentPassword` instead (missing → `422 AUTH_CURRENT_PASSWORD_REQUIRED`, wrong →
+         *     `401 AUTH_INVALID_CREDENTIALS`, which also spends the proof); no second password is created. Already a
+         *     Customer → `409 CUSTOMER_ALREADY_REGISTERED`. Invalid, expired, used or wrong-purpose token →
+         *     `401 VERIFICATION_TOKEN_INVALID`. `referralCode` is accepted and ignored until Loyalty.
+         */
+        post: operations["registerCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
-    responses: never;
+    schemas: {
+        /** @description RFC 9457 Problem Details with a stable business `code`. */
+        Problem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            /** @description Stable UPPER_SNAKE_CASE error code, e.g. ORDER_INVALID_TRANSITION */
+            code: string;
+            detail?: string;
+            traceId?: string;
+            errors?: {
+                field: string;
+                code: string;
+                message?: string;
+            }[];
+        };
+        /** @enum {string} */
+        OtpPurpose: "REGISTRATION";
+        OtpRequest: {
+            /** @description Vietnamese phone, e.g. `0901234567`. */
+            phone: string;
+            purpose: components["schemas"]["OtpPurpose"];
+        };
+        OtpSent: {
+            /** Format: uuid */
+            challengeId: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: int64 */
+            resendAfterSeconds: number;
+        };
+        OtpVerifyRequest: {
+            /** Format: uuid */
+            challengeId: string;
+            code: string;
+        };
+        OtpVerified: {
+            verificationToken: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        RegisterRequest: {
+            verificationToken: string;
+            /** @description Not blank. */
+            displayName: string;
+            /** @description For a new phone. */
+            password?: string | null;
+            /** @description For a phone that already has an account. */
+            currentPassword?: string | null;
+            /** @description Accepted and ignored until Loyalty. */
+            referralCode?: string | null;
+        };
+        Registered: {
+            /** Format: uuid */
+            customerId: string;
+        };
+    };
+    responses: {
+        /** @description `VALIDATION_FAILED` */
+        ValidationFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `OTP_CODE_INVALID`, `OTP_CHALLENGE_LOCKED`, `OTP_CHALLENGE_INVALID`, `VERIFICATION_TOKEN_INVALID` or `AUTH_INVALID_CREDENTIALS` */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CUSTOMER_ALREADY_REGISTERED` */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `AUTH_PASSWORD_POLICY_VIOLATION` or `AUTH_CURRENT_PASSWORD_REQUIRED` */
+        BusinessRuleViolated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `RATE_LIMITED` (Decision AN5) */
+        RateLimited: {
+            headers: {
+                /** @description Seconds until another code may be requested. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    requestOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpRequest"];
+            };
+        };
+        responses: {
+            /** @description A code was sent if the request was valid. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtpSent"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    verifyOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description The proof. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtpVerified"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    registerCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Registered. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Registered"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["BusinessRuleViolated"];
+        };
+    };
+}

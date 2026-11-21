@@ -1,9 +1,16 @@
+import type * as ApiClient from "@hayi/api-client";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { json, problem } from "../../../test/fake-api";
 import { owner, renderAdmin } from "../../branch/test/render-admin";
 import type { CategoryTree } from "../api/categories";
 import { aCategory, aTree, categoryResponse } from "../test/categories";
+
+const storage = vi.hoisted(() => ({ put: vi.fn<() => Promise<void>>() }));
+vi.mock("@hayi/api-client", async (original) => ({
+  ...(await original<typeof ApiClient>()),
+  putToStorage: storage.put,
+}));
 
 const catalogOwner = { ...owner, storePermissions: [...owner.storePermissions, "CATALOG_VIEW", "CATALOG_MANAGE"] };
 const catalogViewer = { ...owner, storePermissions: ["BRANCH_VIEW", "CATALOG_VIEW"] };
@@ -317,5 +324,40 @@ describe("Category tree (D3d screen 20)", () => {
     await user.click(dialog.getByRole("button", { name: "Tải lại" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(api.calls.filter((c) => c.route === "GET /categories")).toHaveLength(2);
+  });
+});
+
+describe("Category image (FE #49, D2 form pattern with screen 25's upload)", () => {
+  it("uploads an image for the Category and saves it with If-Match", async () => {
+    storage.put.mockResolvedValue(undefined);
+    const s = server();
+    const { api, user } = renderAdmin(
+      "/admin/categories",
+      {
+        ...s.handlers,
+        "POST /uploads": () =>
+          json(
+            {
+              storedObjectId: "o-cat",
+              upload: { method: "PUT", url: "https://storage.test/put", headers: { "Content-Type": "image/png" }, expiresAt: "2026-11-21T03:10:00Z" },
+              constraints: { maxSizeBytes: 5242880, allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"] },
+            },
+            201,
+          ),
+        "POST /uploads/o-cat/finalize": () =>
+          json({ storedObjectId: "o-cat", status: "ACTIVE", detectedMimeType: "image/png", sizeBytes: 3, width: 10, height: 10, publicUrl: "https://cdn.test/c.png" }),
+        "PATCH /categories/c-tea-peach": () => categoryResponse(aCategory({ categoryId: "c-tea-peach", version: 3, imageObjectId: "o-cat" })),
+      },
+      catalogOwner,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Sửa Trà đào" }));
+    expect(screen.getByRole("heading", { name: /Ảnh danh mục/ })).toBeInTheDocument();
+    await user.upload(screen.getByLabelText(/Kéo ảnh vào đây hoặc chọn từ máy/), new File(["png"], "dao.png", { type: "image/png" }));
+
+    expect(await screen.findByText("Đã lưu ảnh danh mục.")).toBeInTheDocument();
+    expect(api.bodyOf("POST /uploads")).toMatchObject({ purpose: "CATEGORY_IMAGE", fileName: "dao.png", contentType: "image/png", sizeBytes: 3 });
+    expect(api.bodyOf("PATCH /categories/c-tea-peach")).toEqual({ imageObjectId: "o-cat" });
+    expect(headerOf(api, "PATCH /categories/c-tea-peach", "If-Match")).toBe('"v2"');
   });
 });

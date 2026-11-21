@@ -12,3 +12,11 @@ export {
 export { createSessionFetch, type SessionFetchOptions } from "./session-fetch.js";
 export type { components as BackofficeComponents } from "./generated/backoffice.js";
 export type { components as PublicComponents } from "./generated/public.js";
+export {
+  StorageUploadError,
+  putToStorage,
+  sha256Hex,
+  type PutToStorageOptions,
+  type StorageUploadFailure,
+  type StorageUploadTarget,
+} from "./storage-upload.js";
