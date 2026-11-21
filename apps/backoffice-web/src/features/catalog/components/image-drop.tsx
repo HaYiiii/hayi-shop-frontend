@@ -1,4 +1,4 @@
-import { Button, cn, focusRing } from "@hayi/ui";
+import { Button, cn } from "@hayi/ui";
 import { type DragEvent, useId, useState } from "react";
 import type { UploadProgress } from "../hooks/use-image-upload";
 
@@ -36,25 +36,30 @@ export function ImageDrop({ onFiles, disabled = false, label = "Kéo ảnh vào 
     >
       <label
         htmlFor={inputId}
-        className={cn("grid cursor-pointer justify-items-center gap-1 rounded-md px-3 py-2", disabled && "cursor-not-allowed", focusRing)}
+        className={cn(
+          "grid cursor-pointer justify-items-center gap-1 rounded-md px-3 py-2",
+          // The input is visually hidden: its keyboard focus shows on the label (the same ring as focusRing).
+          "has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-focus",
+          disabled && "cursor-not-allowed",
+        )}
       >
         <span className="text-body font-semibold text-matcha-700">{label}</span>
         <span className="text-caption text-ink-muted">JPEG, PNG, WebP · tối đa 5 MB</span>
+        <input
+          id={inputId}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          disabled={disabled}
+          className="sr-only"
+          onChange={(e) => {
+            const files = Array.from(e.currentTarget.files ?? []);
+            // The same file can be picked again after an error.
+            e.currentTarget.value = "";
+            if (files.length > 0) onFiles(files);
+          }}
+        />
       </label>
-      <input
-        id={inputId}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        multiple
-        disabled={disabled}
-        className="sr-only"
-        onChange={(e) => {
-          const files = Array.from(e.currentTarget.files ?? []);
-          // The same file can be picked again after an error.
-          e.currentTarget.value = "";
-          if (files.length > 0) onFiles(files);
-        }}
-      />
     </div>
   );
 }
@@ -65,7 +70,7 @@ export function UploadTile({ uploading, onCancel }: { uploading: UploadProgress;
   return (
     <div className="grid content-start gap-2 rounded-lg border border-line bg-paper p-3">
       <div aria-hidden="true" className="aspect-[4/3] w-full rounded-md bg-sunken" />
-      <p className="text-label font-semibold">Đang tải lên…</p>
+      <p className="text-label font-semibold">{uploading.checking ? "Đang kiểm tra ảnh…" : "Đang tải lên…"}</p>
       <p className="text-caption break-all text-ink-muted tabular-nums">{`${uploading.fileName} · ${percent}%`}</p>
       <div
         role="progressbar"
@@ -77,9 +82,12 @@ export function UploadTile({ uploading, onCancel }: { uploading: UploadProgress;
       >
         <div className="h-full bg-matcha-700 transition-[width]" style={{ width: `${percent}%` }} />
       </div>
-      <Button variant="ghost" density="compact" className="justify-self-start" onClick={onCancel}>
-        Huỷ tải
-      </Button>
+      {/* Once the bytes are stored, the server check cannot be cancelled. */}
+      {uploading.checking ? null : (
+        <Button variant="ghost" density="compact" className="justify-self-start" onClick={onCancel}>
+          Huỷ tải
+        </Button>
+      )}
     </div>
   );
 }

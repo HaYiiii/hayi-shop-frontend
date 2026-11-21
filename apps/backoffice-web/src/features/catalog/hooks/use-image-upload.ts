@@ -8,6 +8,8 @@ export interface UploadProgress {
   fileName: string;
   /** 0..1 of the bytes sent to storage. */
   progress: number;
+  /** The bytes are stored; the server checks them and the image is being attached (cannot be cancelled). */
+  checking: boolean;
 }
 
 /**
@@ -22,14 +24,15 @@ export function useImageUpload(purpose: UploadPurpose) {
   async function upload(file: File, contentType: ImageMimeType): Promise<UploadFinalized> {
     const abort = new AbortController();
     controller.current = abort;
-    setUploading({ fileName: file.name, progress: 0 });
+    setUploading({ fileName: file.name, progress: 0, checking: false });
     try {
       const checksumSha256 = await sha256Hex(file);
       const intent = await createUpload(api, { purpose, fileName: file.name, contentType, sizeBytes: file.size, checksumSha256 });
       await putToStorage(intent.upload, file, {
         signal: abort.signal,
-        onProgress: (progress) => setUploading({ fileName: file.name, progress }),
+        onProgress: (progress) => setUploading({ fileName: file.name, progress, checking: false }),
       });
+      setUploading({ fileName: file.name, progress: 1, checking: true });
       const finalized = await finalizeUpload(api, intent.storedObjectId);
       if (finalized.status !== "ACTIVE") throw new QuarantinedImageError();
       return finalized;
