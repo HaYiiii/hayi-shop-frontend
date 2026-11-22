@@ -59,6 +59,7 @@ describe("Customer sign-in (D3a screen 8, FE #70)", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Chào bạn trở lại" })).toBeInTheDocument();
     expect(screen.getByLabelText("Số điện thoại")).toHaveAttribute("type", "tel");
+    expect(screen.getByRole("link", { name: "Đăng ký bằng số điện thoại" })).toHaveAttribute("href", "/register");
     await signIn(user);
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/b/Q1-LELOI/menu"));

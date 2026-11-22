@@ -37,8 +37,15 @@ export function loginErrorText(error: unknown): string {
 
 const isLocked = (error: unknown) => errorCode(error) === "AUTH_LOGIN_LOCKED" || errorCode(error) === "RATE_LIMITED";
 
+interface LoginScreenProps {
+  next?: string | undefined;
+  /** After sign-up (FE #71): the phone just verified, and a "created" notice. */
+  defaultPhone?: string | undefined;
+  created?: boolean | undefined;
+}
+
 /** D3a screen 8, sign-in step: phone + password, then back to the page the Customer came from. */
-export function LoginScreen({ next }: { next?: string | undefined }) {
+export function LoginScreen({ next, defaultPhone, created = false }: LoginScreenProps) {
   const api = useCustomerApi();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -114,6 +121,10 @@ export function LoginScreen({ next }: { next?: string | undefined }) {
             <p role="alert" className={cn("rounded-md px-3 py-2.5 text-body", isLocked(login.error) ? "bg-warning-soft text-warning" : "bg-danger-soft text-danger")}>
               {loginErrorText(login.error)}
             </p>
+          ) : created ? (
+            <p role="status" className="rounded-md bg-success-soft px-3 py-2.5 text-body text-success">
+              Đã tạo tài khoản. Đăng nhập bằng số điện thoại và mật khẩu vừa đặt.
+            </p>
           ) : null}
           <Field.Root>
             <Field.Label>Số điện thoại</Field.Label>
@@ -125,6 +136,7 @@ export function LoginScreen({ next }: { next?: string | undefined }) {
               density="touch"
               required
               placeholder="Ví dụ: 0901 234 567…"
+              defaultValue={defaultPhone}
               className="tabular-nums"
             />
             {missing.phone ? <Field.Error>{missing.phone}</Field.Error> : null}
@@ -138,6 +150,14 @@ export function LoginScreen({ next }: { next?: string | undefined }) {
             Đăng nhập
           </Button>
         </form>
+        {created ? null : (
+          <p className="text-center text-body">
+            Chưa có tài khoản?{" "}
+            <Link href="/register" className={cn("inline-flex min-h-11 items-center font-medium text-matcha-700 underline-offset-4 hover:underline", focusRing)}>
+              Đăng ký bằng số điện thoại
+            </Link>
+          </p>
+        )}
       </main>
     </div>
   );
