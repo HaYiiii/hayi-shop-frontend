@@ -12,6 +12,8 @@ async function snap(page: Page, name: string) {
 
 async function mockCustomerApi(page: Page) {
   let signedIn = false;
+  let profile = { customerId: "c", displayName: "Lan", phoneMasked: "+8490*****567", loyalty: null };
+  let version = 1;
   const seen: { route: string; csrf: string | null }[] = [];
   await page.route("**/api/customer/v1/**", async (route) => {
     const request = route.request();
@@ -26,6 +28,14 @@ async function mockCustomerApi(page: Page) {
         : problem(401, "AUTH_REQUIRED");
     }
     if (key === "POST /auth/refresh") return problem(401, "AUTH_REQUIRED");
+    // FE #72: profile with an ETag; the rename needs If-Match.
+    if (key === "GET /me/profile") return route.fulfill({ json: profile, headers: { ETag: `"${version}"` } });
+    if (key === "PATCH /me/profile") {
+      if ((await request.headerValue("If-Match")) !== `"${version}"`) return problem(412, "VERSION_CONFLICT");
+      profile = { ...profile, ...(request.postDataJSON() as { displayName: string }) };
+      version += 1;
+      return route.fulfill({ json: profile, headers: { ETag: `"${version}"` } });
+    }
     if (key === "POST /auth/login") {
       const body = request.postDataJSON() as { phone: string; password: string };
       if (body.password !== "mat khau dung") return problem(401, "AUTH_INVALID_CREDENTIALS");
@@ -45,7 +55,7 @@ async function mockCustomerApi(page: Page) {
   return seen;
 }
 
-test("Customer: the Tài khoản tab asks to sign in, then shows the account", async ({ page }) => {
+test("Customer: the Tài khoản tab asks to sign in, then renames and signs out (FE #70, #72)", async ({ page }) => {
   const seen = await mockCustomerApi(page);
   await page.goto("/account");
   await expect(page).toHaveURL(/\/login\?next=%2Faccount$/);
@@ -60,9 +70,20 @@ test("Customer: the Tài khoản tab asks to sign in, then shows the account", a
   await page.getByLabel("Mật khẩu").fill("mat khau dung");
   await page.getByRole("button", { name: "Đăng nhập" }).click();
   await expect(page).toHaveURL(/\/account$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Chào Lan" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Tài khoản" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Điều hướng" }).getByRole("link", { name: "Tài khoản" })).toHaveAttribute("aria-current", "page");
-  await snap(page, "11-account-minimal");
+  const card = page.getByRole("region", { name: "Hồ sơ" });
+  await expect(card.getByText("Lan", { exact: true })).toBeVisible();
+  await snap(page, "11-account");
+
+  // FE #72: rename in place.
+  await card.getByRole("button", { name: "Sửa tên" }).click();
+  await card.getByLabel("Tên hiển thị").fill("Lan Anh");
+  await snap(page, "11-account-edit");
+  await card.getByRole("button", { name: "Lưu" }).click();
+  await expect(card.getByRole("status")).toHaveText("Đã lưu tên.");
+  await expect(card.getByText("Lan Anh", { exact: true })).toBeVisible();
+  expect(seen.find((s) => s.route === "PATCH /me/profile")?.csrf).toBe("e2e-token");
 
   await page.getByRole("button", { name: "Đăng xuất" }).click();
   await expect(page).toHaveURL(/\/$/);

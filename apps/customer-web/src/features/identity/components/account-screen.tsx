@@ -63,7 +63,7 @@ export function AccountScreen() {
 
   return (
     <div className="grid gap-4">
-      <h1 className="font-display text-display text-balance">Tài khoản</h1>
+      <h1 className="font-display text-display-lg text-balance">Tài khoản</h1>
       <ProfileCard />
       {logout.isError ? (
         <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">
@@ -181,7 +181,7 @@ function ProfileCard() {
       ) : !shown ? (
         <Skeleton className="h-12 w-full" />
       ) : editing ? (
-        <form className="grid gap-3" onSubmit={submit} aria-label="Sửa tên hiển thị" noValidate>
+        <form className="grid gap-3" onSubmit={submit} aria-label="Đổi tên" noValidate>
           <Field.Root>
             <Field.Label>Tên hiển thị</Field.Label>
             <Field.Input
