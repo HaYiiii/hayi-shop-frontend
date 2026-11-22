@@ -70,7 +70,7 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
               </h2>
               <p className="text-caption text-ink-muted">{`Bộ sưu tập · ${collection.products.length} món`}</p>
             </div>
-            <ul aria-label={`Món ${collection.name}`} className="-mx-4 flex snap-x gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1">
+            <ul aria-label={`Món ${collection.name}`} className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1">
               {collection.products.map((product) => (
                 <li key={product.productId} className="w-36 shrink-0 snap-start">
                   <CollectionTile product={product} evaluatedAt={menu.evaluatedAt} href={productHref(product)} />
@@ -149,13 +149,13 @@ function ProductCard({ product, evaluatedAt, href }: { product: MenuProduct; eva
           ) : null}
         </div>
         {product.tags.length > 0 ? (
-          <ul aria-label="Tag" className="flex flex-wrap gap-1">
+          <span className="flex flex-wrap gap-1">
             {product.tags.map((tag) => (
-              <li key={tag.slug}>
-                <StatusBadge tone="neutral">{tag.name}</StatusBadge>
-              </li>
+              <StatusBadge key={tag.slug} tone="neutral">
+                {tag.name}
+              </StatusBadge>
             ))}
-          </ul>
+          </span>
         ) : null}
       </div>
     </Link>
