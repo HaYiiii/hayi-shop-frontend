@@ -16,6 +16,7 @@
     "@hayi/api-client": "workspace:*",
     "@hayi/domain-utils": "workspace:*",
     "@hayi/ui": "workspace:*",
+    "@tanstack/react-query": "5.104.2",
     "next": "16.4.4",
     "react": "19.3.1",
     "react-dom": "19.3.1"

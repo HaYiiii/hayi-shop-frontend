@@ -36,8 +36,13 @@ export function createPublicClient({ baseUrl, requestInitExt }: PublicClientOpti
   return createClient<PublicPaths>({ baseUrl: `${baseUrl}/api/public/v1`, requestInitExt });
 }
 
-export function createCustomerClient({ baseUrl }: ClientOptions) {
-  const client = createClient<CustomerPaths>({ baseUrl: `${baseUrl}/api/customer/v1`, credentials: "include" });
+export type CustomerClientOptions = ClientOptions & Pick<SessionFetchOptions, "onSessionExpired">;
+
+/** Customer surface: refreshes an expired session once and replays; re-issues `hy_c_csrf` (API 01-security §3.1, §5). */
+export function createCustomerClient({ baseUrl, onSessionExpired }: CustomerClientOptions) {
+  const apiUrl = `${baseUrl}/api/customer/v1`;
+  const fetch = createSessionFetch({ apiUrl, csrfCookie: CSRF_COOKIES.customer, onSessionExpired });
+  const client = createClient<CustomerPaths>({ baseUrl: apiUrl, credentials: "include", fetch });
   client.use(csrfMiddleware(CSRF_COOKIES.customer));
   return client;
 }

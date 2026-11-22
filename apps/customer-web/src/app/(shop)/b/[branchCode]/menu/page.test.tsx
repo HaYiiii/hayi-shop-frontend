@@ -155,3 +155,16 @@ describe("Menu — collections and tags (D3a screen 2b, FE #53)", () => {
     expect(within(screen.getByRole("link", { name: /^Bánh bông lan matcha/ })).getByText("Ít ngọt")).toBeInTheDocument();
   });
 });
+
+describe("Menu — tab bar (FE #70: Menu and Tài khoản only)", () => {
+  it("links the Tài khoản tab to the account page", async () => {
+    serve(() => Response.json(aMenu()));
+
+    render(await MenuPage(params("Q1-LELOI")));
+
+    const tabs = within(screen.getByRole("navigation", { name: "Điều hướng" }));
+    expect(tabs.getByRole("link", { name: "Menu" })).toHaveAttribute("aria-current", "page");
+    expect(tabs.getByRole("link", { name: "Menu" })).toHaveAttribute("href", "/b/Q1-LELOI/menu");
+    expect(tabs.getByRole("link", { name: "Tài khoản" })).toHaveAttribute("href", "/account");
+  });
+});

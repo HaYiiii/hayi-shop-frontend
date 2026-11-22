@@ -47,3 +47,45 @@ describe("CSRF cookie per surface (API 01-security §3.1, Decision AP1)", () => 
     expect(csrfOf()).toBeNull();
   });
 });
+
+describe("createCustomerClient — session (API 01-security §5, FE #70)", () => {
+  it("refreshes an expired access token once on the Customer surface and replays", async () => {
+    vi.stubGlobal("document", { cookie: "hy_c_csrf=c1" });
+    let refreshed = false;
+    const paths: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((request: Request) => {
+        const path = new URL(request.url).pathname;
+        paths.push(`${request.method} ${path} ${request.headers.get("X-CSRF-Token") ?? "-"}`);
+        if (path.endsWith("/auth/refresh")) {
+          refreshed = true;
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return Promise.resolve(
+          refreshed ? Response.json({ customerId: "c" }) : Response.json({ status: 401, code: "AUTH_TOKEN_EXPIRED" }, { status: 401 }),
+        );
+      }),
+    );
+    const api = createCustomerClient({ baseUrl: "http://web.test" });
+
+    const { response } = await api.GET("/auth/me");
+
+    expect(response.status).toBe(200);
+    expect(paths).toEqual(["GET /api/customer/v1/auth/me -", "POST /api/customer/v1/auth/refresh c1", "GET /api/customer/v1/auth/me -"]);
+  });
+
+  it("reports the end of the session when the refresh is refused", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(Response.json({ status: 401, code: "AUTH_REQUIRED" }, { status: 401 }))),
+    );
+    const onSessionExpired = vi.fn();
+    const api = createCustomerClient({ baseUrl: "http://web.test", onSessionExpired });
+
+    const { response } = await api.GET("/auth/me");
+
+    expect(response.status).toBe(401);
+    expect(onSessionExpired).toHaveBeenCalledOnce();
+  });
+});

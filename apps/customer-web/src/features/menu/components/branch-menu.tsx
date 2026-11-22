@@ -2,6 +2,7 @@ import { formatVnd } from "@hayi/domain-utils";
 import { StatusBadge, cn, focusRing } from "@hayi/ui";
 import Link from "next/link";
 import type { PublicBranch } from "../../branch/api/branches";
+import { TabBar } from "../../shell/tab-bar";
 import { pickupText } from "../../branch/pickup-text";
 import type { MenuProduct, PublicMenu } from "../api/menu";
 import { availabilityText, menuCollections, menuJumps, menuSections } from "../menu-sections";
@@ -60,7 +61,7 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
         ) : null}
       </header>
 
-      <main className="mx-auto grid w-full max-w-content gap-6 px-4 py-4">
+      <main className="mx-auto grid w-full max-w-content gap-6 px-4 pt-4 pb-24">
         <h1 className="sr-only">{`Menu ${branch.name}`}</h1>
         {collections.map((collection) => (
           <section key={collection.collectionId} aria-labelledby={collection.anchor} className="grid gap-3">
@@ -108,6 +109,7 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
           )
         )}
       </main>
+      <TabBar current="menu" menuHref={`/b/${encodeURIComponent(branch.branchCode)}/menu`} />
     </>
   );
 }

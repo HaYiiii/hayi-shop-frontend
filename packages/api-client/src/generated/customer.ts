@@ -18,7 +18,8 @@ export interface paths {
          * @description No sign-in. Always `202`, whether or not the phone has an account (Decision AN1). The phone is Vietnamese
          *     (`0…`, `84…`, `+84…`), stored as E.164; anything else → `400` (AN2). A new code ends the open one for the same
          *     phone and purpose. 6 digits, valid 5 minutes. Limits: 1 per 60 s and 5 per hour per phone, 20 per hour per IP
-         *     → `429 RATE_LIMITED` with `Retry-After` (AN5). Only `REGISTRATION` in this release.
+         *     → `429 RATE_LIMITED` with `Retry-After` (AN5). `PASSWORD_RECOVERY` sends a code only to a phone that is already
+         *     a Customer; any other phone gets the same answer and no SMS (Decision AS1).
          */
         post: operations["requestOtp"];
         delete?: never;
@@ -180,6 +181,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a new password with a recovery proof
+         * @description No sign-in (Decision AS2). `verificationToken` must be an unused `PASSWORD_RECOVERY` proof → else
+         *     `401 VERIFICATION_TOKEN_INVALID`. The password follows the User's policy (AS4) → `422
+         *     AUTH_PASSWORD_POLICY_VIOLATION`. Every session of the User ends, Customer and Staff, because the password is
+         *     shared; the login lock is cleared. No session is opened: the Customer logs in next.
+         */
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the signed-in Customer's password
+         * @description Decision AS3. Wrong `currentPassword` → `401 AUTH_INVALID_CREDENTIALS`, counted toward the login lock (locked →
+         *     `429 AUTH_LOGIN_LOCKED`); the same password or a policy failure (AS4) → `422`. Every other session of the User
+         *     ends, Customer and Staff; this one stays. Requires `X-CSRF-Token`.
+         */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The devices signed in on this surface
+         * @description The caller's own live sessions of this surface's persona, most recently used first; `current` marks this one
+         *     (Decision AT1).
+         */
+        get: operations["listCustomerSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign out another device
+         * @description Ends another of the caller's sessions now; its next request gets `401` (Decision AT2). Another user's or
+         *     persona's session, an unknown or ended one → `404 SESSION_NOT_FOUND`; this session → `409 SESSION_IS_CURRENT`
+         *     (use `/auth/logout`). Requires `X-CSRF-Token`.
+         */
+        delete: operations["revokeCustomerSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in Customer's profile
+         * @description `phoneMasked` comes from the login phone (Identity §2.2); `loyalty` is `null` until Loyalty (S16) but the key is
+         *     always there (API 07 §1). `ETag` is the profile version, for `If-Match` on `PATCH`.
+         */
+        get: operations["getMyProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename the signed-in Customer
+         * @description JSON Merge Patch on `displayName` (1–128, not blank, not `null`); any other key → `400`. Requires `If-Match`
+         *     (missing → `428`, stale → `412`); the same name keeps the version (Decision O). Requires `X-CSRF-Token`.
+         */
+        patch: operations["updateMyProfile"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -201,7 +318,7 @@ export interface components {
             }[];
         };
         /** @enum {string} */
-        OtpPurpose: "REGISTRATION";
+        OtpPurpose: "REGISTRATION" | "PASSWORD_RECOVERY";
         OtpRequest: {
             /** @description Vietnamese phone, e.g. `0901234567`. */
             phone: string;
@@ -258,8 +375,76 @@ export interface components {
             /** @description e.g. `+8490*****567` */
             phoneMasked: string | null;
         };
+        Loyalty: {
+            tier: string;
+            /** Format: int64 */
+            availablePoints: number;
+        };
+        CustomerProfile: {
+            /** Format: uuid */
+            customerId: string;
+            displayName: string;
+            phoneMasked: string | null;
+            /** @description `null` until Loyalty (S16). */
+            loyalty: components["schemas"]["Loyalty"] | null;
+        };
+        /** @description JSON Merge Patch of the profile; `displayName` cannot be `null` or blank. */
+        CustomerProfilePatch: {
+            displayName?: string;
+        };
+        PasswordResetRequest: {
+            verificationToken: string;
+            newPassword: string;
+        };
+        PasswordChangeRequest: {
+            currentPassword: string;
+            newPassword: string;
+        };
+        DeviceSession: {
+            /** Format: uuid */
+            sessionId: string;
+            userAgent: string | null;
+            ipAddress: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastActiveAt: string;
+            current: boolean;
+        };
+        DeviceSessionList: {
+            items: components["schemas"]["DeviceSession"][];
+        };
     };
     responses: {
+        /** @description `SESSION_NOT_FOUND` (Decision AT2) */
+        SessionNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `SESSION_IS_CURRENT` (Decision AT2) */
+        SessionIsCurrent: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `AUTH_LOGIN_LOCKED` (K2) */
+        LoginLocked: {
+            headers: {
+                /** @description Seconds until the account unlocks. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description `VALIDATION_FAILED` */
         ValidationFailed: {
             headers: {
@@ -280,6 +465,24 @@ export interface components {
         };
         /** @description `CSRF_INVALID` */
         Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `VERSION_CONFLICT` */
+        VersionConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `PRECONDITION_REQUIRED` */
+        PreconditionRequired: {
             headers: {
                 [name: string]: unknown;
             };
@@ -325,6 +528,8 @@ export interface components {
     };
     requestBodies: never;
     headers: {
+        /** @description `"v{version}"` of the resource (API README §8). */
+        ETag: string;
         /** @description Auth cookies (API 01-security §3). */
         SetCookie: string;
     };
@@ -533,6 +738,165 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Password reset. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["BusinessRuleViolated"];
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_c_csrf` cookie (the Customer one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Password changed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["BusinessRuleViolated"];
+            429: components["responses"]["LoginLocked"];
+        };
+    };
+    listCustomerSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sessions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceSessionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    revokeCustomerSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_c_csrf` cookie (the Customer one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["SessionNotFound"];
+            409: components["responses"]["SessionIsCurrent"];
+        };
+    };
+    getMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The profile. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerProfile"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateMyProfile: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string;
+                /** @description Value of the `hy_c_csrf` cookie (the Customer one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["CustomerProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description The profile after the edit. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerProfile"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            412: components["responses"]["VersionConflict"];
+            428: components["responses"]["PreconditionRequired"];
         };
     };
 }
