@@ -14,7 +14,7 @@ type Step =
   | { name: "phone" }
   | { name: "code"; phone: string; challenge: OtpSent; sentAt: number }
   | { name: "details"; phone: string; verificationToken: string }
-  | { name: "done"; phone: string };
+  | { name: "done"; phone: string; created: "new" | "linked" | undefined };
 
 const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 128;
@@ -57,15 +57,29 @@ function TooManyCodes({ error }: { error: unknown }) {
   );
 }
 
+const isLimited = (error: unknown) => errorCode(error) === "RATE_LIMITED";
+
+/** RATE_LIMITED on a resend: the code already received still works, so only sending another waits (FE #71 review). */
+function LimitedNotice({ error }: { error: unknown }) {
+  const minutes = error instanceof ApiError ? minutesFrom(error.problem.retryAfterSeconds) : null;
+  return (
+    <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">
+      {`Bạn đã yêu cầu quá nhiều mã. Gửi mã mới được sau ${minutes ?? "ít"} phút.`}
+    </p>
+  );
+}
+
 /** A problem that needs a new code first (D3f 8c, expired), with the button that sends it. */
-function NeedsNewCode({ title, children, onResend, busy }: { title: string; children: ReactNode; onResend: () => void; busy: boolean }) {
+function NeedsNewCode({ title, children, onResend, sending }: { title: string; children: ReactNode; onResend: () => void; sending: Sending }) {
+  const limited = isLimited(sending.error);
   return (
     <div className="grid gap-3.5">
       <div role="alert" className="grid gap-0.5 rounded-lg bg-warning-soft p-3">
         <p className="text-body-lg font-semibold text-warning">{title}</p>
         <p className="text-body">{children}</p>
       </div>
-      <Button block density="touch" busy={busy} onClick={onResend}>
+      {limited ? <LimitedNotice error={sending.error} /> : null}
+      <Button block density="touch" busy={sending.isPending} disabled={limited} onClick={onResend}>
         Gửi mã mới
       </Button>
     </div>
@@ -82,7 +96,16 @@ export function SignUpScreen() {
     onSuccess: ({ phone, challenge }) => setStep({ name: "code", phone, challenge, sentAt: Date.now() }),
   });
 
-  if (step.name === "done") return <LoginScreen defaultPhone={step.phone} created />;
+  // A RATE_LIMITED answer ends on its own: clear it then, so asking for a code works again (like the sign-in lock).
+  const waitMs = isLimited(sendCode.error) && sendCode.error instanceof ApiError ? Number(sendCode.error.problem.retryAfterSeconds ?? 60) * 1000 : 0;
+  const { reset } = sendCode;
+  useEffect(() => {
+    if (!waitMs) return;
+    const timer = setTimeout(reset, waitMs);
+    return () => clearTimeout(timer);
+  }, [waitMs, reset]);
+
+  if (step.name === "done") return <LoginScreen defaultPhone={step.phone} created={step.created} />;
 
   const back =
     step.name === "phone" ? (
@@ -125,7 +148,7 @@ export function SignUpScreen() {
             phone={step.phone}
             verificationToken={step.verificationToken}
             sending={sendCode}
-            onDone={() => setStep({ name: "done", phone: step.phone })}
+            onDone={(created) => setStep({ name: "done", phone: step.phone, created })}
           />
         )}
       </main>
@@ -147,7 +170,7 @@ function PhoneStep({ sending }: { sending: Sending }) {
     if (phone) sending.mutate(phone);
   }
 
-  if (errorCode(sending.error) === "RATE_LIMITED") return <TooManyCodes error={sending.error} />;
+  if (isLimited(sending.error)) return <TooManyCodes error={sending.error} />;
 
   return (
     <>
@@ -228,14 +251,13 @@ function CodeStep({ phone, challenge, sentAt, sending, onChangePhone, onVerified
           </button>
         </p>
       </div>
-      {errorCode(sending.error) === "RATE_LIMITED" ? (
-        <TooManyCodes error={sending.error} />
-      ) : code === "OTP_CHALLENGE_LOCKED" || code === "OTP_CHALLENGE_INVALID" ? (
-        <NeedsNewCode title="Mã đã hết hạn hoặc nhập sai quá 5 lần" onResend={resend} busy={sending.isPending}>
+      {code === "OTP_CHALLENGE_LOCKED" || code === "OTP_CHALLENGE_INVALID" ? (
+        <NeedsNewCode title="Mã đã hết hạn hoặc nhập sai quá 5 lần" onResend={resend} sending={sending}>
           Gửi mã mới để tiếp tục.
         </NeedsNewCode>
       ) : (
         <form className="grid gap-3.5" onSubmit={submit} aria-label="Xác minh số điện thoại" noValidate>
+          {isLimited(sending.error) ? <LimitedNotice error={sending.error} /> : null}
           {verify.isError && code !== "OTP_CODE_INVALID" ? (
             <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">
               Chưa xác minh được. Bạn thử lại sau ít phút nhé.
@@ -263,7 +285,7 @@ function CodeStep({ phone, challenge, sentAt, sending, onChangePhone, onVerified
           <Button type="submit" block density="touch" busy={verify.isPending}>
             Xác minh
           </Button>
-          <Button variant="ghost" block disabled={resendIn > 0} busy={sending.isPending} onClick={resend}>
+          <Button variant="ghost" block disabled={resendIn > 0 || isLimited(sending.error)} busy={sending.isPending} onClick={resend}>
             {resendIn > 0 ? (
               <>
                 Gửi lại mã sau <span className="tabular-nums">{clock(resendIn)}</span>
@@ -282,7 +304,8 @@ interface DetailsStepProps {
   phone: string;
   verificationToken: string;
   sending: Sending;
-  onDone: () => void;
+  /** "new": a new password; "linked": the phone's existing account (current password); none: already a Customer. */
+  onDone: (created: "new" | "linked" | undefined) => void;
 }
 
 /** Step 3 (D3f 8b): name + password; a phone that already has an account (Staff) gives its current password. */
@@ -293,7 +316,7 @@ function DetailsStep({ phone, verificationToken, sending, onDone }: DetailsStepP
   const [local, setLocal] = useState<{ name?: string; password?: string }>({});
   const create = useMutation({
     mutationFn: (body: { password?: string; currentPassword?: string }) => register(api, { verificationToken, displayName: displayName.trim(), ...body }),
-    onSuccess: onDone,
+    onSuccess: () => onDone(existing ? "linked" : "new"),
     onError: (error) => {
       if (errorCode(error) === "AUTH_CURRENT_PASSWORD_REQUIRED") {
         setExisting(true);
@@ -328,7 +351,7 @@ function DetailsStep({ phone, verificationToken, sending, onDone }: DetailsStepP
       <NeedsNewCode
         title={code === "AUTH_INVALID_CREDENTIALS" ? "Mật khẩu hiện có chưa đúng. Gửi mã mới để thử lại." : "Phiên xác minh đã hết hạn."}
         onResend={() => sending.mutate(phone)}
-        busy={sending.isPending}
+        sending={sending}
       >
         {code === "AUTH_INVALID_CREDENTIALS" ? "Mã xác minh chỉ dùng được một lần." : "Gửi mã mới để tiếp tục."}
       </NeedsNewCode>
@@ -351,7 +374,7 @@ function DetailsStep({ phone, verificationToken, sending, onDone }: DetailsStepP
         {code === "CUSTOMER_ALREADY_REGISTERED" ? (
           <div role="alert" className="grid justify-items-start gap-1 rounded-md bg-warning-soft px-3 py-2.5 text-body text-warning">
             Số này đã có tài khoản đặt món.
-            <Button variant="outline" density="compact" onClick={onDone}>
+            <Button variant="outline" density="compact" onClick={() => onDone(undefined)}>
               Đăng nhập
             </Button>
           </div>

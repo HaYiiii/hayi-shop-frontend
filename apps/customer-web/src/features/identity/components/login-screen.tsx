@@ -41,11 +41,12 @@ interface LoginScreenProps {
   next?: string | undefined;
   /** After sign-up (FE #71): the phone just verified, and a "created" notice. */
   defaultPhone?: string | undefined;
-  created?: boolean | undefined;
+  /** "new": a new password was set; "linked": the phone's existing account (its current password) was linked. */
+  created?: "new" | "linked" | undefined;
 }
 
 /** D3a screen 8, sign-in step: phone + password, then back to the page the Customer came from. */
-export function LoginScreen({ next, defaultPhone, created = false }: LoginScreenProps) {
+export function LoginScreen({ next, defaultPhone, created }: LoginScreenProps) {
   const api = useCustomerApi();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -123,7 +124,9 @@ export function LoginScreen({ next, defaultPhone, created = false }: LoginScreen
             </p>
           ) : created ? (
             <p role="status" className="rounded-md bg-success-soft px-3 py-2.5 text-body text-success">
-              Đã tạo tài khoản. Đăng nhập bằng số điện thoại và mật khẩu vừa đặt.
+              {created === "linked"
+                ? "Đã tạo tài khoản đặt món. Đăng nhập bằng số điện thoại và mật khẩu hiện có."
+                : "Đã tạo tài khoản. Đăng nhập bằng số điện thoại và mật khẩu vừa đặt."}
             </p>
           ) : null}
           <Field.Root>

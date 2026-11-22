@@ -206,3 +206,58 @@ describe("Customer sign-up with OTP (D3a screen 8, D3f 8b/8c, FE #71)", () => {
     expect(screen.getByLabelText("Số điện thoại")).toHaveValue("0901234567");
   });
 });
+
+describe("Sign-up — limits and outcomes (FE #71 review)", () => {
+  it("keeps the code form when a resend is RATE_LIMITED; only resending waits", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const calls = serve({
+      "POST /auth/otp": [sent(0), () => problem(429, "RATE_LIMITED", { "Retry-After": "120" }), sent(0)],
+      "POST /auth/otp/verify": verified,
+    });
+    const user = renderSignUp(true);
+    await toCodeStep(user);
+    await user.click(screen.getByRole("button", { name: "Gửi lại mã" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Bạn đã yêu cầu quá nhiều mã. Gửi mã mới được sau 2 phút.");
+    expect(screen.getByRole("button", { name: "Gửi lại mã" })).toBeDisabled();
+    expect(screen.getByLabelText("Mã xác minh")).toBeEnabled();
+
+    act(() => {
+      vi.advanceTimersByTime(120_000);
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Gửi lại mã" })).toBeEnabled());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Mã xác minh"), "582104");
+    await user.click(screen.getByRole("button", { name: "Xác minh" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Hoàn tất tài khoản" })).toBeInTheDocument();
+    expect(calls.filter((c) => c.route === "POST /auth/otp")).toHaveLength(2);
+  });
+
+  it("unblocks step 1 once Retry-After has passed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    serve({ "POST /auth/otp": [() => problem(429, "RATE_LIMITED", { "Retry-After": "60" }), sent()] });
+    const user = renderSignUp(true);
+    await user.type(screen.getByLabelText("Số điện thoại"), "0901234567");
+    await user.click(screen.getByRole("button", { name: "Gửi mã" }));
+    expect(await screen.findByText("Bạn đã yêu cầu quá nhiều mã")).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(await screen.findByRole("button", { name: "Gửi mã" })).toBeEnabled();
+  });
+
+  it("says the existing password is the one to sign in with after linking a Staff member's phone", async () => {
+    serve({
+      "POST /auth/otp": sent(),
+      "POST /auth/otp/verify": verified,
+      "POST /auth/register": [() => problem(422, "AUTH_CURRENT_PASSWORD_REQUIRED"), () => Response.json({ customerId: "c-2" }, { status: 201 })],
+    });
+    const user = renderSignUp();
+    await toDetailsStep(user);
+    await user.type(screen.getByLabelText("Tên hiển thị"), "Minh");
+    await user.type(screen.getByLabelText("Mật khẩu"), "mat khau moi 1");
+    await user.click(screen.getByRole("button", { name: "Tạo tài khoản" }));
+    await user.type(await screen.findByLabelText("Mật khẩu hiện có"), "mat khau cu 1");
+    await user.click(screen.getByRole("button", { name: "Xác nhận" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Đăng nhập bằng số điện thoại và mật khẩu hiện có.");
+  });
+});
