@@ -232,6 +232,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The devices signed in on this surface
+         * @description The caller's own live sessions of this surface's persona, most recently used first; `current` marks this one
+         *     (Decision AT1).
+         */
+        get: operations["listSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign out another device
+         * @description Ends another of the caller's sessions now; its next request gets `401` (Decision AT2). Another user's or
+         *     persona's session, an unknown or ended one → `404 SESSION_NOT_FOUND`; this session → `409 SESSION_IS_CURRENT`
+         *     (use `/auth/logout`). Requires `X-CSRF-Token`.
+         */
+        delete: operations["revokeSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/branches": {
         parameters: {
             query?: never;
@@ -1467,6 +1512,153 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a staff member
+         * @description `STAFF_MANAGE` with a fresh step-up (missing → `403 STEP_UP_REQUIRED`). One transaction creates or links the
+         *     User, its login identifiers, the StaffProfile, the assignments and the Branch roles (Identity §2.11, Decision
+         *     AQ). A `loginPhone` / `loginEmail` that already belongs to a User links that User (`linkedExistingUser`, no new
+         *     password); phone and email of two Users → `409 STAFF_IDENTIFIER_CONFLICT`; a User already staff →
+         *     `409 STAFF_ALREADY_EXISTS_FOR_USER`; employee code taken → `409 STAFF_EMPLOYEE_CODE_TAKEN`. A role outside the
+         *     assigned Branches → `422 ROLE_REQUIRES_ASSIGNMENT`, a STORE role → `422 ROLE_SCOPE_MISMATCH`, two PRIMARY
+         *     assignments → `422 ASSIGNMENT_PRIMARY_CONFLICT`, two at one Branch → `422 ASSIGNMENT_DUPLICATE_ACTIVE`, unknown
+         *     Branch → `404 BRANCH_NOT_FOUND`, closed → `409 BRANCH_INVALID_TRANSITION`. `INVITATION` →
+         *     `422 STAFF_INVITATION_UNAVAILABLE`. A new User gets a temporary password, returned once and never logged; it
+         *     must be changed at first login (K3). No `Idempotency-Key` yet (S5). Audited. Requires `X-CSRF-Token`.
+         */
+        post: operations["createStaff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/{staffId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * One staff member
+         * @description `STAFF_VIEW`. A caller with `STAFF_VIEW` at some Branches only (Manager) sees staff with an `ACTIVE` assignment
+         *     there; anyone else → `404 STAFF_NOT_FOUND` (Decision AQ5).
+         */
+        get: operations["getStaff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The system roles and their permissions
+         * @description `STAFF_VIEW`. Read-only (Decision D3, AR1).
+         */
+        get: operations["listRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The roles of a user
+         * @description `STAFF_VIEW`. Unknown user → `404 USER_NOT_FOUND` (Decision AR1).
+         */
+        get: operations["getUserRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}/store-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the STORE roles of a user
+         * @description `ROLE_ASSIGN` with a fresh step-up. Replaces the user's STORE roles; idempotent, no `If-Match` (Decision AR1).
+         *     Only an OWNER may add or remove OWNER/ADMIN → else `403 ROLE_ASSIGN_FORBIDDEN_ROLE`; changing your own roles →
+         *     `403 ROLE_SELF_ASSIGN_FORBIDDEN` (both log `PERMISSION_ESCALATION_ATTEMPT`); a BRANCH role →
+         *     `422 ROLE_SCOPE_MISMATCH`; an unknown role → `400`; revoking the last OWNER → `409 ROLE_LAST_OWNER`. A user left
+         *     without any role loses its Backoffice sessions. Audited. Requires `X-CSRF-Token`.
+         */
+        put: operations["replaceStoreRoles"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}/branch-roles/{branchId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserId"];
+                branchId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the roles of a user at one Branch
+         * @description `ROLE_ASSIGN` with a fresh step-up. Replaces the user's roles at that Branch; empty = revoke them all there
+         *     (Decision AR1). A role needs an `ACTIVE` assignment at the Branch → `422 ROLE_REQUIRES_ASSIGNMENT`; a STORE role
+         *     → `422 ROLE_SCOPE_MISMATCH`; self-change → `403 ROLE_SELF_ASSIGN_FORBIDDEN`; unknown Branch →
+         *     `404 BRANCH_NOT_FOUND`. A user left without any role loses its Backoffice sessions. Audited. Requires
+         *     `X-CSRF-Token`.
+         */
+        put: operations["replaceBranchRoles"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/uploads": {
         parameters: {
             query?: never;
@@ -2009,6 +2201,123 @@ export interface components {
         UploadPurpose: "PRODUCT_IMAGE" | "CATEGORY_IMAGE";
         /** @enum {string} */
         ImageMimeType: "image/jpeg" | "image/png" | "image/webp";
+        StaffAssignmentInput: {
+            /** Format: uuid */
+            branchId: string;
+            /** @enum {string} */
+            assignmentType: "PRIMARY" | "SUPPORTING";
+            /** Format: date */
+            effectiveFrom: string;
+        };
+        StaffBranchRoleInput: {
+            /** Format: uuid */
+            branchId: string;
+            roleCode: string;
+        };
+        StaffCreateRequest: {
+            /** @description Stored upper-case, unique. */
+            employeeCode: string;
+            fullName: string;
+            /** @description Vietnamese phone (Decision AN2). At least one of loginPhone / loginEmail. */
+            loginPhone?: string | null;
+            /** Format: email */
+            loginEmail?: string | null;
+            /** @description Business contact, never a login. */
+            contactPhone?: string | null;
+            /** Format: date */
+            joinedOn?: string | null;
+            assignments: components["schemas"]["StaffAssignmentInput"][];
+            branchRoles: components["schemas"]["StaffBranchRoleInput"][];
+            credential: {
+                /** @enum {string} */
+                mode: "TEMPORARY_PASSWORD" | "INVITATION";
+            };
+        };
+        StaffCreated: {
+            /** Format: uuid */
+            staffId: string;
+            /** Format: uuid */
+            userId: string;
+            linkedExistingUser: boolean;
+            /** @description Shown once, for a new User only. */
+            temporaryPassword: string | null;
+            mfaEnrollmentRequired: boolean;
+        };
+        StaffAssignment: {
+            /** Format: uuid */
+            assignmentId: string;
+            /** Format: uuid */
+            branchId: string;
+            /** @enum {string} */
+            assignmentType: "PRIMARY" | "SUPPORTING";
+            /** @enum {string} */
+            status: "ACTIVE" | "ENDED";
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveTo: string | null;
+        };
+        StaffBranchRole: {
+            /** Format: uuid */
+            branchId: string;
+            roleCode: string;
+        };
+        Staff: {
+            /** Format: uuid */
+            staffId: string;
+            /** Format: uuid */
+            userId: string;
+            employeeCode: string;
+            fullName: string;
+            contactPhone: string | null;
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+            /** Format: date */
+            joinedOn: string | null;
+            assignments: components["schemas"]["StaffAssignment"][];
+            branchRoles: components["schemas"]["StaffBranchRole"][];
+            /** Format: int64 */
+            version: number;
+        };
+        RoleSummary: {
+            code: string;
+            name: string;
+            /** @enum {string} */
+            scope: "STORE" | "BRANCH";
+            requiresMfa: boolean;
+            permissions: string[];
+        };
+        RoleList: {
+            items: components["schemas"]["RoleSummary"][];
+        };
+        BranchRoleSet: {
+            /** Format: uuid */
+            branchId: string;
+            roleCodes: string[];
+        };
+        UserRoles: {
+            /** Format: uuid */
+            userId: string;
+            storeRoles: string[];
+            branchRoles: components["schemas"]["BranchRoleSet"][];
+        };
+        RoleCodesRequest: {
+            roleCodes: string[];
+        };
+        DeviceSession: {
+            /** Format: uuid */
+            sessionId: string;
+            userAgent: string | null;
+            ipAddress: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastActiveAt: string;
+            current: boolean;
+        };
+        DeviceSessionList: {
+            items: components["schemas"]["DeviceSession"][];
+        };
         UploadIntentRequest: {
             purpose: components["schemas"]["UploadPurpose"];
             fileName: string;
@@ -2727,7 +3036,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `CSRF_INVALID`, `PERMISSION_DENIED`, `BRANCH_SCOPE_DENIED`, `STEP_UP_REQUIRED` */
+        /** @description `CSRF_INVALID`, `PERMISSION_DENIED`, `BRANCH_SCOPE_DENIED`, `STEP_UP_REQUIRED`, `ROLE_ASSIGN_FORBIDDEN_ROLE`, `ROLE_SELF_ASSIGN_FORBIDDEN` */
         Forbidden: {
             headers: {
                 [name: string]: unknown;
@@ -2739,7 +3048,7 @@ export interface components {
         /**
          * @description `BRANCH_NOT_FOUND`, `BRANCH_HOURS_OVERRIDE_NOT_FOUND`, `FULFILLMENT_OVERRIDE_NOT_FOUND`,
          *     `CATALOG_CATEGORY_NOT_FOUND`, `CATALOG_PRODUCT_NOT_FOUND`, `CATALOG_VARIANT_NOT_FOUND`, `CATALOG_LISTING_NOT_FOUND`, `CATALOG_IMAGE_NOT_FOUND`, `UPLOAD_NOT_FOUND`,
-         *     `CATALOG_OPTION_GROUP_NOT_FOUND`, `CATALOG_OPTION_ITEM_NOT_FOUND`
+         *     `CATALOG_OPTION_GROUP_NOT_FOUND`, `CATALOG_OPTION_ITEM_NOT_FOUND`, `STAFF_NOT_FOUND`, `USER_NOT_FOUND`
          */
         NotFound: {
             headers: {
@@ -3036,6 +3345,51 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description `ROLE_LAST_OWNER` (Decision AR3) */
+        RoleConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `SESSION_NOT_FOUND` (Decision AT2) */
+        SessionNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `SESSION_IS_CURRENT` (Decision AT2) */
+        SessionIsCurrent: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `STAFF_EMPLOYEE_CODE_TAKEN`, `STAFF_ALREADY_EXISTS_FOR_USER`, `STAFF_IDENTIFIER_CONFLICT` or `BRANCH_INVALID_TRANSITION` (Decision AQ) */
+        StaffConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `ROLE_REQUIRES_ASSIGNMENT`, `ROLE_SCOPE_MISMATCH`, `ASSIGNMENT_PRIMARY_CONFLICT`, `ASSIGNMENT_DUPLICATE_ACTIVE` or `STAFF_INVITATION_UNAVAILABLE` (Decision AQ) */
+        StaffRuleViolated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description `AUTH_PASSWORD_POLICY_VIOLATION` */
         BusinessRuleViolated: {
             headers: {
@@ -3073,6 +3427,7 @@ export interface components {
         BranchId: string;
         CategoryId: string;
         ProductId: string;
+        UserId: string;
         CollectionId: string;
         TagId: string;
         VariantId: string;
@@ -3342,6 +3697,54 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sessions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceSessionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    revokeSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["SessionNotFound"];
+            409: components["responses"]["SessionIsCurrent"];
         };
     };
     listBranches: {
@@ -5401,6 +5804,183 @@ export interface operations {
             412: components["responses"]["VersionConflict"];
             422: components["responses"]["ListingRuleViolated"];
             428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    createStaff: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The staff member was created. */
+            201: {
+                headers: {
+                    /** @description URL of the new staff member. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffCreated"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["StaffConflict"];
+            422: components["responses"]["StaffRuleViolated"];
+        };
+    };
+    getStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                staffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The staff member. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The roles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getUserRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The roles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRoles"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replaceStoreRoles: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleCodesRequest"];
+            };
+        };
+        responses: {
+            /** @description The roles after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRoles"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["RoleConflict"];
+            422: components["responses"]["StaffRuleViolated"];
+        };
+    };
+    replaceBranchRoles: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                userId: components["parameters"]["UserId"];
+                branchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleCodesRequest"];
+            };
+        };
+        responses: {
+            /** @description The roles after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRoles"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["StaffRuleViolated"];
         };
     };
     createUpload: {
