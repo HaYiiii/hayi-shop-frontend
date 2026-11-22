@@ -1,4 +1,4 @@
-import { applyCsrf } from "./csrf.js";
+import { type CsrfCookie, applyCsrf } from "./csrf.js";
 
 /** 401 codes that mean "access token missing or expired": a refresh may fix them (01-security.md §5). */
 const REFRESHABLE_CODES = new Set(["AUTH_REQUIRED", "AUTH_TOKEN_EXPIRED"]);
@@ -13,6 +13,8 @@ const SIGN_IN_PREFIX = "/auth/mfa/";
 export interface SessionFetchOptions {
   /** Absolute or same-origin base URL of the surface, e.g. `/api/backoffice/v1`. */
   apiUrl: string;
+  /** The surface's CSRF cookie, read again for every refresh and replay (it rotates with the session). */
+  csrfCookie: CsrfCookie;
   fetch?: (request: Request) => Promise<Response>;
   /** The session is over (refresh rejected or session revoked): the user must sign in again. Fired once. */
   onSessionExpired?: () => void;
@@ -41,6 +43,7 @@ async function problemCode(response: Response): Promise<string | undefined> {
  */
 export function createSessionFetch({
   apiUrl,
+  csrfCookie,
   fetch: baseFetch = (request) => globalThis.fetch(request),
   onSessionExpired,
   onStepUpRequired,
@@ -63,7 +66,7 @@ export function createSessionFetch({
     onSessionExpired?.();
   }
 
-  /** `GET /auth/csrf` sets a fresh `hy_csrf` for the current session (§3.1). */
+  /** `GET /auth/csrf` sets a fresh CSRF cookie of the surface for the current session (§3.1). */
   function reissueCsrf(): Promise<boolean> {
     reissuing ??= baseFetch(new Request(`${apiUrl}/auth/csrf`, { credentials: "include" }))
       .then((res) => res.ok, () => false)
@@ -74,7 +77,7 @@ export function createSessionFetch({
   }
 
   async function attemptRefresh(): Promise<RefreshOutcome> {
-    const post = () => baseFetch(applyCsrf(new Request(`${apiUrl}/auth/refresh`, { method: "POST", credentials: "include" })));
+    const post = () => baseFetch(applyCsrf(new Request(`${apiUrl}/auth/refresh`, { method: "POST", credentials: "include" }), csrfCookie));
     let res = await post();
     if (res.status === 403 && (await problemCode(res)) === "CSRF_INVALID" && (await reissueCsrf())) res = await post();
     if (res.ok) return "refreshed";
@@ -100,7 +103,7 @@ export function createSessionFetch({
     const path = url.pathname.startsWith(basePath) ? url.pathname.slice(basePath.length) : url.pathname;
     const signInStep = SIGN_IN_PATHS.has(path) || path.startsWith(SIGN_IN_PREFIX);
     const copy = request.clone();
-    const replay = () => send(applyCsrf(copy.clone()));
+    const replay = () => send(applyCsrf(copy.clone(), csrfCookie));
     let response = await send(request);
 
     if (response.status === 403 && (await problemCode(response)) === "CSRF_INVALID" && (await reissueCsrf())) {

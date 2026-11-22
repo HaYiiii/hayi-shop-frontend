@@ -45,7 +45,7 @@ afterEach(() => {
 describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)", () => {
   it("refreshes once and replays the request with its body", async () => {
     const api = fakeApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     const res = await sessionFetch(new Request(`${API}/orders`, { method: "POST", body: '{"a":1}' }));
 
@@ -63,14 +63,14 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
       }
       return refreshed ? ok() : problem(401, "AUTH_REQUIRED");
     });
-    const sessionFetch = createSessionFetch({ fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     expect((await sessionFetch(new Request(`${API}/auth/me`))).status).toBe(200);
   });
 
   it("shares one refresh between concurrent 401s", async () => {
     const api = fakeApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     const results = await Promise.all(
       ["/a", "/b", "/c"].map((p) => sessionFetch(new Request(`${API}${p}`))),
@@ -81,15 +81,15 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
   });
 
   it("re-reads the CSRF cookie for the refresh and the replay (rotated with the session)", async () => {
-    const jar = { cookie: "hy_csrf=old" };
+    const jar = { cookie: "hy_c_csrf=customer; hy_b_csrf=old" };
     vi.stubGlobal("document", jar);
     const api = fakeApi();
     const fetch = vi.fn(async (request: Request) => {
       const res = await api.fetch(request);
-      if (request.url.endsWith("/auth/refresh")) jar.cookie = "hy_csrf=new";
+      if (request.url.endsWith("/auth/refresh")) jar.cookie = "hy_c_csrf=customer; hy_b_csrf=new";
       return res;
     });
-    const sessionFetch = createSessionFetch({ fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     await sessionFetch(new Request(`${API}/orders`, { method: "POST", headers: { "X-CSRF-Token": "old" } }));
 
@@ -99,7 +99,7 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
   it("reports the session as expired when the refresh fails, and returns the original 401", async () => {
     const api = fakeApi({ refreshSucceeds: false });
     const onSessionExpired = vi.fn();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, onSessionExpired });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf", onSessionExpired });
 
     const res = await sessionFetch(new Request(`${API}/orders`));
 
@@ -110,7 +110,7 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
 
   it("does not refresh for the sign-in endpoints themselves", async () => {
     const api = fakeApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     const res = await sessionFetch(new Request(`${API}/auth/login`, { method: "POST", body: "{}" }));
 
@@ -121,7 +121,7 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
   it("does not refresh for other 401 codes", async () => {
     const fetch = vi.fn(async () => problem(401, "AUTH_INVALID_CREDENTIALS"));
     const onSessionExpired = vi.fn();
-    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, onSessionExpired });
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, csrfCookie: "hy_b_csrf", onSessionExpired });
 
     await sessionFetch(new Request(`${API}/orders`));
 
@@ -131,7 +131,7 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
 
   it("matches sign-in endpoints by exact path, not by substring", async () => {
     const api = fakeApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     const res = await sessionFetch(new Request(`${API}/reports/auth/login-history`));
 
@@ -141,7 +141,7 @@ describe("createSessionFetch — 401 → refresh → retry (API 01-security §5)
 
   it("refreshes for an expired token on step-up (its wrong-input codes are not refreshable)", async () => {
     const api = fakeApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     const res = await sessionFetch(new Request(`${API}/auth/step-up`, { method: "POST", body: '{"code":"1"}' }));
 
@@ -154,7 +154,7 @@ describe("createSessionFetch — end of session", () => {
   it("ends the session once when concurrent requests fail to refresh", async () => {
     const api = fakeApi({ refreshSucceeds: false });
     const onSessionExpired = vi.fn();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, onSessionExpired });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf", onSessionExpired });
 
     await Promise.all(["/a", "/b", "/c"].map((p) => sessionFetch(new Request(`${API}${p}`))));
 
@@ -165,7 +165,7 @@ describe("createSessionFetch — end of session", () => {
   it("ends the session on AUTH_SESSION_REVOKED without refreshing, once for concurrent requests", async () => {
     const fetch = vi.fn(async () => problem(401, "AUTH_SESSION_REVOKED"));
     const onSessionExpired = vi.fn();
-    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, onSessionExpired });
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, csrfCookie: "hy_b_csrf", onSessionExpired });
 
     await Promise.all(["/a", "/auth/step-up"].map((p) => sessionFetch(new Request(`${API}${p}`, { method: "POST" }))));
 
@@ -177,7 +177,7 @@ describe("createSessionFetch — end of session", () => {
     let revoked = true;
     const fetch = vi.fn(async () => (revoked ? problem(401, "AUTH_SESSION_REVOKED") : ok()));
     const onSessionExpired = vi.fn();
-    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, onSessionExpired });
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, csrfCookie: "hy_b_csrf", onSessionExpired });
 
     await sessionFetch(new Request(`${API}/a`));
     revoked = false;
@@ -197,7 +197,7 @@ describe("createSessionFetch — end of session", () => {
       request.url.endsWith("/auth/refresh") ? refreshAnswer() : Promise.resolve(problem(401, "AUTH_TOKEN_EXPIRED")),
     );
     const onSessionExpired = vi.fn();
-    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, onSessionExpired });
+    const sessionFetch = createSessionFetch({ fetch, apiUrl: API, csrfCookie: "hy_b_csrf", onSessionExpired });
 
     const res = await sessionFetch(new Request(`${API}/orders`));
 
@@ -209,7 +209,7 @@ describe("createSessionFetch — end of session", () => {
 describe("createSessionFetch — CSRF (API 01-security §3.1)", () => {
   /** Unsafe requests fail with CSRF_INVALID until GET /auth/csrf sets the cookie. */
   function csrfApi({ accessExpired = false } = {}) {
-    const jar = { cookie: "" };
+    const jar = { cookie: "hy_c_csrf=fresh-customer" };
     vi.stubGlobal("document", jar);
     let expired = accessExpired;
     const calls: string[] = [];
@@ -217,7 +217,7 @@ describe("createSessionFetch — CSRF (API 01-security §3.1)", () => {
       const path = new URL(request.url).pathname.replace("/api/backoffice/v1", "");
       calls.push(`${request.method} ${path}`);
       if (path === "/auth/csrf") {
-        jar.cookie = "hy_csrf=fresh";
+        jar.cookie = "hy_c_csrf=fresh-customer; hy_b_csrf=fresh";
         return new Response(null, { status: 204 });
       }
       if (request.method !== "GET" && request.headers.get("X-CSRF-Token") !== "fresh") return problem(403, "CSRF_INVALID");
@@ -232,7 +232,7 @@ describe("createSessionFetch — CSRF (API 01-security §3.1)", () => {
 
   it("re-issues the CSRF cookie and replays once", async () => {
     const api = csrfApi();
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     const res = await sessionFetch(new Request(`${API}/orders`, { method: "POST", body: "{}" }));
 
@@ -242,7 +242,7 @@ describe("createSessionFetch — CSRF (API 01-security §3.1)", () => {
 
   it("re-issues the CSRF cookie for the refresh itself", async () => {
     const api = csrfApi({ accessExpired: true });
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf" });
 
     const res = await sessionFetch(new Request(`${API}/auth/me`));
 
@@ -267,7 +267,7 @@ describe("createSessionFetch — 403 STEP_UP_REQUIRED (API 01-security §8)", ()
     const onStepUpRequired = vi.fn(async () => {
       api.verify();
     });
-    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, onStepUpRequired });
+    const sessionFetch = createSessionFetch({ fetch: api.fetch, apiUrl: API, csrfCookie: "hy_b_csrf", onStepUpRequired });
 
     const res = await sessionFetch(
       new Request(`${API}/refunds/1/approve`, { method: "POST", headers: { "Idempotency-Key": "k-1" } }),
@@ -283,6 +283,7 @@ describe("createSessionFetch — 403 STEP_UP_REQUIRED (API 01-security §8)", ()
     const sessionFetch = createSessionFetch({
       fetch: api.fetch,
       apiUrl: API,
+      csrfCookie: "hy_b_csrf",
       onStepUpRequired: () => Promise.reject(new Error("cancelled")),
     });
 
