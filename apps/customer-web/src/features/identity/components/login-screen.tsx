@@ -7,7 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { errorCode, meKey, useCustomerApi } from "../../../lib/customer-api";
 import { logIn, meQuery, safeNext } from "../api/session";
 
@@ -64,14 +64,26 @@ export function LoginScreen({ next }: { next?: string | undefined }) {
     return () => clearTimeout(timer);
   }, [lockMs, reset]);
 
+  const [missing, setMissing] = useState<{ phone?: string; password?: string }>({});
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const text = (name: string) => {
       const value = form.get(name);
       return typeof value === "string" ? value : "";
     };
-    login.mutate({ phone: text("phone").replace(/[\s.-]/g, ""), password: text("password") });
+    const phone = text("phone").replace(/[\s.-]/g, "");
+    const password = text("password");
+    // Checked here: an empty field would only come back as AUTH_INVALID_CREDENTIALS.
+    const local = { ...(!phone && { phone: "Nhập số điện thoại." }), ...(!password && { password: "Nhập mật khẩu." }) };
+    setMissing(local);
+    if (local.phone || local.password) {
+      formElement.querySelector<HTMLInputElement>(`[name="${local.phone ? "phone" : "password"}"]`)?.focus();
+      return;
+    }
+    login.mutate({ phone, password });
   }
 
   const wrong = errorCode(login.error) === "AUTH_INVALID_CREDENTIALS";
@@ -115,10 +127,12 @@ export function LoginScreen({ next }: { next?: string | undefined }) {
               placeholder="Ví dụ: 0901 234 567…"
               className="tabular-nums"
             />
+            {missing.phone ? <Field.Error>{missing.phone}</Field.Error> : null}
           </Field.Root>
           <Field.Root>
             <Field.Label>Mật khẩu</Field.Label>
             <Field.Input name="password" type="password" autoComplete="current-password" density="touch" required aria-invalid={wrong || undefined} />
+            {missing.password ? <Field.Error>{missing.password}</Field.Error> : null}
           </Field.Root>
           <Button type="submit" block density="touch" busy={login.isPending} disabled={isLocked(login.error)}>
             Đăng nhập

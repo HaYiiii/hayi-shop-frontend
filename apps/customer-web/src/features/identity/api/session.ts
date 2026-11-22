@@ -34,7 +34,17 @@ export function logOut(api: CustomerClient) {
   return unwrap(api.POST("/auth/logout"));
 }
 
-/** Where to go after sign-in: only a path on this site (never `//host` or `https://…`). */
+/**
+ * Where to go after sign-in: only a path on this site. Parsed the way the browser will (it drops tabs and newlines
+ * and reads `\` as `/`), so `/\t/evil.test` or `/\evil.test` cannot become `//evil.test`.
+ */
 export function safeNext(next: string | undefined, fallback = "/account"): string {
-  return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : fallback;
+  if (!next?.startsWith("/")) return fallback;
+  const base = "https://hayi.invalid";
+  try {
+    const url = new URL(next, base);
+    return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : fallback;
+  } catch {
+    return fallback;
+  }
 }

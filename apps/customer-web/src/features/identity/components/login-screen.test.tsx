@@ -95,13 +95,25 @@ describe("Customer sign-in (D3a screen 8, FE #70)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Bạn thao tác quá nhanh. Đợi một chút rồi thử lại.");
   });
 
-  it("never goes to another site after sign-in", async () => {
+  it.each(["//evil.test/x", "/\t/evil.test", "/\n/evil.test", "/\\evil.test"])("never goes to another site after sign-in (next=%j)", async (next) => {
     serve({
       "POST /auth/login": () => Response.json({ verificationRequired: false, challengeId: null }),
       "GET /auth/me": () => Response.json({ userId: "u", customerId: "c", displayName: "Lan", phoneMasked: "090•••567" }),
     });
-    const user = renderLogin("//evil.test/x");
+    const user = renderLogin(next);
+    expect(screen.getByRole("link", { name: "Đóng" })).toHaveAttribute("href", "/");
     await signIn(user);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/account"));
+  });
+
+  it("asks for an empty phone or password here, without calling the API", async () => {
+    const calls = serve({});
+    const user = renderLogin();
+    await user.click(screen.getByRole("button", { name: "Đăng nhập" }));
+    expect(screen.getByText("Nhập số điện thoại.")).toBeInTheDocument();
+    expect(screen.getByText("Nhập mật khẩu.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Số điện thoại")).toHaveFocus();
+    expect(screen.getByLabelText("Số điện thoại")).toHaveAttribute("aria-invalid", "true");
+    expect(calls).toHaveLength(0);
   });
 });

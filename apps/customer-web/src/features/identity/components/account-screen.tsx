@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiError } from "@hayi/api-client";
 import { Button, Skeleton } from "@hayi/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -24,10 +25,23 @@ export function AccountScreen() {
   }, [signedOut, router]);
 
   const logout = useMutation({
-    mutationFn: () => logOut(api),
-    // Signed out locally even if the request failed: the cookies are the only token and the server revokes on expiry.
-    onSettled: () => {
+    mutationFn: async () => {
+      try {
+        await logOut(api);
+      } catch (error) {
+        // 401: the session is already gone, which is what signing out wants.
+        if (!(error instanceof ApiError && error.status === 401)) throw error;
+      }
+    },
+    // A refused refresh during sign-out also clears the session: home, not sign-in, from here on.
+    onMutate: () => {
       leaving.current = true;
+    },
+    onError: () => {
+      leaving.current = false;
+    },
+    // Only once the server has revoked the session: on a shared phone the cookies must not outlive "Đăng xuất".
+    onSuccess: () => {
       queryClient.setQueryData(meKey, null);
       router.replace("/");
     },
@@ -48,6 +62,11 @@ export function AccountScreen() {
         <h1 className="font-display text-heading-lg text-balance">{`Chào ${me.data.displayName ?? "bạn"}`}</h1>
         {me.data.phoneMasked ? <p className="text-body text-ink-muted tabular-nums">{me.data.phoneMasked}</p> : null}
       </div>
+      {logout.isError ? (
+        <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">
+          Chưa đăng xuất được. Bạn kiểm tra mạng rồi thử lại nhé.
+        </p>
+      ) : null}
       <Button variant="outline" block density="touch" busy={logout.isPending} onClick={() => logout.mutate()}>
         Đăng xuất
       </Button>
