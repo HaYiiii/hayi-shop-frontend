@@ -109,7 +109,16 @@ function ProfileCard() {
     },
     onError: async (error) => {
       if (errorCode(error) !== "VERSION_CONFLICT") {
-        setNotice({ tone: "danger", text: "Chưa lưu được tên. Bạn thử lại sau ít phút nhé." });
+        // A 400 is the name itself (API 07 §1: 1–128, not blank): say it under the field.
+        if (error instanceof ApiError && error.status === 400) {
+          setMissing("Tên này chưa hợp lệ. Dùng 1–128 ký tự.");
+          nameInput.current?.focus();
+        } else {
+          setNotice({
+            tone: "danger",
+            text: error instanceof ApiError ? "Chưa lưu được tên. Bạn thử lại sau ít phút nhé." : "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.",
+          });
+        }
         return;
       }
       try {
@@ -174,10 +183,14 @@ function ProfileCard() {
           {notice.text}
         </p>
       ) : null}
-      {profile.isError ? (
-        <p role="alert" className="text-body text-danger">
-          Chưa tải được hồ sơ. Bạn thử lại sau ít phút nhé.
-        </p>
+      {/* Only when nothing was loaded: a failed background refetch keeps the card and an open edit (FE #72 review). */}
+      {profile.isError && !shown ? (
+        <div role="alert" className="grid justify-items-start gap-2 text-body text-danger">
+          Chưa tải được hồ sơ.
+          <Button variant="outline" density="compact" className="h-11" busy={profile.isFetching} onClick={() => void profile.refetch()}>
+            Thử lại
+          </Button>
+        </div>
       ) : !shown ? (
         <Skeleton className="h-12 w-full" />
       ) : editing ? (
@@ -207,7 +220,7 @@ function ProfileCard() {
       ) : (
         <div className="flex items-center gap-3">
           <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-full bg-matcha-100 text-body-lg font-semibold text-matcha-700">
-            {shown.displayName.trim().charAt(0).toUpperCase()}
+            {(Array.from(shown.displayName.trim())[0] ?? "").toUpperCase()}
           </span>
           <div className="grid min-w-0 flex-1">
             <span className="text-body-lg font-semibold break-words">{shown.displayName}</span>

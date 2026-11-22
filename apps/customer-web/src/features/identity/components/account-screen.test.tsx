@@ -160,3 +160,47 @@ describe("Account (D3f screen 11, FE #72)", () => {
     expect(replace).not.toHaveBeenCalledWith("/login?next=%2Faccount");
   });
 });
+
+describe("Account — load and save failures (FE #72 review)", () => {
+  it("offers Thử lại when the profile cannot be loaded", async () => {
+    serve({ "GET /auth/me": me, "GET /me/profile": [() => problem(503, "SERVICE_UNAVAILABLE"), profile("Ngọc Hà", 3)] });
+    const user = renderAccount();
+    const card = within(await screen.findByRole("region", { name: "Hồ sơ" }));
+    expect(await card.findByText("Chưa tải được hồ sơ.")).toBeInTheDocument();
+    await user.click(card.getByRole("button", { name: "Thử lại" }));
+    expect(await card.findByText("Ngọc Hà")).toBeInTheDocument();
+  });
+
+  it("keeps the open edit when reloading after a 412 fails", async () => {
+    serve({
+      "GET /auth/me": me,
+      "GET /me/profile": [profile("Ngọc Hà", 3), () => problem(503, "SERVICE_UNAVAILABLE")],
+      "PATCH /me/profile": () => problem(412, "VERSION_CONFLICT"),
+    });
+    const user = renderAccount();
+    const card = within(await screen.findByRole("region", { name: "Hồ sơ" }));
+    await user.click(await card.findByRole("button", { name: "Sửa tên" }));
+    await user.clear(card.getByLabelText("Tên hiển thị"));
+    await user.type(card.getByLabelText("Tên hiển thị"), "Hà");
+    await user.click(card.getByRole("button", { name: "Lưu" }));
+    expect(await card.findByText("Chưa tải lại được hồ sơ. Bạn thử lại sau ít phút nhé.")).toBeInTheDocument();
+    expect(card.getByLabelText("Tên hiển thị")).toHaveValue("Hà");
+  });
+
+  it("puts a 400 under the name field", async () => {
+    serve({ "GET /auth/me": me, "GET /me/profile": profile("Ngọc Hà", 3), "PATCH /me/profile": () => problem(400, "VALIDATION_FAILED") });
+    const user = renderAccount();
+    const card = within(await screen.findByRole("region", { name: "Hồ sơ" }));
+    await user.click(await card.findByRole("button", { name: "Sửa tên" }));
+    await user.click(card.getByRole("button", { name: "Lưu" }));
+    expect(await card.findByText("Tên này chưa hợp lệ. Dùng 1–128 ký tự.")).toBeInTheDocument();
+    expect(card.getByLabelText("Tên hiển thị")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("uses the whole first character for the avatar", async () => {
+    serve({ "GET /auth/me": me, "GET /me/profile": profile("🍵 Trà", 3) });
+    renderAccount();
+    const card = within(await screen.findByRole("region", { name: "Hồ sơ" }));
+    expect(await card.findByText("🍵")).toBeInTheDocument();
+  });
+});
