@@ -156,7 +156,7 @@ function PhoneStep({ sending }: { sending: Sending }) {
         <h1 className="font-display text-heading-lg text-balance">Tạo tài khoản</h1>
         <p className="text-body text-ink-muted">Nhận mã 6 số qua tin nhắn để xác minh số điện thoại.</p>
       </div>
-      <form className="grid gap-3.5" onSubmit={submit} aria-label="Số điện thoại đăng ký" noValidate>
+      <form className="grid gap-3.5" onSubmit={submit} aria-label="Nhận mã xác minh" noValidate>
         {sending.isError && !invalid ? (
           <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">
             Chưa gửi được mã. Bạn thử lại sau ít phút nhé.
