@@ -141,7 +141,7 @@ export function CollectionsScreen({ selected, onSelect }: CollectionsScreenProps
           {creating ? (
             <NewCollection onCreated={(c) => onSelect(c.collectionId)} onCancel={() => onSelect(undefined)} />
           ) : current ? (
-            <CollectionEditor key={`${current.collectionId}-${current.version}`} collection={current} canManage={canManage} onArchived={() => onSelect(undefined)} />
+            <CollectionEditor key={current.collectionId} latest={current} canManage={canManage} onArchived={() => onSelect(undefined)} />
           ) : null}
           <TagsCard canManage={canManage} />
         </div>
@@ -271,14 +271,26 @@ function NameSlugFields(props: {
 }
 
 /** One collection: name, slug, its products in order (customers see this order), save and archive. */
-function CollectionEditor({ collection, canManage, onArchived }: { collection: Collection; canManage: boolean; onArchived: () => void }) {
+function CollectionEditor({ latest, canManage, onArchived }: { latest: Collection; canManage: boolean; onArchived: () => void }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const titleId = useId();
   const products = useQuery(allProductsQuery(api));
-  const [draft, setDraft] = useState<CollectionDraft>(() => draftOfCollection(collection));
+  // The version the draft was made from (the #35 pattern): a newer one replaces an untouched draft, or any draft
+  // after "Tải lại"; over typed edits the save answers 412 instead.
+  const [collection, setCollection] = useState<Collection>(latest);
+  const [draft, setDraft] = useState<CollectionDraft>(() => draftOfCollection(latest));
+  const [rebasing, setRebasing] = useState(false);
   const [errors, setErrors] = useState<CollectionErrors>({});
   const [notice, setNotice] = useState<Notice>(null);
+  if (latest.version !== collection.version && (rebasing || JSON.stringify(draft) === JSON.stringify(draftOfCollection(collection)))) {
+    setCollection(latest);
+    setDraft(draftOfCollection(latest));
+    if (rebasing) {
+      setRebasing(false);
+      setNotice(null);
+    }
+  }
   const [busy, setBusy] = useState(false);
   const [toAdd, setToAdd] = useState("");
   const [archiving, setArchiving] = useState(false);
@@ -300,7 +312,9 @@ function CollectionEditor({ collection, canManage, onArchived }: { collection: C
     try {
       // Each answer carries the next version for the following request's If-Match.
       const patched = patch ? await updateCollection(api, collection, patch) : collection;
-      if (productIds) await replaceCollectionProducts(api, patched, productIds);
+      const saved = productIds ? await replaceCollectionProducts(api, patched, productIds) : patched;
+      setCollection(saved);
+      setDraft(draftOfCollection(saved));
       await queryClient.invalidateQueries({ queryKey: collectionKeys.all });
       setNotice({ tone: "success", text: "Đã lưu bộ sưu tập. Khách thấy thay đổi trên menu sau khoảng một phút." });
     } catch (error) {
@@ -337,7 +351,14 @@ function CollectionEditor({ collection, canManage, onArchived }: { collection: C
           <div className="grid justify-items-start gap-2">
             <FormAlert tone={notice.tone}>{notice.text}</FormAlert>
             {notice.reload ? (
-              <Button variant="outline" density="compact" onClick={() => void queryClient.invalidateQueries({ queryKey: collectionKeys.all })}>
+              <Button
+                variant="outline"
+                density="compact"
+                onClick={() => {
+                  setRebasing(true);
+                  void queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+                }}
+              >
                 Tải lại
               </Button>
             ) : null}
@@ -416,7 +437,8 @@ function CollectionEditor({ collection, canManage, onArchived }: { collection: C
             <Button
               variant="ghost"
               onClick={() => {
-                setDraft(draftOfCollection(collection));
+                setCollection(latest);
+                setDraft(draftOfCollection(latest));
                 setErrors({});
                 setNotice(null);
               }}

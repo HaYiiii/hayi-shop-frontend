@@ -105,6 +105,35 @@ describe("Collections & tags (D3d screen 28)", () => {
     expect(api.bodyOf("PATCH /collections/mua-thu")).toEqual({ name: "Mùa thu" });
     expect(ifMatchOf(api, "PATCH /collections/mua-thu")).toEqual(['"v2"']);
     expect(ifMatchOf(api, "PUT /collections/mua-thu/products")).toEqual(['"v3"']);
+    expect(await editor.findByText(/^Đã lưu bộ sưu tập/)).toBeInTheDocument();
+    expect(editor.getByLabelText("Tên (khách thấy)")).toHaveValue("Mùa thu");
+  });
+
+  it("on a version conflict, Tải lại drops the edits and shows the newer collection", async () => {
+    const fake = server();
+    let newer = false;
+    const { user } = renderAdmin(
+      "/admin/collections",
+      {
+        ...fake.handlers,
+        "GET /collections": () =>
+          json({ items: [collection("mua-thu", newer ? "Thu 2026" : "Mùa thu 2026", 0, ["p-bido"], newer ? 3 : 2)] }),
+        "PATCH /collections/mua-thu": () => {
+          newer = true;
+          return problem(412, "VERSION_CONFLICT");
+        },
+      },
+      catalogOwner,
+    );
+    const editor = within(await screen.findByRole("region", { name: "Mùa thu 2026" }));
+    await user.clear(editor.getByLabelText("Tên (khách thấy)"));
+    await user.type(editor.getByLabelText("Tên (khách thấy)"), "Mùa thu");
+    await user.click(editor.getByRole("button", { name: "Lưu bộ sưu tập" }));
+    expect(await editor.findByText("Bộ sưu tập vừa được người khác cập nhật. Tải lại rồi lưu lại.")).toBeInTheDocument();
+    await user.click(editor.getByRole("button", { name: "Tải lại" }));
+    const reloaded = within(await screen.findByRole("region", { name: "Thu 2026" }));
+    expect(reloaded.getByLabelText("Tên (khách thấy)")).toHaveValue("Thu 2026");
+    expect(reloaded.queryByText(/người khác cập nhật/)).not.toBeInTheDocument();
   });
 
   it("moves a collection down by swapping the two sortOrders", async () => {
