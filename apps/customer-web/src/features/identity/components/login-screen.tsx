@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect } from "react";
 import { errorCode, meKey, useCustomerApi } from "../../../lib/customer-api";
-import { logIn, safeNext } from "../api/session";
+import { logIn, meQuery, safeNext } from "../api/session";
 
 /** Local time (HH:mm, Branch time) when a `429` ends, from `Retry-After`. */
 function retryAt(error: ApiError): string | null {
@@ -49,7 +49,8 @@ export function LoginScreen({ next }: { next?: string | undefined }) {
       if (result.verificationRequired) throw new ApiError({ status: 202, code: "LOGIN_VERIFICATION_REQUIRED" });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: meKey });
+      // Load the signed-in Customer before leaving, so the next page never sees the cached "signed out".
+      await queryClient.fetchQuery({ ...meQuery(api), staleTime: 0 }).catch(() => queryClient.removeQueries({ queryKey: meKey }));
       router.replace(safeNext(next));
     },
   });

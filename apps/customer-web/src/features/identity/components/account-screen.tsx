@@ -3,7 +3,7 @@
 import { Button, Skeleton } from "@hayi/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { meKey, useCustomerApi } from "../../../lib/customer-api";
 import { logOut, meQuery } from "../api/session";
 
@@ -15,15 +15,19 @@ export function AccountScreen() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const me = useQuery(meQuery(api));
-  const signedOut = me.isSuccess && me.data === null;
+  // Only a settled answer: a cached "signed out" may be refetching after a sign-in.
+  const signedOut = me.isSuccess && me.data === null && !me.isFetching;
+  // Signing out goes home, not to sign-in.
+  const leaving = useRef(false);
   useEffect(() => {
-    if (signedOut) router.replace(SIGN_IN);
+    if (signedOut && !leaving.current) router.replace(SIGN_IN);
   }, [signedOut, router]);
 
   const logout = useMutation({
     mutationFn: () => logOut(api),
     // Signed out locally even if the request failed: the cookies are the only token and the server revokes on expiry.
     onSettled: () => {
+      leaving.current = true;
       queryClient.setQueryData(meKey, null);
       router.replace("/");
     },
