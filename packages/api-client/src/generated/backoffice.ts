@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Log in with email and password
-         * @description On success sets `hy_b_at`, `hy_b_rt` and `hy_csrf` and every flag of the response is false.
+         * @description On success sets `hy_b_at`, `hy_b_rt` and `hy_b_csrf` and every flag of the response is false.
          *     Otherwise exactly one step comes first, and no cookie is set:
          *     a temporary password → `passwordChangeRequired` + `changeToken` (Decision K3); an active MFA factor →
          *     `mfaRequired` + `mfaChallengeId` (`POST /auth/mfa/verify`); a STORE role without MFA →
@@ -196,7 +196,7 @@ export interface paths {
         };
         /**
          * Re-issue the CSRF cookie
-         * @description Sets a fresh `hy_csrf` bound to the current session (API 01-security §3.1).
+         * @description Sets a fresh `hy_b_csrf` bound to the current session (API 01-security §3.1).
          */
         get: operations["issueCsrfToken"];
         put?: never;
@@ -3060,7 +3060,7 @@ export interface components {
     parameters: {
         /** @description Opaque refresh token; missing or unknown → `401 AUTH_REQUIRED`. */
         RefreshTokenCookie: string;
-        /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+        /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
         CsrfHeader: string;
         /**
          * @description `"v{version}"` from the last `ETag` (API README §8). Required by the server on config edits: missing →
@@ -3226,7 +3226,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -3254,7 +3254,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -3281,7 +3281,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -3374,7 +3374,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -3440,7 +3440,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3480,7 +3480,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3514,7 +3514,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3548,7 +3548,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3638,7 +3638,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3679,7 +3679,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3719,7 +3719,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3783,7 +3783,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3859,7 +3859,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3902,7 +3902,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -3944,7 +3944,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4036,7 +4036,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -4072,7 +4072,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -4135,7 +4135,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4175,7 +4175,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4231,7 +4231,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -4296,7 +4296,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4338,7 +4338,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4377,7 +4377,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4430,7 +4430,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -4463,7 +4463,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4528,7 +4528,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -4595,7 +4595,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4635,7 +4635,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4677,7 +4677,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4718,7 +4718,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4753,7 +4753,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4795,7 +4795,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4834,7 +4834,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4871,7 +4871,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4911,7 +4911,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4945,7 +4945,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -4978,7 +4978,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5014,7 +5014,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5057,7 +5057,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5099,7 +5099,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5142,7 +5142,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5216,7 +5216,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5257,7 +5257,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5295,7 +5295,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5367,7 +5367,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5407,7 +5407,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -5437,7 +5437,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5492,7 +5492,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path?: never;
@@ -5558,7 +5558,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5598,7 +5598,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5631,7 +5631,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5673,7 +5673,7 @@ export interface operations {
                  *     `428 PRECONDITION_REQUIRED`; any other version, weak tag or `*` → `412 VERSION_CONFLICT`.
                  */
                 "If-Match"?: components["parameters"]["IfMatch"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {
@@ -5714,7 +5714,7 @@ export interface operations {
             header?: {
                 /** @description Optional on commands (API README §8): when sent, a version other than the current one → `412 VERSION_CONFLICT`. */
                 "If-Match"?: components["parameters"]["IfMatchOptional"];
-                /** @description Value of the `hy_csrf` cookie; missing or wrong → `403 CSRF_INVALID`. */
+                /** @description Value of the `hy_b_csrf` cookie (the Backoffice one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
             };
             path: {

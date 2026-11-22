@@ -74,6 +74,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log in with phone and password
+         * @description On success sets `hy_c_at`, `hy_c_rt` and `hy_c_csrf` (Decision AO1). A malformed or unknown phone, a wrong
+         *     password or an account without a Customer profile → `401 AUTH_INVALID_CREDENTIALS`; locked after 5 failures
+         *     within a sliding 15 minutes → `429 AUTH_LOGIN_LOCKED` with `Retry-After` (K2). 20 attempts per minute per IP →
+         *     `429 RATE_LIMITED` (AO4). `verificationRequired` is reserved for the risk engine (`202`), always `false` now.
+         */
+        post: operations["loginCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate the refresh token
+         * @description As the Backoffice (API 01-security §5, Decision AO3): 30 days idle, 180 days absolute, a 10 s grace for a
+         *     just-rotated token, later reuse revokes the session (`401 AUTH_SESSION_REVOKED`). A refresh token of another
+         *     surface's session → `401 AUTH_REQUIRED`. 30 per minute per session → `429 RATE_LIMITED` (AO4). Requires
+         *     `X-CSRF-Token`.
+         */
+        post: operations["refreshCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke the current session
+         * @description Revokes the session and clears the Customer cookies. Idempotent. Requires `X-CSRF-Token`.
+         */
+        post: operations["logoutCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Re-issue the CSRF cookie
+         * @description Sets a fresh `hy_c_csrf` bound to the current session (API 01-security §3.1).
+         */
+        get: operations["issueCustomerCsrfToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in Customer
+         * @description `{ userId, customerId, displayName, phoneMasked }`, every key present (Decision AO2).
+         */
+        get: operations["getCustomerMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -134,6 +240,24 @@ export interface components {
             /** Format: uuid */
             customerId: string;
         };
+        CustomerLoginRequest: {
+            phone: string;
+            password: string;
+        };
+        CustomerLoginResponse: {
+            verificationRequired: boolean;
+            /** Format: uuid */
+            challengeId: string | null;
+        };
+        CustomerMe: {
+            /** Format: uuid */
+            userId: string;
+            /** Format: uuid */
+            customerId: string | null;
+            displayName: string | null;
+            /** @description e.g. `+8490*****567` */
+            phoneMasked: string | null;
+        };
     };
     responses: {
         /** @description `VALIDATION_FAILED` */
@@ -145,8 +269,17 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `OTP_CODE_INVALID`, `OTP_CHALLENGE_LOCKED`, `OTP_CHALLENGE_INVALID`, `VERIFICATION_TOKEN_INVALID` or `AUTH_INVALID_CREDENTIALS` */
+        /** @description `AUTH_REQUIRED`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS`, `OTP_CODE_INVALID`, `OTP_CHALLENGE_LOCKED`, `OTP_CHALLENGE_INVALID` or `VERIFICATION_TOKEN_INVALID` */
         Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description `CSRF_INVALID` */
+        Forbidden: {
             headers: {
                 [name: string]: unknown;
             };
@@ -172,10 +305,10 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description `RATE_LIMITED` (Decision AN5) */
+        /** @description `RATE_LIMITED` (Decision AN5, AO4) or `AUTH_LOGIN_LOCKED` (K2) */
         RateLimited: {
             headers: {
-                /** @description Seconds until another code may be requested. */
+                /** @description Seconds until the request may be retried. */
                 "Retry-After"?: number;
                 [name: string]: unknown;
             };
@@ -184,9 +317,17 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        /** @description Opaque refresh token; missing or unknown → `401 AUTH_REQUIRED`. */
+        RefreshTokenCookie: string;
+        /** @description Value of the `hy_c_csrf` cookie (the Customer one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+        CsrfHeader: string;
+    };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Auth cookies (API 01-security §3). */
+        SetCookie: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -269,6 +410,129 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["BusinessRuleViolated"];
+        };
+    };
+    loginCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Logged in. */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerLoginResponse"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    refreshCustomer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_c_csrf` cookie (the Customer one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: {
+                /** @description Opaque refresh token; missing or unknown → `401 AUTH_REQUIRED`. */
+                hy_c_rt?: components["parameters"]["RefreshTokenCookie"];
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tokens rotated. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    logoutCustomer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Value of the `hy_c_csrf` cookie (the Customer one, Decision AP1); missing or wrong → `403 CSRF_INVALID`. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: {
+                /** @description Opaque refresh token; missing or unknown → `401 AUTH_REQUIRED`. */
+                hy_c_rt?: components["parameters"]["RefreshTokenCookie"];
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked and cookies cleared. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    issueCustomerCsrfToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSRF cookie set. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getCustomerMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerMe"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
 }
