@@ -1,16 +1,18 @@
 import createClient, { type Middleware } from "openapi-fetch";
-import { applyCsrf } from "./csrf.js";
+import { CSRF_COOKIES, type CsrfCookie, applyCsrf } from "./csrf.js";
 import type { paths as BackofficePaths } from "./generated/backoffice.js";
 import type { paths as CustomerPaths } from "./generated/customer.js";
 import type { paths as PublicPaths } from "./generated/public.js";
 import { createSessionFetch, type SessionFetchOptions } from "./session-fetch.js";
 
-/** Double-submit CSRF header for cookie-authenticated unsafe requests (01-security.md §3.1). */
-export const csrfMiddleware: Middleware = {
-  onRequest({ request }) {
-    return applyCsrf(request);
-  },
-};
+/** Double-submit CSRF header from the surface's own cookie on unsafe requests (01-security.md §3.1, AP1). */
+export function csrfMiddleware(cookie: CsrfCookie): Middleware {
+  return {
+    onRequest({ request }) {
+      return applyCsrf(request, cookie);
+    },
+  };
+}
 
 /** Generates an Idempotency-Key for commands that require it (API Contract README §7). */
 export function newIdempotencyKey(): string {
@@ -36,7 +38,7 @@ export function createPublicClient({ baseUrl, requestInitExt }: PublicClientOpti
 
 export function createCustomerClient({ baseUrl }: ClientOptions) {
   const client = createClient<CustomerPaths>({ baseUrl: `${baseUrl}/api/customer/v1`, credentials: "include" });
-  client.use(csrfMiddleware);
+  client.use(csrfMiddleware(CSRF_COOKIES.customer));
   return client;
 }
 
@@ -46,8 +48,8 @@ export type BackofficeClientOptions = ClientOptions &
 /** Refreshes an expired session once and replays; re-issues CSRF; hands `STEP_UP_REQUIRED` to `onStepUpRequired`. */
 export function createBackofficeClient({ baseUrl, onSessionExpired, onStepUpRequired }: BackofficeClientOptions) {
   const apiUrl = `${baseUrl}/api/backoffice/v1`;
-  const fetch = createSessionFetch({ apiUrl, onSessionExpired, onStepUpRequired });
+  const fetch = createSessionFetch({ apiUrl, csrfCookie: CSRF_COOKIES.backoffice, onSessionExpired, onStepUpRequired });
   const client = createClient<BackofficePaths>({ baseUrl: apiUrl, credentials: "include", fetch });
-  client.use(csrfMiddleware);
+  client.use(csrfMiddleware(CSRF_COOKIES.backoffice));
   return client;
 }

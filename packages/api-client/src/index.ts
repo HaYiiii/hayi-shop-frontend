@@ -9,6 +9,7 @@ export {
   type ClientOptions,
   type PublicClientOptions,
 } from "./client.js";
+export { CSRF_COOKIES, type CsrfCookie } from "./csrf.js";
 export { createSessionFetch, type SessionFetchOptions } from "./session-fetch.js";
 export type { components as BackofficeComponents } from "./generated/backoffice.js";
 export type { components as PublicComponents } from "./generated/public.js";
