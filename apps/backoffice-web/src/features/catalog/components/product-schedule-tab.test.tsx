@@ -127,3 +127,70 @@ describe("Product selling schedule (D3d screen 26)", () => {
     expect(screen.queryByRole("button", { name: "Thêm đợt bán" })).not.toBeInTheDocument();
   });
 });
+
+describe("Product tags (D3d screen 26, FE #53)", () => {
+  it("adds and removes tags and saves the list with If-Match", async () => {
+    const fake = server(aProduct({ tags: [{ tagId: "t-thu", slug: "mua-thu", name: "Mùa thu", createdAt: "2026-11-01T03:00:00Z" }] }));
+    let saved: unknown;
+    const { api, user } = renderAdmin(
+      PATH,
+      {
+        ...fake.handlers,
+        "GET /tags": () =>
+          json({
+            items: [
+              { tagId: "t-ngot", slug: "it-ngot", name: "Ít ngọt", createdAt: "2026-11-01T03:00:00Z" },
+              { tagId: "t-thu", slug: "mua-thu", name: "Mùa thu", createdAt: "2026-11-01T03:00:00Z" },
+            ],
+          }),
+        "PUT /products/p-new/tags": (body: unknown) => {
+          saved = body;
+          return productResponse(aProduct({ version: 1, tags: [{ tagId: "t-ngot", slug: "it-ngot", name: "Ít ngọt", createdAt: "2026-11-01T03:00:00Z" }] }));
+        },
+      },
+      catalogOwner,
+    );
+    const tags = within(await screen.findByRole("region", { name: "Tag" }));
+    expect(tags.getByRole("list", { name: "Tag của món" })).toHaveTextContent("Mùa thu");
+    await user.click(tags.getByRole("button", { name: "Bỏ tag Mùa thu" }));
+    await user.selectOptions(await tags.findByLabelText("Thêm tag"), "Ít ngọt");
+    await user.click(tags.getByRole("button", { name: "Thêm" }));
+    await user.click(tags.getByRole("button", { name: "Lưu tag" }));
+
+    expect(await screen.findByText("Đã lưu tag của món.")).toBeInTheDocument();
+    expect(saved).toEqual({ tagIds: ["t-ngot"] });
+    expect(ifMatchOf(api, "PUT /products/p-new/tags")).toEqual(['"v0"']);
+  });
+});
+
+describe("Product tags after the schedule is saved (FE #53 review)", () => {
+  it("keeps the edited tags and saves them against the version the schedule save returned", async () => {
+    const fake = server();
+    const { api, user } = renderAdmin(
+      PATH,
+      {
+        ...fake.handlers,
+        "GET /tags": () => json({ items: [{ tagId: "t-ngot", slug: "it-ngot", name: "Ít ngọt", createdAt: "2026-11-01T03:00:00Z" }] }),
+        "PUT /products/p-new/tags": () =>
+          productResponse(aProduct({ version: 2, tags: [{ tagId: "t-ngot", slug: "it-ngot", name: "Ít ngọt", createdAt: "2026-11-01T03:00:00Z" }] })),
+      },
+      catalogOwner,
+    );
+    const tags = within(await screen.findByRole("region", { name: "Tag" }));
+    await user.selectOptions(await tags.findByLabelText("Thêm tag"), "Ít ngọt");
+    await user.click(tags.getByRole("button", { name: "Thêm" }));
+    expect(tags.getByLabelText("Thêm tag")).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Thêm đợt bán" }));
+    const period = within(screen.getByRole("group", { name: "Đợt bán 1" }));
+    await user.type(period.getByLabelText("Đợt 1 khung 1 bắt đầu"), "0700");
+    await user.type(period.getByLabelText("Đợt 1 khung 1 kết thúc"), "1400");
+    await user.click(screen.getByRole("button", { name: "Lưu lịch bán" }));
+    expect(await screen.findByText(/Đã lưu lịch bán/)).toBeInTheDocument();
+
+    expect(tags.getByRole("list", { name: "Tag của món" })).toHaveTextContent("Ít ngọt");
+    await user.click(tags.getByRole("button", { name: "Lưu tag" }));
+    expect(await screen.findByText("Đã lưu tag của món.")).toBeInTheDocument();
+    expect(ifMatchOf(api, "PUT /products/p-new/tags")).toEqual(['"v1"']);
+  });
+});

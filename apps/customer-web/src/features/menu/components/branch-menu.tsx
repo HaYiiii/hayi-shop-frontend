@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { PublicBranch } from "../../branch/api/branches";
 import { pickupText } from "../../branch/pickup-text";
 import type { MenuProduct, PublicMenu } from "../api/menu";
-import { availabilityText, menuJumps, menuSections } from "../menu-sections";
+import { availabilityText, menuCollections, menuJumps, menuSections } from "../menu-sections";
 
 interface BranchMenuProps {
   branch: PublicBranch;
@@ -20,6 +20,8 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
   const sections = menuSections(menu);
   const jumps = menuJumps(menu);
   const pickup = pickupText(branch.earliestPickupAt, now);
+  const collections = menuCollections(menu);
+  const productHref = (product: MenuProduct) => `/b/${encodeURIComponent(branch.branchCode)}/p/${encodeURIComponent(product.slug)}`;
 
   return (
     <>
@@ -60,6 +62,23 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
 
       <main className="mx-auto grid w-full max-w-content gap-6 px-4 py-4">
         <h1 className="sr-only">{`Menu ${branch.name}`}</h1>
+        {collections.map((collection) => (
+          <section key={collection.collectionId} aria-labelledby={collection.anchor} className="grid gap-3">
+            <div className="grid gap-0.5">
+              <h2 id={collection.anchor} className="font-display text-heading-lg text-balance">
+                {collection.name}
+              </h2>
+              <p className="text-caption text-ink-muted">{`Bộ sưu tập · ${collection.products.length} món`}</p>
+            </div>
+            <ul aria-label={`Món ${collection.name}`} className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1">
+              {collection.products.map((product) => (
+                <li key={product.productId} className="w-36 shrink-0 snap-start">
+                  <CollectionTile product={product} evaluatedAt={menu.evaluatedAt} href={productHref(product)} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
         {sections.length === 0 ? (
           <p className="text-body text-ink-muted">Chi nhánh chưa có món nào đang bán. Bạn chọn chi nhánh khác hoặc quay lại sau nhé.</p>
         ) : (
@@ -79,7 +98,7 @@ export function BranchMenu({ branch, menu, now = new Date() }: BranchMenuProps) 
                   <ul className="grid gap-3" aria-label={`Món ${section.name}`}>
                     {section.products.map((product) => (
                       <li key={product.productId}>
-                        <ProductCard product={product} evaluatedAt={menu.evaluatedAt} href={`/b/${encodeURIComponent(branch.branchCode)}/p/${encodeURIComponent(product.slug)}`} />
+                        <ProductCard product={product} evaluatedAt={menu.evaluatedAt} href={productHref(product)} />
                       </li>
                     ))}
                   </ul>
@@ -126,10 +145,57 @@ function ProductCard({ product, evaluatedAt, href }: { product: MenuProduct; eva
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-body font-semibold tabular-nums">{`Từ ${formatVnd(product.fromPrice)}`}</span>
           {unavailable ? (
-            <StatusBadge tone={product.availability === "SOLD_OUT" ? "danger" : product.availability === "OUTSIDE_SELLING_HOURS" ? "warning" : "neutral"}>{unavailable}</StatusBadge>
+            <StatusBadge tone={badgeTone(product.availability)}>{unavailable}</StatusBadge>
           ) : null}
         </div>
+        {product.tags.length > 0 ? (
+          <span className="flex flex-wrap gap-1">
+            {product.tags.map((tag) => (
+              <StatusBadge key={tag.slug} tone="neutral">
+                {tag.name}
+              </StatusBadge>
+            ))}
+          </span>
+        ) : null}
       </div>
+    </Link>
+  );
+}
+
+function badgeTone(availability: MenuProduct["availability"]) {
+  return availability === "SOLD_OUT" ? "danger" : availability === "OUTSIDE_SELLING_HOURS" ? "warning" : "neutral";
+}
+
+/** A Collection tile (D3a screen 2b): image, name, "Từ" price, and why it cannot be ordered now. */
+function CollectionTile({ product, evaluatedAt, href }: { product: MenuProduct; evaluatedAt: string; href: string }) {
+  const unavailable = availabilityText(product.availability, evaluatedAt);
+  return (
+    <Link
+      href={href}
+      className={cn("grid gap-2 rounded-lg text-ink no-underline", focusRing)}
+    >
+      {product.primaryImageUrl ? (
+        // Plain `<img>` for the same reason as ProductCard.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={product.primaryImageUrl}
+          alt=""
+          width={144}
+          height={144}
+          loading="lazy"
+          decoding="async"
+          className={cn("aspect-square w-full rounded-lg bg-sunken object-cover", unavailable && "opacity-55")}
+        />
+      ) : (
+        <span aria-hidden="true" className="aspect-square w-full rounded-lg bg-sunken" />
+      )}
+      <span className={cn("text-body font-semibold break-words", unavailable && "text-ink-muted")}>{product.name}</span>
+      <span className="text-label font-semibold tabular-nums">{`Từ ${formatVnd(product.fromPrice)}`}</span>
+      {unavailable ? (
+        <StatusBadge tone={badgeTone(product.availability)} className="justify-self-start">
+          {unavailable}
+        </StatusBadge>
+      ) : null}
     </Link>
   );
 }

@@ -37,6 +37,27 @@ export function menuSections(menu: PublicMenu): MenuSection[] {
   ]);
 }
 
+/** A Collection strip of the menu (D3a screen 2b): its products as shown in this menu, in Collection order. */
+export interface MenuCollectionSection {
+  collectionId: string;
+  name: string;
+  anchor: string;
+  products: MenuProduct[];
+}
+
+/** Collections in the API's order (Decision AL3); an id not in this menu is skipped, an empty Collection dropped. */
+export function menuCollections(menu: PublicMenu): MenuCollectionSection[] {
+  const byId = new Map(
+    menu.categories.flatMap((root) => [...root.products, ...root.children.flatMap((child) => child.products)]).map((p) => [p.productId, p]),
+  );
+  return menu.collections.flatMap((collection) => {
+    const products = collection.productIds.flatMap((id) => byId.get(id) ?? []);
+    return products.length === 0
+      ? []
+      : [{ collectionId: collection.collectionId, name: collection.name, anchor: `bst-${collection.collectionId}`, products }];
+  });
+}
+
 export function menuJumps(menu: PublicMenu): MenuJump[] {
   return menu.categories.map((root) => ({ name: root.name, anchor: anchorOf(root) }));
 }
