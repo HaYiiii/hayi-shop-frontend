@@ -1,6 +1,6 @@
 import { Button, Card, Dialog, Field, Skeleton, StatusBadge, Table, cn, focusRing } from "@hayi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useApi } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
@@ -31,9 +31,11 @@ import {
   collectionChanges,
   collectionErrorText,
   draftOfCollection,
+  productGone,
+  rebaseDraft,
   moveProduct,
   removeProduct,
-  swapCollections,
+  reorderCollections,
   textErrors,
 } from "../collection-editor";
 import { productStatusLabel, productStatusTone } from "../product-status";
@@ -55,21 +57,26 @@ export function CollectionsScreen({ selected, onSelect }: CollectionsScreenProps
   const canManage = permissions.has("CATALOG_MANAGE");
   const collections = useQuery(collectionsQuery(api));
   const [notice, setNotice] = useState<Notice>(null);
+  const [moving, setMoving] = useState(false);
 
   const list = collections.data ?? [];
   const creating = selected === "new" && canManage;
   const current = creating ? null : (list.find((c) => c.collectionId === selected) ?? list[0] ?? null);
 
   async function move(collectionId: string, by: -1 | 1) {
-    const swap = swapCollections(list, collectionId, by);
-    if (!swap) return;
+    // One move at a time: a second click before the list is reloaded would renumber from stale values.
+    if (moving) return;
+    const changes = reorderCollections(list, collectionId, by);
+    if (!changes) return;
     setNotice(null);
+    setMoving(true);
     try {
-      for (const { collection, sortOrder } of swap) await updateCollection(api, collection, { sortOrder });
+      for (const { collection, sortOrder } of changes) await updateCollection(api, collection, { sortOrder });
     } catch (error) {
       setNotice({ tone: "warning", ...collectionErrorText(error) });
     }
     await queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+    setMoving(false);
     document.getElementById(`collection-${collectionId}-${by < 0 ? "up" : "down"}`)?.focus();
   }
 
@@ -114,8 +121,8 @@ export function CollectionsScreen({ selected, onSelect }: CollectionsScreenProps
                 <li key={c.collectionId} className="flex items-center gap-1">
                   {canManage ? (
                     <span className="flex flex-col">
-                      <MoveButton id={`collection-${c.collectionId}-up`} label={`Chuyển ${c.name} lên`} disabled={i === 0} onClick={() => void move(c.collectionId, -1)} up />
-                      <MoveButton id={`collection-${c.collectionId}-down`} label={`Chuyển ${c.name} xuống`} disabled={i === list.length - 1} onClick={() => void move(c.collectionId, 1)} />
+                      <MoveButton id={`collection-${c.collectionId}-up`} label={`Chuyển ${c.name} lên`} disabled={moving || i === 0} onClick={() => void move(c.collectionId, -1)} up />
+                      <MoveButton id={`collection-${c.collectionId}-down`} label={`Chuyển ${c.name} xuống`} disabled={moving || i === list.length - 1} onClick={() => void move(c.collectionId, 1)} />
                     </span>
                   ) : null}
                   <button
@@ -276,23 +283,27 @@ function CollectionEditor({ latest, canManage, onArchived }: { latest: Collectio
   const queryClient = useQueryClient();
   const titleId = useId();
   const products = useQuery(allProductsQuery(api));
-  // The version the draft was made from (the #35 pattern): a newer one replaces an untouched draft, or any draft
-  // after "Tải lại"; over typed edits the save answers 412 instead.
+  // The version the draft was made from (the #35 pattern): a newer one replaces an untouched draft; over typed
+  // edits the save answers 412, and "Tải lại" puts the typed fields on top of the newer version.
   const [collection, setCollection] = useState<Collection>(latest);
   const [draft, setDraft] = useState<CollectionDraft>(() => draftOfCollection(latest));
   const [rebasing, setRebasing] = useState(false);
   const [errors, setErrors] = useState<CollectionErrors>({});
   const [notice, setNotice] = useState<Notice>(null);
-  if (latest.version !== collection.version && (rebasing || JSON.stringify(draft) === JSON.stringify(draftOfCollection(collection)))) {
-    setCollection(latest);
-    setDraft(draftOfCollection(latest));
+  if (latest.version > collection.version) {
     if (rebasing) {
+      setCollection(latest);
+      setDraft(rebaseDraft(collection, draft, latest));
       setRebasing(false);
       setNotice(null);
+    } else if (JSON.stringify(draft) === JSON.stringify(draftOfCollection(collection))) {
+      setCollection(latest);
+      setDraft(draftOfCollection(latest));
     }
   }
   const [busy, setBusy] = useState(false);
   const [toAdd, setToAdd] = useState("");
+  const addSelect = useRef<HTMLSelectElement>(null);
   const [archiving, setArchiving] = useState(false);
   const byId = new Map((products.data ?? []).map((p) => [p.productId, p]));
   const addable = (products.data ?? []).filter((p) => !draft.productIds.includes(p.productId)).sort((a, b) => a.name.localeCompare(b.name, "vi"));
@@ -312,6 +323,8 @@ function CollectionEditor({ latest, canManage, onArchived }: { latest: Collectio
     try {
       // Each answer carries the next version for the following request's If-Match.
       const patched = patch ? await updateCollection(api, collection, patch) : collection;
+      // Kept at once: if the product list then fails, the next save starts from this version, not a stale one.
+      setCollection(patched);
       const saved = productIds ? await replaceCollectionProducts(api, patched, productIds) : patched;
       setCollection(saved);
       setDraft(draftOfCollection(saved));
@@ -319,10 +332,23 @@ function CollectionEditor({ latest, canManage, onArchived }: { latest: Collectio
       setNotice({ tone: "success", text: "Đã lưu bộ sưu tập. Khách thấy thay đổi trên menu sau khoảng một phút." });
     } catch (error) {
       const failure = collectionErrorText(error);
+      const gone = productGone(error) ? await goneProductNames() : [];
       if (failure.field) setErrors({ slug: failure.text });
+      else if (gone.length > 0) setNotice({ tone: "warning", text: `${gone.join(", ")} vừa được lưu trữ hoặc xoá. Bỏ món đó khỏi danh sách rồi lưu lại.` });
       else setNotice({ tone: "warning", text: failure.text, ...(failure.reload && { reload: true }) });
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** The problem names no product: the ones in the draft that a fresh list no longer has, by their known name. */
+  async function goneProductNames(): Promise<string[]> {
+    try {
+      const fresh = await queryClient.fetchQuery({ ...allProductsQuery(api), staleTime: 0 });
+      const live = new Set(fresh.map((p) => p.productId));
+      return draft.productIds.flatMap((id) => { const name = byId.get(id)?.name; return !live.has(id) && name ? [name] : []; });
+    } catch {
+      return [];
     }
   }
 
@@ -332,6 +358,7 @@ function CollectionEditor({ latest, canManage, onArchived }: { latest: Collectio
       setDraft((d) => addProduct(d, toAdd));
       setToAdd("");
     });
+    addSelect.current?.focus();
   }
 
   return (
@@ -415,7 +442,7 @@ function CollectionEditor({ latest, canManage, onArchived }: { latest: Collectio
           <div className="flex flex-wrap items-end gap-2">
             <Field.Root className="min-w-[260px] flex-1">
               <Field.Label>Thêm món vào bộ sưu tập</Field.Label>
-              <Field.Select value={toAdd} onChange={(e) => setToAdd(e.currentTarget.value)}>
+              <Field.Select ref={addSelect} value={toAdd} onChange={(e) => setToAdd(e.currentTarget.value)}>
                 <option value="">{products.isPending ? "Đang tải món…" : "Chọn món…"}</option>
                 {addable.map((p) => (
                   <option key={p.productId} value={p.productId}>
@@ -492,7 +519,7 @@ function TagsCard({ canManage }: { canManage: boolean }) {
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [errors, setErrors] = useState<CollectionErrors>({});
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function add(event: FormEvent<HTMLFormElement>) {
@@ -508,11 +535,11 @@ function TagsCard({ canManage }: { canManage: boolean }) {
       setName("");
       setSlug("");
       setSlugTouched(false);
-      setMessage("Đã thêm tag.");
+      setMessage({ tone: "success", text: "Đã thêm tag." });
     } catch (error) {
       const failure = collectionErrorText(error);
       if (failure.field) setErrors({ slug: failure.text });
-      else setMessage(failure.text);
+      else setMessage({ tone: "danger", text: failure.text });
     } finally {
       setBusy(false);
     }
@@ -523,7 +550,7 @@ function TagsCard({ canManage }: { canManage: boolean }) {
       <h2 id={titleId} className="text-title">
         Tag
       </h2>
-      {message ? <FormAlert tone={message.startsWith("Đã") ? "success" : "danger"}>{message}</FormAlert> : null}
+      {message ? <FormAlert tone={message.tone}>{message.text}</FormAlert> : null}
       {!tags.data ? (
         <Skeleton className="h-24 w-full" />
       ) : tags.data.length === 0 ? (

@@ -1,6 +1,6 @@
 import { Button, Card, Field } from "@hayi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { errorCode, useApi } from "../../../lib/api";
 import { FormAlert } from "../../../lib/form-alert";
 import { tagsQuery } from "../api/collections";
@@ -19,13 +19,19 @@ export function ProductTags() {
   const readOnly = !canManage || product.status === "ARCHIVED";
   const tags = useQuery(tagsQuery(api));
   const [tagIds, setTagIds] = useState<string[]>(() => idsOf(product));
-  // The version the list was made from: a newer one replaces an untouched list (the #35 pattern).
+  // The version the list was made from (the #35 pattern): a newer version with the same tags (e.g. the schedule
+  // above was saved) only moves the base; one with other tags replaces an untouched list.
   const [base, setBase] = useState<Product>(product);
-  if (product.version !== base.version && JSON.stringify(tagIds) === JSON.stringify(idsOf(base))) {
-    setBase(product);
-    setTagIds(idsOf(product));
+  if (product.version > base.version) {
+    if (JSON.stringify(idsOf(product)) === JSON.stringify(idsOf(base))) {
+      setBase(product);
+    } else if (JSON.stringify(tagIds) === JSON.stringify(idsOf(base))) {
+      setBase(product);
+      setTagIds(idsOf(product));
+    }
   }
   const [toAdd, setToAdd] = useState("");
+  const addSelect = useRef<HTMLSelectElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -98,7 +104,7 @@ export function ProductTags() {
           <div className="flex flex-wrap items-end gap-2">
             <Field.Root className="min-w-[220px] flex-1">
               <Field.Label>Thêm tag</Field.Label>
-              <Field.Select value={toAdd} onChange={(e) => setToAdd(e.currentTarget.value)}>
+              <Field.Select ref={addSelect} value={toAdd} onChange={(e) => setToAdd(e.currentTarget.value)}>
                 <option value="">{addable.length > 0 ? "Chọn tag…" : "Không còn tag để thêm"}</option>
                 {addable.map((t) => (
                   <option key={t.tagId} value={t.tagId}>
@@ -115,6 +121,7 @@ export function ProductTags() {
                 if (!toAdd || tagIds.length >= TAGS_MAX) return;
                 setTagIds((ids) => [...ids, toAdd]);
                 setToAdd("");
+                addSelect.current?.focus();
               }}
             >
               Thêm

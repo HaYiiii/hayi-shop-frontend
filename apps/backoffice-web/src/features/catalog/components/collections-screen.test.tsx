@@ -109,16 +109,17 @@ describe("Collections & tags (D3d screen 28)", () => {
     expect(editor.getByLabelText("Tên (khách thấy)")).toHaveValue("Mùa thu");
   });
 
-  it("on a version conflict, Tải lại drops the edits and shows the newer collection", async () => {
+  it("on a version conflict, Tải lại keeps the typed name on top of the newer collection", async () => {
     const fake = server();
     let newer = false;
-    const { user } = renderAdmin(
+    const { api, user } = renderAdmin(
       "/admin/collections",
       {
         ...fake.handlers,
         "GET /collections": () =>
-          json({ items: [collection("mua-thu", newer ? "Thu 2026" : "Mùa thu 2026", 0, ["p-bido"], newer ? 3 : 2)] }),
+          json({ items: [newer ? collection("mua-thu", "Thu 2026", 0, ["p-bido", "p-hatde"], 3) : collection("mua-thu", "Mùa thu 2026", 0, ["p-bido"])] }),
         "PATCH /collections/mua-thu": () => {
+          if (newer) return json(collection("mua-thu", "Mùa thu", 0, ["p-bido", "p-hatde"], 4));
           newer = true;
           return problem(412, "VERSION_CONFLICT");
         },
@@ -132,8 +133,45 @@ describe("Collections & tags (D3d screen 28)", () => {
     expect(await editor.findByText("Bộ sưu tập vừa được người khác cập nhật. Tải lại rồi lưu lại.")).toBeInTheDocument();
     await user.click(editor.getByRole("button", { name: "Tải lại" }));
     const reloaded = within(await screen.findByRole("region", { name: "Thu 2026" }));
-    expect(reloaded.getByLabelText("Tên (khách thấy)")).toHaveValue("Thu 2026");
+    expect(reloaded.getByLabelText("Tên (khách thấy)")).toHaveValue("Mùa thu");
+    expect(await reloaded.findByText("Hojicha Hạt Dẻ")).toBeInTheDocument();
     expect(reloaded.queryByText(/người khác cập nhật/)).not.toBeInTheDocument();
+    await user.click(reloaded.getByRole("button", { name: "Lưu bộ sưu tập" }));
+    await waitFor(() => expect(ifMatchOf(api, "PATCH /collections/mua-thu")).toEqual(['"v2"', '"v3"']));
+    expect(api.calls.filter((c) => c.route === "PUT /collections/mua-thu/products")).toHaveLength(0);
+  });
+
+  it("after the fields saved but the product list failed, the next save starts from the saved version", async () => {
+    const fake = server();
+    let failPut = true;
+    const { api, user } = renderAdmin(
+      "/admin/collections",
+      {
+        ...fake.handlers,
+        // Once the PUT has failed, Hojicha Hạt Dẻ is archived: the list no longer has it.
+        "GET /products": () => json(aPage(failPut ? products : products.filter((p) => p.productId !== "p-hatde"))),
+        "PUT /collections/mua-thu/products": (body: unknown) => {
+          if (failPut) {
+            failPut = false;
+            return problem(409, "CATALOG_PRODUCT_ARCHIVED");
+          }
+          return fake.handlers["PUT /collections/mua-thu/products"](body);
+        },
+      },
+      catalogOwner,
+    );
+    const editor = within(await screen.findByRole("region", { name: "Mùa thu 2026" }));
+    await editor.findByText("Hojicha Hạt Dẻ");
+    await user.clear(editor.getByLabelText("Tên (khách thấy)"));
+    await user.type(editor.getByLabelText("Tên (khách thấy)"), "Mùa thu");
+    await user.click(editor.getByRole("button", { name: "Bỏ Matcha Bí Đỏ khỏi bộ sưu tập" }));
+    await user.click(editor.getByRole("button", { name: "Lưu bộ sưu tập" }));
+    expect(await editor.findByText("Hojicha Hạt Dẻ vừa được lưu trữ hoặc xoá. Bỏ món đó khỏi danh sách rồi lưu lại.")).toBeInTheDocument();
+
+    await user.click(editor.getByRole("button", { name: "Lưu bộ sưu tập" }));
+    expect(await screen.findByText(/^Đã lưu bộ sưu tập/)).toBeInTheDocument();
+    expect(ifMatchOf(api, "PATCH /collections/mua-thu")).toEqual(['"v2"']);
+    expect(ifMatchOf(api, "PUT /collections/mua-thu/products")).toEqual(['"v3"', '"v3"']);
   });
 
   it("moves a collection down by swapping the two sortOrders", async () => {

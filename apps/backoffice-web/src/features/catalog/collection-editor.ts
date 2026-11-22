@@ -60,18 +60,35 @@ export function collectionChanges(collection: Collection, draft: CollectionDraft
 }
 
 /**
- * Moving a collection one place in the list (agreed 2026-11-21: the API has only `sortOrder` per collection):
- * the two collections that swap places, each with the `sortOrder` to send. Positions stand in for `sortOrder`
- * so equal or sparse values still give a strict order.
+ * "Tải lại" after a conflict (the #35 pattern): what was typed since `base` stays, the rest comes from `latest`.
  */
-export function swapCollections(collections: readonly Collection[], collectionId: string, by: -1 | 1): { collection: Collection; sortOrder: number }[] | null {
+export function rebaseDraft(base: Collection, draft: CollectionDraft, latest: Collection): CollectionDraft {
+  const from = draftOfCollection(base);
+  const next = draftOfCollection(latest);
+  return {
+    name: draft.name !== from.name ? draft.name : next.name,
+    slug: draft.slug !== from.slug ? draft.slug : next.slug,
+    productIds: JSON.stringify(draft.productIds) !== JSON.stringify(from.productIds) ? draft.productIds : next.productIds,
+  };
+}
+
+/**
+ * Moving a collection one place in the list (agreed 2026-11-21: the API has only `sortOrder` per collection).
+ * The new order is renumbered 0…n-1 and every collection whose `sortOrder` differs from its new position is
+ * sent, so gaps (archived collections) and ties never leave two collections on one value.
+ */
+export function reorderCollections(collections: readonly Collection[], collectionId: string, by: -1 | 1): { collection: Collection; sortOrder: number }[] | null {
   const from = collections.findIndex((c) => c.collectionId === collectionId);
   const to = from + by;
   if (from < 0 || to < 0 || to >= collections.length) return null;
-  return [
-    { collection: collections[from]!, sortOrder: to },
-    { collection: collections[to]!, sortOrder: from },
-  ];
+  const order = [...collections];
+  [order[from], order[to]] = [order[to]!, order[from]!];
+  return order.flatMap((collection, sortOrder) => (collection.sortOrder === sortOrder ? [] : [{ collection, sortOrder }]));
+}
+
+/** A product in the list was archived or removed meanwhile (API 08 §1: `PUT /collections/{id}/products`). */
+export function productGone(error: unknown): boolean {
+  return error instanceof ApiError && (error.code === "CATALOG_PRODUCT_ARCHIVED" || error.code === "CATALOG_PRODUCT_NOT_FOUND");
 }
 
 /** Problem codes of the collection / tag writes, in words (API 08 §4). */
