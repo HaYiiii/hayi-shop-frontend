@@ -149,6 +149,12 @@ export function LoginScreen({ next, defaultPhone, created }: LoginScreenProps) {
             <Field.Input name="password" type="password" autoComplete="current-password" density="touch" required aria-invalid={wrong || undefined} />
             {missing.password ? <Field.Error>{missing.password}</Field.Error> : null}
           </Field.Root>
+          <Link
+            href="/forgot-password"
+            className={cn("-mt-1 inline-flex min-h-11 items-center self-end justify-self-end text-body font-medium text-matcha-700 underline-offset-4 hover:underline", focusRing)}
+          >
+            Quên mật khẩu?
+          </Link>
           <Button type="submit" block density="touch" busy={login.isPending} disabled={isLocked(login.error)}>
             Đăng nhập
           </Button>

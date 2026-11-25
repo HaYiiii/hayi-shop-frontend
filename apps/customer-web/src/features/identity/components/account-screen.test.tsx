@@ -63,7 +63,7 @@ describe("Account (D3f screen 11, FE #72)", () => {
     expect(await card.findByText("Ngọc Hà")).toBeInTheDocument();
     expect(card.getByText("+8490*****567")).toBeInTheDocument();
     expect(card.getByText("Số điện thoại này dùng để đăng nhập.")).toBeInTheDocument();
-    expect(screen.queryByText("Đổi mật khẩu")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Đổi mật khẩu" })).toHaveAttribute("href", "/account/password");
     expect(screen.queryByText("Thiết bị đang đăng nhập")).not.toBeInTheDocument();
   });
 
@@ -202,5 +202,17 @@ describe("Account — load and save failures (FE #72 review)", () => {
     renderAccount();
     const card = within(await screen.findByRole("region", { name: "Hồ sơ" }));
     expect(await card.findByText("🍵")).toBeInTheDocument();
+  });
+});
+
+describe("Account — after changing the password (FE #73)", () => {
+  it("says the other devices were signed out", async () => {
+    serve({ "GET /auth/me": me, "GET /me/profile": profile("Ngọc Hà", 3) });
+    render(
+      <CustomerProviders>
+        <AccountScreen passwordChanged />
+      </CustomerProviders>,
+    );
+    expect(await screen.findByText("Đã đổi mật khẩu. Các thiết bị khác đã được đăng xuất.")).toBeInTheDocument();
   });
 });
