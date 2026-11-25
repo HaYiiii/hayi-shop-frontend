@@ -183,6 +183,7 @@ describe("Customer sign-up with OTP (D3a screen 8, D3f 8b/8c, FE #71)", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Số này đã có tài khoản" })).toBeInTheDocument();
     expect(screen.getByLabelText("Tên hiển thị")).toHaveValue("Minh");
+    expect(screen.getByRole("link", { name: "Quên mật khẩu?" })).toHaveAttribute("href", "/forgot-password");
     await user.type(screen.getByLabelText("Mật khẩu hiện có"), "sai");
     await user.click(screen.getByRole("button", { name: "Xác nhận" }));
 

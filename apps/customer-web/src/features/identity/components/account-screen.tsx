@@ -1,8 +1,9 @@
 "use client";
 
 import { ApiError } from "@hayi/api-client";
-import { Button, Card, Field, Skeleton } from "@hayi/ui";
+import { Button, Card, Field, Skeleton, cn, focusRing } from "@hayi/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { errorCode, meKey, useCustomerApi } from "../../../lib/customer-api";
@@ -13,9 +14,9 @@ const SIGN_IN = `/login?next=${encodeURIComponent("/account")}`;
 
 /**
  * D3f screen 11, Tài khoản (FE #72): profile with an inline rename, and sign-out. Signed out → sign-in.
- * "Đổi mật khẩu" (#73) and the devices list (#74) come with their tickets (agreed 2026-11-22 on #72).
+ * "Đổi mật khẩu" links to screen 12 (FE #73); the devices list comes with #74 (agreed 2026-11-22 on #72).
  */
-export function AccountScreen() {
+export function AccountScreen({ passwordChanged = false }: { passwordChanged?: boolean }) {
   const api = useCustomerApi();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -64,7 +65,23 @@ export function AccountScreen() {
   return (
     <div className="grid gap-4">
       <h1 className="font-display text-display-lg text-balance">Tài khoản</h1>
+      {passwordChanged ? (
+        <p role="status" className="rounded-md bg-success-soft px-3 py-2.5 text-body text-success">
+          Đã đổi mật khẩu. Các thiết bị khác đã được đăng xuất.
+        </p>
+      ) : null}
       <ProfileCard />
+      <Card role="region" aria-label="Bảo mật" className="p-0">
+        <Link
+          href="/account/password"
+          className={cn("flex min-h-14 items-center gap-3 rounded-lg px-4 text-body-lg font-medium text-ink no-underline hover:bg-sunken", focusRing)}
+        >
+          Đổi mật khẩu
+          <svg aria-hidden="true" viewBox="0 0 16 16" className="ml-auto size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 3.5 4.5 4.5L6 12.5" />
+          </svg>
+        </Link>
+      </Card>
       {logout.isError ? (
         <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">
           Chưa đăng xuất được. Bạn kiểm tra mạng rồi thử lại nhé.
