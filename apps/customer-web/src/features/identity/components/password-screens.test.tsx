@@ -104,6 +104,17 @@ describe("Forgot password (D3f 8d, FE #73)", () => {
   });
 });
 
+describe("Forgot password — network (FE #73 review)", () => {
+  it("says the server could not be reached when the reset request fails to send", async () => {
+    serve({ "POST /auth/otp": sent, "POST /auth/otp/verify": verified, "POST /auth/password/reset": () => { throw new TypeError("Failed to fetch"); } });
+    const user = renderIn(<ForgotPasswordScreen />);
+    await toNewPassword(user);
+    await user.type(screen.getByLabelText("Mật khẩu mới"), "tra sua matcha 2");
+    await user.click(screen.getByRole("button", { name: "Lưu mật khẩu" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.");
+  });
+});
+
 describe("Change password (D3f screen 12, FE #73)", () => {
   async function fill(user: ReturnType<typeof userEvent.setup>, current: string, next: string) {
     await user.type(await screen.findByLabelText("Mật khẩu hiện tại"), current);
