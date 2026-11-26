@@ -64,7 +64,7 @@ describe("Account (D3f screen 11, FE #72)", () => {
     expect(card.getByText("+8490*****567")).toBeInTheDocument();
     expect(card.getByText("Số điện thoại này dùng để đăng nhập.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Đổi mật khẩu" })).toHaveAttribute("href", "/account/password");
-    expect(screen.queryByText("Thiết bị đang đăng nhập")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Thiết bị đang đăng nhập" })).toBeInTheDocument();
   });
 
   it("renames with If-Match from the ETag and shows the new name", async () => {
@@ -214,5 +214,7 @@ describe("Account — after changing the password (FE #73)", () => {
       </CustomerProviders>,
     );
     expect(await screen.findByText("Đã đổi mật khẩu. Các thiết bị khác đã được đăng xuất.")).toBeInTheDocument();
+    // Shown once: the URL drops ?password=changed so a reload does not show it again (#88 review).
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/account"));
   });
 });

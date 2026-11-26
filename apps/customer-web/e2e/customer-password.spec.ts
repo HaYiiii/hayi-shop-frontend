@@ -76,6 +76,7 @@ test("Customer: changes the password from the account screen", async ({ page }) 
   await snap(page, "12-change-wrong");
   await page.getByLabel("Mật khẩu hiện tại").fill("mat khau cu 1");
   await page.getByRole("button", { name: "Lưu mật khẩu" }).click();
-  await expect(page).toHaveURL(/\/account\?password=changed$/);
   await expect(page.getByText("Đã đổi mật khẩu. Các thiết bị khác đã được đăng xuất.")).toBeVisible();
+  // Shown once: the URL drops ?password=changed (#88 review).
+  await expect(page).toHaveURL(/\/account$/);
 });

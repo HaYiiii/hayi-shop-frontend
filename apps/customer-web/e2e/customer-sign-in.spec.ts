@@ -14,6 +14,7 @@ async function mockCustomerApi(page: Page) {
   let signedIn = false;
   let profile = { customerId: "c", displayName: "Lan", phoneMasked: "+8490*****567", loyalty: null };
   let version = 1;
+  let macSignedIn = true;
   const seen: { route: string; csrf: string | null }[] = [];
   await page.route("**/api/customer/v1/**", async (route) => {
     const request = route.request();
@@ -29,6 +30,20 @@ async function mockCustomerApi(page: Page) {
     }
     if (key === "POST /auth/refresh") return problem(401, "AUTH_REQUIRED");
     // FE #72: profile with an ETag; the rename needs If-Match.
+    // FE #74: devices; the Mac can be signed out.
+    if (key === "GET /auth/sessions") {
+      const items = [
+        { sessionId: "s-this", userAgent: await request.headerValue("User-Agent"), ipAddress: null, createdAt: "2026-11-20T03:00:00Z", lastActiveAt: new Date().toISOString(), current: true },
+        ...(macSignedIn
+          ? [{ sessionId: "s-mac", userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", ipAddress: null, createdAt: "2026-11-01T03:00:00Z", lastActiveAt: "2026-11-18T14:04:00Z", current: false }]
+          : []),
+      ];
+      return route.fulfill({ json: { items } });
+    }
+    if (key === "DELETE /auth/sessions/s-mac") {
+      macSignedIn = false;
+      return route.fulfill({ status: 204 });
+    }
     if (key === "GET /me/profile") return route.fulfill({ json: profile, headers: { ETag: `"${version}"` } });
     if (key === "PATCH /me/profile") {
       if ((await request.headerValue("If-Match")) !== `"${version}"`) return problem(412, "VERSION_CONFLICT");
@@ -85,7 +100,19 @@ test("Customer: the Tài khoản tab asks to sign in, then renames and signs out
   await expect(card.getByText("Lan Anh", { exact: true })).toBeVisible();
   expect(seen.find((s) => s.route === "PATCH /me/profile")?.csrf).toBe("e2e-token");
 
-  await page.getByRole("button", { name: "Đăng xuất" }).click();
+  // FE #74: sign the Mac out after confirming.
+  const devices = page.getByRole("region", { name: "Thiết bị đang đăng nhập" });
+  await expect(devices.getByText("Dùng lần cuối 18/11, 21:04")).toBeVisible();
+  await snap(page, "11-devices");
+  await devices.getByRole("button", { name: "Đăng xuất Mac · Chrome" }).click();
+  const confirm = page.getByRole("dialog", { name: "Đăng xuất Mac · Chrome?" });
+  await snap(page, "11-devices-confirm");
+  await confirm.getByRole("button", { name: "Đăng xuất" }).click();
+  await expect(devices.getByRole("status")).toHaveText("Đã đăng xuất Mac · Chrome.");
+  await expect(devices.getByText("Mac · Chrome", { exact: true })).toHaveCount(0);
+  expect(seen.find((s) => s.route === "DELETE /auth/sessions/s-mac")?.csrf).toBe("e2e-token");
+
+  await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   expect(seen.find((s) => s.route === "POST /auth/logout")?.csrf).toBe("e2e-token");
 });

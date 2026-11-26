@@ -9,17 +9,23 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { errorCode, meKey, useCustomerApi } from "../../../lib/customer-api";
 import { DISPLAY_NAME_MAX, type VersionedProfile, profileKey, profileQuery, renameProfile } from "../api/profile";
 import { type CustomerMe, logOut, meQuery } from "../api/session";
+import { DevicesCard } from "./devices-card";
 
 const SIGN_IN = `/login?next=${encodeURIComponent("/account")}`;
 
 /**
  * D3f screen 11, Tài khoản (FE #72): profile with an inline rename, and sign-out. Signed out → sign-in.
- * "Đổi mật khẩu" links to screen 12 (FE #73); the devices list comes with #74 (agreed 2026-11-22 on #72).
+ * "Đổi mật khẩu" links to screen 12 (FE #73); the devices signed in are listed below (FE #74).
  */
 export function AccountScreen({ passwordChanged = false }: { passwordChanged?: boolean }) {
   const api = useCustomerApi();
   const queryClient = useQueryClient();
   const router = useRouter();
+  // The notice of screen 12 is shown once: drop `?password=changed` so a reload or Back does not show it again (#88 review).
+  const [changedNotice] = useState(passwordChanged);
+  useEffect(() => {
+    if (passwordChanged) router.replace("/account");
+  }, [passwordChanged, router]);
   const me = useQuery(meQuery(api));
   // Only a settled answer: a cached "signed out" may be refetching after a sign-in.
   const signedOut = me.isSuccess && me.data === null && !me.isFetching;
@@ -65,7 +71,7 @@ export function AccountScreen({ passwordChanged = false }: { passwordChanged?: b
   return (
     <div className="grid gap-4">
       <h1 className="font-display text-display-lg text-balance">Tài khoản</h1>
-      {passwordChanged ? (
+      {changedNotice ? (
         <p role="status" className="rounded-md bg-success-soft px-3 py-2.5 text-body text-success">
           Đã đổi mật khẩu. Các thiết bị khác đã được đăng xuất.
         </p>
@@ -82,6 +88,7 @@ export function AccountScreen({ passwordChanged = false }: { passwordChanged?: b
           </svg>
         </Link>
       </Card>
+      <DevicesCard />
       {logout.isError ? (
         <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">
           Chưa đăng xuất được. Bạn kiểm tra mạng rồi thử lại nhé.

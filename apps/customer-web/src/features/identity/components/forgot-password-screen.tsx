@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiError } from "@hayi/api-client";
 import { Button, Field, cn, focusRing } from "@hayi/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -91,7 +92,7 @@ function NewPasswordStep({ phone, verificationToken, sending, onDone }: { phone:
       <form className="grid gap-3.5" onSubmit={submit} aria-label="Đặt mật khẩu" noValidate>
         {reset.isError && code !== "AUTH_PASSWORD_POLICY_VIOLATION" ? (
           <p role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-body text-danger">
-            Chưa đổi được mật khẩu. Bạn thử lại sau ít phút nhé.
+            {reset.error instanceof ApiError ? "Chưa đổi được mật khẩu. Bạn thử lại sau ít phút nhé." : "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại."}
           </p>
         ) : null}
         <Field.Root>
